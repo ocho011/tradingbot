@@ -75,6 +75,16 @@ class BinanceManager:
         self._heartbeat_timeout = 60  # seconds
         self._ws_connection_healthy = False
 
+        # Reconnection configuration with exponential backoff
+        self._reconnect_enabled = True
+        self._reconnect_base_delay = 1.0  # seconds - initial delay
+        self._reconnect_max_delay = 60.0  # seconds - maximum delay
+        self._reconnect_max_retries = 10  # maximum reconnection attempts
+        self._reconnect_attempts = 0
+        self._reconnect_current_delay = self._reconnect_base_delay
+        self._reconnect_task: Optional[asyncio.Task] = None
+        self._is_reconnecting = False
+
         logger.info(
             f"Initializing BinanceManager (testnet={'enabled' if self.config.testnet else 'disabled'})"
         )
@@ -429,6 +439,11 @@ class BinanceManager:
                                         source='BinanceManager.Heartbeat'
                                     ))
 
+                                # Trigger reconnection
+                                if self._reconnect_enabled and not self._is_reconnecting:
+                                    logger.info("Triggering automatic reconnection...")
+                                    asyncio.create_task(self._reconnect())
+
                 except asyncio.CancelledError:
                     logger.info("Heartbeat monitor cancelled")
                     raise
@@ -453,6 +468,11 @@ class BinanceManager:
                                 },
                                 source='BinanceManager.Heartbeat'
                             ))
+
+                        # Trigger reconnection on heartbeat errors
+                        if self._reconnect_enabled and not self._is_reconnecting:
+                            logger.info("Triggering reconnection after heartbeat error...")
+                            asyncio.create_task(self._reconnect())
 
                 # Wait for next heartbeat interval
                 await asyncio.sleep(self._heartbeat_interval)
@@ -515,6 +535,134 @@ class BinanceManager:
     def is_websocket_healthy(self) -> bool:
         """Check if WebSocket connection is healthy based on heartbeat monitoring."""
         return self._ws_connection_healthy and self._heartbeat_running
+
+    async def _reconnect(self) -> None:
+        """
+        Implement exponential backoff reconnection logic.
+
+        Automatically attempts to reconnect when WebSocket connection drops.
+        Uses exponential backoff: 1s, 2s, 4s, 8s, ... up to max 60s.
+        Resets delay on successful reconnection.
+        """
+        if self._is_reconnecting:
+            logger.debug("Reconnection already in progress")
+            return
+
+        self._is_reconnecting = True
+        logger.info(f"Starting reconnection process (attempt 1/{self._reconnect_max_retries})")
+
+        try:
+            while self._reconnect_attempts < self._reconnect_max_retries:
+                self._reconnect_attempts += 1
+
+                # Log reconnection attempt
+                logger.info(
+                    f"Reconnection attempt {self._reconnect_attempts}/{self._reconnect_max_retries} "
+                    f"(delay: {self._reconnect_current_delay:.1f}s)"
+                )
+
+                # Publish reconnection attempt event
+                if self.event_bus:
+                    await self.event_bus.publish(Event(
+                        event_type=EventType.EXCHANGE_ERROR,
+                        priority=7,
+                        data={
+                            'exchange': 'binance',
+                            'event': 'reconnection_attempt',
+                            'attempt': self._reconnect_attempts,
+                            'max_attempts': self._reconnect_max_retries,
+                            'delay': self._reconnect_current_delay
+                        },
+                        source='BinanceManager.Reconnect'
+                    ))
+
+                # Wait with exponential backoff delay
+                await asyncio.sleep(self._reconnect_current_delay)
+
+                try:
+                    # Attempt to reconnect by testing connection
+                    logger.info("Testing connection...")
+                    await self.exchange.fetch_time()
+
+                    # Connection successful - reset state
+                    logger.info("✓ Reconnection successful!")
+                    self._reconnect_attempts = 0
+                    self._reconnect_current_delay = self._reconnect_base_delay
+                    self._ws_connection_healthy = True
+                    self._last_heartbeat_time = time.time()
+
+                    # Publish successful reconnection event
+                    if self.event_bus:
+                        await self.event_bus.publish(Event(
+                            event_type=EventType.EXCHANGE_CONNECTED,
+                            priority=7,
+                            data={
+                                'exchange': 'binance',
+                                'event': 'reconnection_successful',
+                                'attempts_taken': self._reconnect_attempts
+                            },
+                            source='BinanceManager.Reconnect'
+                        ))
+
+                    # Resubscribe to all previous streams
+                    if self._ws_subscriptions:
+                        logger.info("Resubscribing to WebSocket streams...")
+                        for symbol, timeframes in list(self._ws_subscriptions.items()):
+                            for timeframe in timeframes:
+                                subscription_key = f"{symbol}:{timeframe.value}"
+                                # Check if task still exists and is running
+                                if subscription_key not in self._ws_tasks or self._ws_tasks[subscription_key].done():
+                                    # Recreate the task
+                                    task = asyncio.create_task(
+                                        self._watch_candles(symbol, timeframe),
+                                        name=subscription_key
+                                    )
+                                    self._ws_tasks[subscription_key] = task
+                                    logger.info(f"✓ Resubscribed to {subscription_key}")
+
+                    return  # Exit reconnection loop on success
+
+                except Exception as e:
+                    logger.warning(f"Reconnection attempt {self._reconnect_attempts} failed: {e}")
+
+                    # Calculate next delay with exponential backoff
+                    self._reconnect_current_delay = min(
+                        self._reconnect_current_delay * 2,
+                        self._reconnect_max_delay
+                    )
+
+                    # Check if max retries reached
+                    if self._reconnect_attempts >= self._reconnect_max_retries:
+                        logger.error(
+                            f"✗ Maximum reconnection attempts ({self._reconnect_max_retries}) reached. "
+                            "Reconnection failed."
+                        )
+
+                        # Publish max retries exceeded event
+                        if self.event_bus:
+                            await self.event_bus.publish(Event(
+                                event_type=EventType.EXCHANGE_ERROR,
+                                priority=9,
+                                data={
+                                    'exchange': 'binance',
+                                    'event': 'reconnection_failed',
+                                    'reason': 'max_retries_exceeded',
+                                    'attempts': self._reconnect_attempts,
+                                    'last_error': str(e)
+                                },
+                                source='BinanceManager.Reconnect'
+                            ))
+
+                        break
+
+        except asyncio.CancelledError:
+            logger.info("Reconnection process cancelled")
+            raise
+        except Exception as e:
+            logger.error(f"Fatal error in reconnection process: {e}", exc_info=True)
+        finally:
+            self._is_reconnecting = False
+            logger.info("Reconnection process ended")
 
     def _validate_candle(self, candle_data: Dict[str, Any]) -> bool:
         """

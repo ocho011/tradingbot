@@ -207,9 +207,10 @@
               3
             ],
             "details": "재연결 시도 간격을 지수적으로 증가 (1초, 2초, 4초, 8초, 최대 60초), 최대 재시도 횟수 설정, 재연결 성공 시 간격 초기화, ws_error 이벤트 발행, 재연결 상태 로깅",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "연결 끊김 시뮬레이션 및 재연결 동작 확인, 지수 백오프 간격 검증, 최대 재시도 제한 테스트",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-18T21:25:12.889Z"
           },
           {
             "id": 5,
@@ -239,7 +240,7 @@
         "complexity": 7,
         "recommendedSubtasks": 6,
         "expansionPrompt": "API 연동을 단계별로 구현하여 ccxt.pro 초기화, WebSocket 연결 관리, 하트비트 모니터링, 재연결 로직, REST API 래퍼, 권한 검증으로 세분화",
-        "updatedAt": "2025-10-18T21:02:22.861Z"
+        "updatedAt": "2025-10-18T21:25:12.889Z"
       },
       {
         "id": "4",
@@ -819,7 +820,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-18T21:02:22.862Z",
+      "lastModified": "2025-10-18T21:25:12.890Z",
       "taskCount": 10,
       "completedCount": 2,
       "tags": [

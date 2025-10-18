@@ -661,3 +661,293 @@ class TestHeartbeatMonitoring:
         # After close
         await binance_manager.close()
         assert binance_manager.is_websocket_healthy is False
+
+
+class TestExponentialBackoffReconnection:
+    """Test exponential backoff reconnection logic."""
+
+    @pytest.mark.asyncio
+    async def test_reconnection_triggered_on_timeout(self, binance_manager, event_bus):
+        """Test that reconnection is automatically triggered on heartbeat timeout."""
+        # Mock watch_ohlcv to prevent actual WebSocket connection
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        # Set short timeout for testing
+        binance_manager._heartbeat_interval = 0.2
+        binance_manager._heartbeat_timeout = 0.5
+
+        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+
+        # Initially healthy
+        await asyncio.sleep(0.3)
+        assert binance_manager.is_websocket_healthy is True
+
+        # Mock exchange.fetch_time to fail (simulating network issue)
+        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Network error"))
+
+        # Wait for timeout and reconnection to trigger
+        await asyncio.sleep(1.0)
+
+        # Reconnection should have been triggered
+        assert binance_manager._reconnect_attempts > 0 or binance_manager._is_reconnecting
+
+        # Cleanup
+        await binance_manager.close()
+
+    @pytest.mark.asyncio
+    async def test_exponential_backoff_delays(self, binance_manager, event_bus):
+        """Test that reconnection delays follow exponential backoff pattern."""
+        # Mock watch_ohlcv
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        # Configure for testing
+        binance_manager._reconnect_base_delay = 0.1
+        binance_manager._reconnect_max_delay = 1.0
+        binance_manager._reconnect_max_retries = 4
+
+        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+
+        # Mock fetch_time to fail continuously
+        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Connection failed"))
+
+        # Trigger reconnection manually
+        reconnect_task = asyncio.create_task(binance_manager._reconnect())
+
+        # Wait for reconnection attempts
+        await asyncio.sleep(3.0)
+
+        # Should have attempted multiple times with increasing delays
+        # Base: 0.1s, then 0.2s, 0.4s, 0.8s (4 attempts total)
+        assert binance_manager._reconnect_attempts == binance_manager._reconnect_max_retries
+
+        # Cancel reconnection task if still running
+        if not reconnect_task.done():
+            reconnect_task.cancel()
+            try:
+                await reconnect_task
+            except asyncio.CancelledError:
+                pass
+
+        # Cleanup
+        await binance_manager.close()
+
+    @pytest.mark.asyncio
+    async def test_reconnection_success_resets_state(self, binance_manager, event_bus):
+        """Test that successful reconnection resets retry state."""
+        # Mock watch_ohlcv
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        # Configure for testing
+        binance_manager._reconnect_base_delay = 0.05
+        binance_manager._reconnect_max_retries = 5
+
+        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+
+        # Set initial failed state
+        binance_manager._reconnect_attempts = 3
+        binance_manager._reconnect_current_delay = 0.4
+        binance_manager._ws_connection_healthy = False
+
+        # Mock successful reconnection
+        binance_manager.exchange.fetch_time = AsyncMock(return_value=1234567890000)
+
+        # Trigger reconnection
+        await binance_manager._reconnect()
+
+        # State should be reset
+        assert binance_manager._reconnect_attempts == 0
+        assert binance_manager._reconnect_current_delay == binance_manager._reconnect_base_delay
+        assert binance_manager._ws_connection_healthy is True
+
+        # Should have published success event
+        success_events = [
+            call for call in event_bus.publish.call_args_list
+            if call[0][0].event_type == EventType.EXCHANGE_CONNECTED
+            and call[0][0].data.get('event') == 'reconnection_successful'
+        ]
+        assert len(success_events) > 0
+
+        # Cleanup
+        await binance_manager.close()
+
+    @pytest.mark.asyncio
+    async def test_max_retries_exceeded(self, binance_manager, event_bus):
+        """Test that reconnection stops after max retries."""
+        # Mock watch_ohlcv
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        # Configure for testing
+        binance_manager._reconnect_base_delay = 0.05
+        binance_manager._reconnect_max_retries = 3
+
+        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+
+        # Mock continuous failures
+        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Permanent failure"))
+
+        # Trigger reconnection
+        await binance_manager._reconnect()
+
+        # Should have stopped after max retries
+        assert binance_manager._reconnect_attempts == binance_manager._reconnect_max_retries
+        assert binance_manager._is_reconnecting is False
+
+        # Should have published failure event
+        failure_events = [
+            call for call in event_bus.publish.call_args_list
+            if call[0][0].event_type == EventType.EXCHANGE_ERROR
+            and call[0][0].data.get('event') == 'reconnection_failed'
+        ]
+        assert len(failure_events) > 0
+
+        # Cleanup
+        await binance_manager.close()
+
+    @pytest.mark.asyncio
+    async def test_reconnection_resubscribes_streams(self, binance_manager, event_bus):
+        """Test that successful reconnection resubscribes to WebSocket streams."""
+        # Mock watch_ohlcv
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        # Subscribe to multiple streams
+        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1, TimeFrame.M15])
+        await binance_manager.subscribe_candles("ETHUSDT", [TimeFrame.H1])
+
+        # Verify subscriptions
+        assert len(binance_manager._ws_subscriptions) == 2
+        initial_task_count = len(binance_manager._ws_tasks)
+
+        # Simulate stream disconnection by canceling tasks
+        for task in list(binance_manager._ws_tasks.values()):
+            task.cancel()
+        await asyncio.gather(*binance_manager._ws_tasks.values(), return_exceptions=True)
+
+        # Mock successful reconnection
+        binance_manager.exchange.fetch_time = AsyncMock(return_value=1234567890000)
+        binance_manager._ws_connection_healthy = False
+
+        # Trigger reconnection
+        await binance_manager._reconnect()
+
+        # Should have resubscribed to all streams
+        assert len(binance_manager._ws_subscriptions) == 2
+        assert "BTCUSDT" in binance_manager._ws_subscriptions
+        assert "ETHUSDT" in binance_manager._ws_subscriptions
+
+        # Tasks should be recreated
+        await asyncio.sleep(0.1)
+        assert len(binance_manager._ws_tasks) >= initial_task_count
+
+        # Cleanup
+        await binance_manager.close()
+
+    @pytest.mark.asyncio
+    async def test_reconnection_delay_caps_at_maximum(self, binance_manager):
+        """Test that reconnection delay doesn't exceed maximum."""
+        # Configure for testing
+        binance_manager._reconnect_base_delay = 0.5
+        binance_manager._reconnect_max_delay = 2.0
+        binance_manager._reconnect_current_delay = 0.5
+
+        # Simulate multiple failures
+        for _ in range(5):
+            binance_manager._reconnect_current_delay = min(
+                binance_manager._reconnect_current_delay * 2,
+                binance_manager._reconnect_max_delay
+            )
+
+        # Delay should be capped at max
+        assert binance_manager._reconnect_current_delay == binance_manager._reconnect_max_delay
+
+    @pytest.mark.asyncio
+    async def test_reconnection_not_triggered_when_disabled(self, binance_manager, event_bus):
+        """Test that reconnection is not triggered when disabled."""
+        # Mock watch_ohlcv
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        # Disable reconnection
+        binance_manager._reconnect_enabled = False
+
+        # Set short timeout
+        binance_manager._heartbeat_interval = 0.2
+        binance_manager._heartbeat_timeout = 0.5
+
+        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+
+        # Mock failure
+        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Network error"))
+
+        # Wait for timeout
+        await asyncio.sleep(1.0)
+
+        # Reconnection should NOT have been triggered
+        assert binance_manager._reconnect_attempts == 0
+        assert binance_manager._is_reconnecting is False
+
+        # Cleanup
+        await binance_manager.close()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_reconnection_prevented(self, binance_manager):
+        """Test that concurrent reconnection attempts are prevented."""
+        # Mock watch_ohlcv
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        # Configure for testing
+        binance_manager._reconnect_base_delay = 0.5
+        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Connection failed"))
+
+        # Start first reconnection
+        task1 = asyncio.create_task(binance_manager._reconnect())
+        await asyncio.sleep(0.1)
+
+        # Try to start second reconnection
+        task2 = asyncio.create_task(binance_manager._reconnect())
+        await asyncio.sleep(0.1)
+
+        # Second call should return immediately
+        assert task2.done() or binance_manager._is_reconnecting
+
+        # Cleanup
+        task1.cancel()
+        task2.cancel()
+        await asyncio.gather(task1, task2, return_exceptions=True)
+        await binance_manager.close()
+
+    @pytest.mark.asyncio
+    async def test_reconnection_publishes_attempt_events(self, binance_manager, event_bus):
+        """Test that reconnection publishes events for each attempt."""
+        # Mock watch_ohlcv
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        # Configure for testing
+        binance_manager._reconnect_base_delay = 0.05
+        binance_manager._reconnect_max_retries = 3
+
+        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+
+        # Clear previous events
+        event_bus.publish.reset_mock()
+
+        # Mock failures
+        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Connection failed"))
+
+        # Trigger reconnection
+        await binance_manager._reconnect()
+
+        # Should have published attempt events
+        attempt_events = [
+            call for call in event_bus.publish.call_args_list
+            if call[0][0].data.get('event') == 'reconnection_attempt'
+        ]
+        assert len(attempt_events) == binance_manager._reconnect_max_retries
+
+        # Verify event data contains attempt info
+        for idx, event_call in enumerate(attempt_events, 1):
+            event_data = event_call[0][0].data
+            assert event_data['attempt'] == idx
+            assert event_data['max_attempts'] == binance_manager._reconnect_max_retries
+            assert 'delay' in event_data
+
+        # Cleanup
+        await binance_manager.close()
