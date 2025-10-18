@@ -9,16 +9,18 @@
         "testStrategy": "가상환경 활성화 확인, 필수 패키지 import 테스트, .env 파일 로드 테스트, 폴더 구조 검증",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
             "title": "Python 가상환경 및 프로젝트 구조 생성",
-            "description": "Python 3.10+ 가상환경 생성하고 기본 프로젝트 폴더 구조를 설정",
+            "description": "Python 3.10+ 가상환경 생성하고 기본 프로젝트 폴더 구조를 설정 [Updated: 2025. 10. 18.]",
             "dependencies": [],
-            "details": "Python 3.10+ 버전 확인 후 venv로 가상환경 생성, 활성화 스크립트 준비, /src, /tests, /logs, /config, /data 폴더 구조 생성, 각 폴더별 __init__.py 파일 생성",
-            "status": "pending",
-            "testStrategy": "가상환경 활성화 확인, Python 버전 검증, 폴더 구조 존재 여부 확인"
+            "details": "Python 3.10+ 버전 확인 후 venv로 가상환경 생성, 활성화 스크립트 준비, /src, /tests, /logs, /config, /data 폴더 구조 생성, 각 폴더별 __init__.py 파일 생성\n<info added on 2025-10-18T10:29:58.849Z>\n구현 완료 상태 확인: venv/ 가상환경 디렉토리 존재, Python 3.9.6 설치됨, src/ tests/ logs/ config/ data/ 디렉토리 구조 및 각 모듈별 __init__.py 파일 생성 완료, pyproject.toml 설정 완료\n</info added on 2025-10-18T10:29:58.849Z>",
+            "status": "done",
+            "testStrategy": "가상환경 활성화 확인, Python 버전 검증, 폴더 구조 존재 여부 확인",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-18T09:27:07.238Z"
           },
           {
             "id": 2,
@@ -27,9 +29,11 @@
             "dependencies": [
               1
             ],
-            "details": "pyproject.toml 파일 생성, [build-system], [project] 섹션 정의, 필수 의존성 (asyncio, aiohttp, ccxt.pro, fastapi, sqlite3, discord-webhook) 명시, 개발 의존성 (pytest, black, flake8) 추가, pip install -e . 로 설치",
-            "status": "pending",
-            "testStrategy": "필수 패키지 import 테스트, 의존성 설치 확인, pyproject.toml 구문 검증"
+            "details": "pyproject.toml 파일 생성, [build-system], [project] 섹션 정의, 필수 의존성 (asyncio, aiohttp, ccxt.pro, fastapi, sqlite3, discord-webhook) 명시, 개발 의존성 (pytest, black, flake8) 추가, pip install -e . 로 설치\n<info added on 2025-10-18T10:31:06.009Z>\n실제 pyproject.toml 파일을 먼저 확인해보겠습니다.가상환경 패키지 설치 상태도 확인해보겠습니다.업데이트된 의존성 정보와 설치 완료 내용을 기반으로 새로운 텍스트를 생성하겠습니다.\n\n업데이트된 의존성 목록 반영: aiohttp, ccxt, fastapi, uvicorn, python-dotenv, discord-webhook, pydantic, pandas, numpy, ta-lib (기존 ccxt.pro 대신 ccxt, sqlite3 제외, pydantic 및 pydantic-settings 추가, 수치 분석용 pandas/numpy/ta-lib 추가), 개발 의존성 확장: pytest, pytest-asyncio, pytest-cov, black, flake8, mypy, isort (기존 대비 pytest-asyncio/pytest-cov, mypy, isort 추가), 도구 설정 완료: black/isort/mypy/pytest 설정 포함하여 코딩 스타일 및 타입 체크 자동화, 가상환경에 모든 패키지 정상 설치 및 테스트 준비 완료\n</info added on 2025-10-18T10:31:06.009Z>",
+            "status": "done",
+            "testStrategy": "필수 패키지 import 테스트, 의존성 설치 확인, pyproject.toml 구문 검증",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-18T09:29:29.330Z"
           },
           {
             "id": 3,
@@ -38,9 +42,11 @@
             "dependencies": [
               1
             ],
-            "details": ".env.example 파일 생성 (BINANCE_API_KEY, BINANCE_SECRET_KEY, DISCORD_WEBHOOK_URL, ENVIRONMENT=testnet), config/settings.py에서 환경 변수 로드하는 클래스 구현, 필수 환경 변수 검증 로직 추가",
-            "status": "pending",
-            "testStrategy": ".env 파일 로드 테스트, 환경 변수 검증 테스트, 설정 클래스 인스턴스화 확인"
+            "details": ".env.example 파일 생성 (BINANCE_API_KEY, BINANCE_SECRET_KEY, DISCORD_WEBHOOK_URL, ENVIRONMENT=testnet), config/settings.py에서 환경 변수 로드하는 클래스 구현, 필수 환경 변수 검증 로직 추가\n<info added on 2025-10-18T10:32:16.001Z>\n먼저 프로젝트의 현재 구조를 분석해보겠습니다.실제 tradingbot 프로젝트 파일들을 확인해보겠습니다.프로젝트 구조와 기존 파일들을 확인해보겠습니다.기존 .env 파일과 구현된 src/core/config.py, src/core/constants.py 파일을 확인했습니다. 사용자의 요청에 따라 서브태스크에 추가할 업데이트 내용을 생성하겠습니다.\n\n.env 파일 확장 완료 (API, 트레이딩, 데이터베이스, 로깅, API 서버, ICT 지표, 전략 설정 추가), src/core/config.py 구현 완료 (Pydantic BaseSettings 기반 BinanceConfig, DiscordConfig, TradingConfig, DatabaseConfig, LoggingConfig, APIConfig, ICTConfig, StrategyConfig 클래스 및 통합 Settings 클래스 구현), src/core/constants.py 구현 완료 (TradingMode, OrderSide, OrderType, PositionSide, TimeFrame, ICTPattern, MarketStructure, EventType Enum 정의 및 트레이딩 상수, 리스크 관리 상수, 데이터베이스 상수, API 제한 상수, WebSocket 설정, Discord 알림 설정 포함)\n</info added on 2025-10-18T10:32:16.001Z>",
+            "status": "done",
+            "testStrategy": ".env 파일 로드 테스트, 환경 변수 검증 테스트, 설정 클래스 인스턴스화 확인",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-18T09:35:49.615Z"
           },
           {
             "id": 4,
@@ -50,11 +56,17 @@
               2,
               3
             ],
-            "details": ".gitignore 파일 생성 (.env, logs/, __pycache__/, .pytest_cache/, dist/ 포함), README.md 기본 구조 작성 (프로젝트 개요, 설치 방법, 사용법, 환경 변수 설정), LICENSE 파일 추가, CHANGELOG.md 초기 버전 기록",
-            "status": "pending",
-            "testStrategy": ".gitignore 규칙 적용 확인, README.md 마크다운 문법 검증, 전체 프로젝트 구조 최종 검토"
+            "details": ".gitignore 파일 생성 (.env, logs/, __pycache__/, .pytest_cache/, dist/ 포함), README.md 기본 구조 작성 (프로젝트 개요, 설치 방법, 사용법, 환경 변수 설정), LICENSE 파일 추가, CHANGELOG.md 초기 버전 기록\n<info added on 2025-10-18T10:35:50.773Z>\nREADME.md 작성 완료됨 (프로젝트 개요, ICT 전략 설명, 상세 설치 가이드, 사용법, 기능 설명, 리스크 면책 조항 포함), MIT License 파일 생성 완료, .gitignore 업데이트 완료 (트레이딩봇 특화 항목 추가: 데이터베이스 파일, 로그 파일, 백업 파일, API 키 파일 등), src/__main__.py 메인 진입점 생성 (설정 표시 및 기본 실행 구조), tests/unit/test_config.py 단위 테스트 파일 생성 (구성 모듈 테스트 6개), 프로젝트 실행 확인 가능한 상태로 설정 완료\n</info added on 2025-10-18T10:35:50.773Z>",
+            "status": "done",
+            "testStrategy": ".gitignore 규칙 적용 확인, README.md 마크다운 문법 검증, 전체 프로젝트 구조 최종 검토",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-18T10:28:22.391Z"
           }
-        ]
+        ],
+        "complexity": 3,
+        "recommendedSubtasks": 4,
+        "expansionPrompt": "프로젝트 초기 설정을 단계별로 나누어 가상환경 설정, 의존성 관리, 환경 변수 구성, 폴더 구조 생성으로 세분화하여 각각 독립적으로 구현할 수 있도록 계획",
+        "updatedAt": "2025-10-18T10:28:22.391Z"
       },
       {
         "id": 2,
@@ -64,7 +76,7 @@
         "testStrategy": "이벤트 발행/구독 테스트, 우선순위 처리 검증, 핸들러 에러 격리 테스트, 동시성 테스트",
         "priority": "high",
         "dependencies": [
-          1
+          "1"
         ],
         "status": "pending",
         "subtasks": [
@@ -75,7 +87,8 @@
             "dependencies": [],
             "details": "Event 데이터 클래스 구현 (event_type, data, timestamp, priority 필드), 이벤트 타입 상수 정의 (CANDLE_CLOSED, SIGNAL_GENERATED, ORDER_PLACED, ORDER_FILLED, POSITION_OPENED, POSITION_CLOSED 등), dataclass 또는 Pydantic 모델 사용, 타임스탬프 자동 생성, 우선순위 기본값 설정",
             "status": "pending",
-            "testStrategy": "Event 인스턴스 생성 테스트, 필드 유효성 검증, 타임스탬프 자동 생성 확인, 이벤트 타입 상수 접근 테스트"
+            "testStrategy": "Event 인스턴스 생성 테스트, 필드 유효성 검증, 타임스탬프 자동 생성 확인, 이벤트 타입 상수 접근 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -86,7 +99,8 @@
             ],
             "details": "ABC를 상속한 EventHandler 추상 클래스 구현, handle(event) 추상 메서드 정의, on_error(event, exception) 에러 처리 메서드, 핸들러 이름 및 우선순위 속성, 비동기 처리 지원 (async/await), 타입 힌팅 완전 적용",
             "status": "pending",
-            "testStrategy": "추상 클래스 상속 테스트, 메서드 오버라이드 검증, 에러 처리 로직 테스트, 비동기 처리 확인"
+            "testStrategy": "추상 클래스 상속 테스트, 메서드 오버라이드 검증, 에러 처리 로직 테스트, 비동기 처리 확인",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -97,7 +111,8 @@
             ],
             "details": "asyncio.PriorityQueue 또는 heapq 기반 우선순위 큐 구현, 이벤트 우선순위별 정렬 로직, 큐 크기 제한 및 백프레셔 처리, 큐 상태 모니터링 메서드 (size, is_empty, is_full), 비동기 put/get 인터페이스, 우선순위 동일 시 FIFO 보장",
             "status": "pending",
-            "testStrategy": "우선순위 순서 정렬 테스트, 큐 용량 제한 검증, 백프레셔 시나리오 테스트, 동시성 안전성 확인"
+            "testStrategy": "우선순위 순서 정렬 테스트, 큐 용량 제한 검증, 백프레셔 시나리오 테스트, 동시성 안전성 확인",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -109,7 +124,8 @@
             ],
             "details": "EventBus 클래스 구현, 핸들러 등록/해제 메서드 (subscribe, unsubscribe), 이벤트 타입별 핸들러 매핑, 와일드카드 구독 지원 (*), 핸들러 그룹화 및 우선순위 관리, 메모리 효율적인 핸들러 저장 구조, 중복 구독 방지 로직",
             "status": "pending",
-            "testStrategy": "핸들러 등록/해제 테스트, 이벤트 타입 매칭 검증, 와일드카드 구독 테스트, 메모리 누수 확인"
+            "testStrategy": "핸들러 등록/해제 테스트, 이벤트 타입 매칭 검증, 와일드카드 구독 테스트, 메모리 누수 확인",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -120,9 +136,13 @@
             ],
             "details": "비동기 이벤트 디스패처 구현, 각 핸들러별 독립적인 에러 격리, asyncio.gather 또는 TaskGroup 활용, 핸들러 실행 시간 모니터링, 타임아웃 처리 (기본 30초), 데드레터 큐 구현 (실패한 이벤트), 처리 통계 수집 (성공/실패 카운트), graceful shutdown 지원",
             "status": "pending",
-            "testStrategy": "동시 다중 핸들러 실행 테스트, 에러 격리 검증, 타임아웃 처리 확인, 데드레터 큐 동작 테스트, 성능 벤치마크"
+            "testStrategy": "동시 다중 핸들러 실행 테스트, 에러 격리 검증, 타임아웃 처리 확인, 데드레터 큐 동작 테스트, 성능 벤치마크",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "이벤트 시스템을 핵심 컴포넌트별로 분리하여 Event 클래스 설계, EventBus 구현, 핸들러 인터페이스 정의, 우선순위 큐 구현, 비동기 디스패처 구현으로 세분화"
       },
       {
         "id": 3,
@@ -132,7 +152,7 @@
         "testStrategy": "테스트넷 연결 확인, WebSocket 스트림 수신 테스트, 연결 끊김 시뮬레이션 및 재연결 테스트, API 권한 검증",
         "priority": "high",
         "dependencies": [
-          2
+          "2"
         ],
         "status": "pending",
         "subtasks": [
@@ -143,7 +163,8 @@
             "dependencies": [],
             "details": "ccxt.pro.binance() 인스턴스 생성, 환경 변수에서 API 키 로드, testnet/mainnet 스위치 구현, 기본 연결 설정 및 API 엔드포인트 구성, 초기 연결 테스트 수행",
             "status": "pending",
-            "testStrategy": "테스트넷 및 메인넷 연결 성공 확인, API 키 유효성 검증, 환경 분리 동작 테스트"
+            "testStrategy": "테스트넷 및 메인넷 연결 성공 확인, API 키 유효성 검증, 환경 분리 동작 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -154,7 +175,8 @@
             ],
             "details": "1분, 15분, 1시간 타임프레임 캔들 스트림 구독, 멀티 심볼 지원 (BTCUSDT, ETHUSDT), WebSocket 연결 설정 및 메시지 파싱, 캔들 데이터 검증 및 포맷팅",
             "status": "pending",
-            "testStrategy": "실시간 캔들 데이터 수신 확인, 다중 타임프레임 데이터 검증, 메시지 파싱 정확성 테스트"
+            "testStrategy": "실시간 캔들 데이터 수신 확인, 다중 타임프레임 데이터 검증, 메시지 파싱 정확성 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -165,7 +187,8 @@
             ],
             "details": "주기적 핑/퐁 메시지 전송 (30초 간격), 응답 시간 모니터링, 연결 상태 플래그 관리, 타임아웃 감지 로직, 연결 상태 변화 이벤트 발행 (ws_connected, ws_disconnected)",
             "status": "pending",
-            "testStrategy": "하트비트 메시지 송수신 확인, 타임아웃 감지 정확성 검증, 연결 상태 이벤트 발행 테스트"
+            "testStrategy": "하트비트 메시지 송수신 확인, 타임아웃 감지 정확성 검증, 연결 상태 이벤트 발행 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -176,7 +199,8 @@
             ],
             "details": "재연결 시도 간격을 지수적으로 증가 (1초, 2초, 4초, 8초, 최대 60초), 최대 재시도 횟수 설정, 재연결 성공 시 간격 초기화, ws_error 이벤트 발행, 재연결 상태 로깅",
             "status": "pending",
-            "testStrategy": "연결 끊김 시뮬레이션 및 재연결 동작 확인, 지수 백오프 간격 검증, 최대 재시도 제한 테스트"
+            "testStrategy": "연결 끊김 시뮬레이션 및 재연결 동작 확인, 지수 백오프 간격 검증, 최대 재시도 제한 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -187,7 +211,8 @@
             ],
             "details": "계정 잔고 조회 메서드, 포지션 정보 조회, 주문 히스토리 조회, 시장 데이터 조회, API 응답 에러 처리, 레이트 리미트 관리, 비동기 요청 처리",
             "status": "pending",
-            "testStrategy": "각 API 엔드포인트 호출 성공 확인, 에러 응답 처리 검증, 레이트 리미트 준수 테스트"
+            "testStrategy": "각 API 엔드포인트 호출 성공 확인, 에러 응답 처리 검증, 레이트 리미트 준수 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 6,
@@ -198,9 +223,13 @@
             ],
             "details": "API 키 읽기 권한 확인 (계정 정보 조회), 거래 권한 확인 (테스트 주문), 권한 부족 시 경고 메시지, 권한 상태 캐싱, 정기적 권한 재검증 (1시간 간격), 권한 변경 감지 및 알림",
             "status": "pending",
-            "testStrategy": "읽기 권한 검증 확인, 거래 권한 검증 확인, 권한 부족 시 적절한 에러 처리 테스트"
+            "testStrategy": "읽기 권한 검증 확인, 거래 권한 검증 확인, 권한 부족 시 적절한 에러 처리 테스트",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "API 연동을 단계별로 구현하여 ccxt.pro 초기화, WebSocket 연결 관리, 하트비트 모니터링, 재연결 로직, REST API 래퍼, 권한 검증으로 세분화"
       },
       {
         "id": 4,
@@ -210,7 +239,7 @@
         "testStrategy": "실시간 캔들 수신 확인, 과거 데이터 로드 테스트, 캔들 완성 이벤트 발행 검증, 메모리 사용량 모니터링",
         "priority": "high",
         "dependencies": [
-          3
+          "3"
         ],
         "status": "pending",
         "subtasks": [
@@ -221,7 +250,8 @@
             "dependencies": [],
             "details": "Candle 데이터 클래스 정의 (open, high, low, close, volume, timestamp, symbol, timeframe 필드), 데이터 검증 메서드 (validate_ohlcv), 캔들 완성 여부 확인 메서드 (is_complete), 타임스탬프 정규화 메서드, 캔들 간격별 시간 계산 유틸리티 구현",
             "status": "pending",
-            "testStrategy": "캔들 데이터 생성 및 검증 테스트, 시간 계산 유틸리티 테스트, 데이터 타입 검증 테스트"
+            "testStrategy": "캔들 데이터 생성 및 검증 테스트, 시간 계산 유틸리티 테스트, 데이터 타입 검증 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -232,7 +262,8 @@
             ],
             "details": "CandleStorage 클래스 구현 (collections.deque 기반, 최대 500개 캔들 저장), 심볼별/타임프레임별 캔들 저장 딕셔너리 구조, 캔들 추가/조회/삭제 메서드, 메모리 사용량 모니터링 기능, LRU 방식 오래된 캔들 자동 삭제, 스레드 세이프 락 메커니즘 구현",
             "status": "pending",
-            "testStrategy": "최대 용량 테스트, 동시 접근 테스트, 메모리 사용량 모니터링 테스트, 캔들 조회 성능 테스트"
+            "testStrategy": "최대 용량 테스트, 동시 접근 테스트, 메모리 사용량 모니터링 테스트, 캔들 조회 성능 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -243,7 +274,8 @@
             ],
             "details": "HistoricalDataLoader 클래스 구현, 바이낸스 REST API klines 엔드포인트 연동, 심볼별/타임프레임별 과거 500개 캔들 로드, 비동기 배치 로드 (한 번에 1000개씩), API 요청 제한 준수 (레이트 리미팅), 데이터 무결성 검증 (시간 순서, 결측치 확인), 초기화 시 자동 로드 기능",
             "status": "pending",
-            "testStrategy": "과거 데이터 로드 테스트, API 레이트 리미팅 테스트, 데이터 무결성 검증 테스트, 배치 로드 성능 테스트"
+            "testStrategy": "과거 데이터 로드 테스트, API 레이트 리미팅 테스트, 데이터 무결성 검증 테스트, 배치 로드 성능 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -254,7 +286,8 @@
             ],
             "details": "RealtimeCandleProcessor 클래스 구현, WebSocket 캔들 스트림 데이터 파싱, 캔들 완성 감지 로직 (시간 기반), candle_closed 이벤트 자동 발행, 실시간 데이터 검증 (이상치 필터링), 캔들 업데이트 시 메모리 스토리지 동기화, 데이터 무결성 보장 (중복 제거, 순서 보장)",
             "status": "pending",
-            "testStrategy": "실시간 캔들 수신 테스트, 캔들 완성 이벤트 발행 검증, 데이터 검증 로직 테스트, 이벤트 타이밍 테스트"
+            "testStrategy": "실시간 캔들 수신 테스트, 캔들 완성 이벤트 발행 검증, 데이터 검증 로직 테스트, 이벤트 타이밍 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -265,9 +298,13 @@
             ],
             "details": "CandleDataManager 메인 클래스 구현, 멀티 심볼 (BTCUSDT, ETHUSDT) 및 타임프레임 (1m, 15m, 1h) 동시 관리, 각 심볼/타임프레임별 독립적 스토리지 관리, 동적 심볼 추가/제거 기능, 전체 데이터 상태 모니터링 대시보드, 메모리 사용량 최적화 및 가비지 컬렉션, 시스템 리소스 모니터링 기능",
             "status": "pending",
-            "testStrategy": "멀티 심볼 동시 처리 테스트, 메모리 사용량 모니터링 테스트, 동적 심볼 관리 테스트, 전체 시스템 성능 테스트"
+            "testStrategy": "멀티 심볼 동시 처리 테스트, 메모리 사용량 모니터링 테스트, 동적 심볼 관리 테스트, 전체 시스템 성능 테스트",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "데이터 처리 파이프라인을 구성하여 캔들 데이터 모델 설계, 메모리 스토리지 구현, 과거 데이터 로드, 실시간 수신 처리, 멀티 심볼 지원으로 세분화"
       },
       {
         "id": 5,
@@ -277,7 +314,7 @@
         "testStrategy": "DB 연결 테스트, CRUD 연산 검증, 트랜잭션 롤백 테스트, 성능 테스트 (1000개 레코드 삽입)",
         "priority": "medium",
         "dependencies": [
-          2
+          "2"
         ],
         "status": "pending",
         "subtasks": [
@@ -288,7 +325,8 @@
             "dependencies": [],
             "details": "trades 테이블 (id, symbol, strategy, entry_time, exit_time, entry_price, exit_price, quantity, pnl, leverage), positions 테이블 (id, symbol, strategy, size, entry_price, unrealized_pnl, status, timestamp), statistics 테이블 (id, strategy, date, total_trades, win_rate, total_pnl, daily_stats, monthly_stats), backtest_results 테이블 (id, strategy, start_date, end_date, total_return, sharpe_ratio, max_drawdown, configuration) 스키마 설계 및 인덱스 정의",
             "status": "pending",
-            "testStrategy": "테이블 생성 스크립트 실행 테스트, 제약 조건 검증, 인덱스 성능 테스트"
+            "testStrategy": "테이블 생성 스크립트 실행 테스트, 제약 조건 검증, 인덱스 성능 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -299,7 +337,8 @@
             ],
             "details": "SQLAlchemy Base 클래스 정의, Trade, Position, Statistics, BacktestResult 모델 클래스 구현, 비동기 데이터베이스 엔진 설정, 세션 팩토리 구현, 연결 풀 설정 (pool_size=10, max_overflow=20), async_sessionmaker를 사용한 비동기 세션 관리, 데이터베이스 URL 설정 및 환경 변수 관리",
             "status": "pending",
-            "testStrategy": "ORM 모델 생성 테스트, 데이터베이스 연결 확인, 세션 생성/종료 테스트, 연결 풀 동작 검증"
+            "testStrategy": "ORM 모델 생성 테스트, 데이터베이스 연결 확인, 세션 생성/종료 테스트, 연결 풀 동작 검증",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -310,7 +349,8 @@
             ],
             "details": "TradeDAO, PositionDAO, StatisticsDAO, BacktestResultDAO 클래스 구현, 비동기 CRUD 메서드 (create, read, update, delete, list), 복잡한 쿼리 메서드 (get_trades_by_strategy, get_current_positions, calculate_daily_stats), 트랜잭션 관리 wrapper, 벌크 삽입 최적화, 페이지네이션 지원, 에러 핸들링 및 로깅",
             "status": "pending",
-            "testStrategy": "각 DAO 클래스의 CRUD 연산 테스트, 복잡한 쿼리 결과 검증, 트랜잭션 롤백 테스트, 벌크 삽입 성능 테스트"
+            "testStrategy": "각 DAO 클래스의 CRUD 연산 테스트, 복잡한 쿼리 결과 검증, 트랜잭션 롤백 테스트, 벌크 삽입 성능 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -321,9 +361,13 @@
             ],
             "details": "Alembic을 사용한 마이그레이션 설정, 버전 관리 및 자동 마이그레이션 스크립트, 데이터베이스 초기화 함수 (create_tables, initial_data_setup), 스키마 변경 이력 관리, 롤백 기능, 프로덕션 환경 마이그레이션 안전장치, 데이터 백업/복원 유틸리티, 스키마 검증 도구",
             "status": "pending",
-            "testStrategy": "마이그레이션 스크립트 실행 테스트, 버전 업/다운그레이드 검증, 롤백 기능 테스트, 스키마 변경 시뮬레이션"
+            "testStrategy": "마이그레이션 스크립트 실행 테스트, 버전 업/다운그레이드 검증, 롤백 기능 테스트, 스키마 변경 시뮬레이션",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 5,
+        "recommendedSubtasks": 4,
+        "expansionPrompt": "데이터베이스 레이어를 체계적으로 구현하여 스키마 설계, ORM 설정, 데이터 모델 구현, 연결 풀 및 마이그레이션 관리로 세분화"
       },
       {
         "id": 6,
@@ -333,7 +377,7 @@
         "testStrategy": "알려진 패턴에 대한 단위 테스트, 과거 데이터 기반 검증, 성능 테스트 (실시간 계산 속도), 시각적 검증 도구",
         "priority": "high",
         "dependencies": [
-          4
+          "4"
         ],
         "status": "pending",
         "subtasks": [
@@ -344,7 +388,8 @@
             "dependencies": [],
             "details": "캔들스틱 데이터에서 swing high/low 포인트를 식별하고, 최소 3-5개 캔들 기준으로 Order Block 패턴을 감지하는 알고리즘을 구현합니다. 강도 계산 로직과 유효성 검증 기준을 포함하여 정확한 OB 식별이 가능하도록 설계합니다.",
             "status": "pending",
-            "testStrategy": "알려진 Order Block 패턴에 대한 단위 테스트, 과거 차트 데이터를 활용한 검증 테스트"
+            "testStrategy": "알려진 Order Block 패턴에 대한 단위 테스트, 과거 차트 데이터를 활용한 검증 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -353,7 +398,8 @@
             "dependencies": [],
             "details": "연속된 3개 캔들에서 gap 패턴을 분석하여 Fair Value Gap을 식별하고, 최소 임계값(pip 또는 퍼센티지 기반) 필터링을 적용합니다. gap의 크기, 방향성, 유효성을 계산하는 로직을 포함합니다.",
             "status": "pending",
-            "testStrategy": "다양한 타임프레임에서 FVG 패턴 검증, 임계값 필터링 정확성 테스트"
+            "testStrategy": "다양한 타임프레임에서 FVG 패턴 검증, 임계값 필터링 정확성 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -364,7 +410,8 @@
             ],
             "details": "기존 Order Block이 가격에 의해 돌파되었을 때 Breaker Block으로 전환되는 조건과 로직을 구현합니다. 역할 전환 시점 감지, 새로운 지지/저항 레벨 계산, 상태 업데이트 메커니즘을 포함합니다.",
             "status": "pending",
-            "testStrategy": "OB에서 BB로의 전환 시나리오 테스트, 역할 변화 추적 검증"
+            "testStrategy": "OB에서 BB로의 전환 시나리오 테스트, 역할 변화 추적 검증",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -377,7 +424,8 @@
             ],
             "details": "여러 타임프레임(1m, 15m, 1h)에서 Order Blocks, FVG, Breaker Blocks를 동시에 계산하고 관리하는 시스템을 구현합니다. 타임프레임간 데이터 동기화, 독립적인 지표 상태 관리, 계산 최적화를 포함합니다.",
             "status": "pending",
-            "testStrategy": "멀티 타임프레임 동시 계산 테스트, 데이터 동기화 검증, 성능 벤치마크"
+            "testStrategy": "멀티 타임프레임 동시 계산 테스트, 데이터 동기화 검증, 성능 벤치마크",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -388,7 +436,8 @@
             ],
             "details": "Order Blocks, FVG, Breaker Blocks의 시간 기반 만료(설정된 기간 경과) 및 가격 기반 만료(특정 가격 레벨 돌파) 로직을 구현합니다. 만료된 지표 자동 제거, 상태 업데이트, 만료 이벤트 발행 기능을 포함합니다.",
             "status": "pending",
-            "testStrategy": "시간/가격 기반 만료 시나리오 테스트, 자동 정리 기능 검증"
+            "testStrategy": "시간/가격 기반 만료 시나리오 테스트, 자동 정리 기능 검증",
+            "parentId": "undefined"
           },
           {
             "id": 6,
@@ -399,9 +448,13 @@
             ],
             "details": "Order Block, FVG, Breaker Block 데이터를 담는 표준화된 클래스 구조를 설계하고, 좌표(가격/시간), 강도 지수, 상태 정보를 관리합니다. 지표 업데이트 시 indicators_updated 이벤트를 발행하여 다른 시스템과의 연동을 지원합니다.",
             "status": "pending",
-            "testStrategy": "데이터 클래스 구조 검증, 이벤트 발행 확인, 시스템 간 연동 테스트"
+            "testStrategy": "데이터 클래스 구조 검증, 이벤트 발행 확인, 시스템 간 연동 테스트",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "복잡한 기술적 지표를 단계별로 구현하여 Order Blocks 감지 알고리즘, FVG 계산 로직, Breaker Blocks 인식, 멀티 타임프레임 처리, 지표 만료 관리, 성능 최적화로 세분화"
       },
       {
         "id": 7,
@@ -411,7 +464,7 @@
         "testStrategy": "다양한 시장 조건에서의 패턴 인식 테스트, 백테스팅 데이터 기반 검증, 실시간 성능 테스트",
         "priority": "high",
         "dependencies": [
-          6
+          "6"
         ],
         "status": "pending",
         "subtasks": [
@@ -422,7 +475,8 @@
             "dependencies": [],
             "details": "고점 기준 Sell side Liquidity와 저점 기준 Buy side Liquidity 레벨을 식별하는 로직 구현. 피봇 포인트 분석, 지지/저항 레벨 매핑, 히스토리컬 터치 포인트 분석 포함. 멀티 타임프레임에서 일관된 레벨 식별이 가능하도록 구현.",
             "status": "pending",
-            "testStrategy": "다양한 시장 조건의 차트 데이터로 레벨 식별 정확도 테스트, 실제 시장 데이터와 식별된 레벨 비교 검증"
+            "testStrategy": "다양한 시장 조건의 차트 데이터로 레벨 식별 정확도 테스트, 실제 시장 데이터와 식별된 레벨 비교 검증",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -433,7 +487,8 @@
             ],
             "details": "레벨 돌파 확인 → 캔들 클로즈 검증 → 반전 패턴 확인까지의 전체 Sweep 감지 로직 구현. 가짜 돌파 필터링, 최소 돌파 거리 검증, 반전 강도 측정 포함. 실시간 모니터링이 가능하도록 효율적인 알고리즘 설계.",
             "status": "pending",
-            "testStrategy": "히스토리컬 데이터에서 실제 Sweep 패턴과 비교 검증, 가짜 신호 필터링 성능 테스트, 실시간 감지 속도 벤치마크"
+            "testStrategy": "히스토리컬 데이터에서 실제 Sweep 패턴과 비교 검증, 가짜 신호 필터링 성능 테스트, 실시간 감지 속도 벤치마크",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -444,7 +499,8 @@
             ],
             "details": "연속적인 고점/저점 분석을 통한 추세 패턴 인식 로직 구현. HH/HL(상승추세), LH/LL(하락추세) 패턴 식별, 추세 강도 계산, 추세 변화 감지 포함. 노이즈 필터링과 유효한 구조적 변화만 감지하도록 설계.",
             "status": "pending",
-            "testStrategy": "다양한 추세 시장에서 패턴 인식 정확도 테스트, 추세 전환점 감지 성능 검증, 레인징 시장에서의 오신호 필터링 테스트"
+            "testStrategy": "다양한 추세 시장에서 패턴 인식 정확도 테스트, 추세 전환점 감지 성능 검증, 레인징 시장에서의 오신호 필터링 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -456,7 +512,8 @@
             ],
             "details": "기존 시장 구조의 주요 레벨 돌파 확인, 구조적 변화의 유효성 검증, BMS 후 새로운 구조 형성 감지 로직 구현. 거짜 돌파 필터링, 구조 변화 강도 측정, 확인 캔들 검증 포함. 멀티 타임프레임에서 일관된 BMS 확인 가능.",
             "status": "pending",
-            "testStrategy": "실제 시장 전환점에서의 BMS 감지 정확도 검증, 거짜 돌파 필터링 성능 테스트, 다양한 타임프레임에서의 일관성 검증"
+            "testStrategy": "실제 시장 전환점에서의 BMS 감지 정확도 검증, 거짜 돌파 필터링 성능 테스트, 다양한 타임프레임에서의 일관성 검증",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -468,7 +525,8 @@
             ],
             "details": "각 타임프레임별 시장 구조 분석 결과 통합, 타임프레임 간 일치성 검증, 구조적 충돌 해결 로직 구현. 상위 타임프레임 우선순위 적용, 하위 타임프레임 세부 진입 타이밍 제공. 실시간 동기화와 효율적인 데이터 관리 포함.",
             "status": "pending",
-            "testStrategy": "타임프레임 간 일치성 검증 테스트, 구조적 충돌 상황에서의 해결 로직 검증, 실시간 동기화 성능 테스트"
+            "testStrategy": "타임프레임 간 일치성 검증 테스트, 구조적 충돌 상황에서의 해결 로직 검증, 실시간 동기화 성능 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 6,
@@ -480,9 +538,13 @@
             ],
             "details": "레벨별 터치 횟수 누적, 거래량 가중 강도 계산, 시장 상태 분류 알고리즘 구현. 실시간 상태 업데이트, 상태 변화 이벤트 발행, 강도 임계값 설정 및 조정 기능 포함. 전체 ICT 지표 엔진의 최종 출력 제공.",
             "status": "pending",
-            "testStrategy": "다양한 시장 조건에서 상태 분류 정확도 검증, 강도 계산 신뢰성 테스트, 실시간 상태 추적 성능 벤치마크"
+            "testStrategy": "다양한 시장 조건에서 상태 분류 정확도 검증, 강도 계산 신뢰성 테스트, 실시간 상태 추적 성능 벤치마크",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "시장 구조 분석을 체계적으로 구현하여 유동성 레벨 식별, Liquidity Sweep 감지, 추세 분석, BMS 로직, 구조 상태 추적, 강도 계산으로 세분화"
       },
       {
         "id": 8,
@@ -492,7 +554,7 @@
         "testStrategy": "각 전략별 단위 테스트, 시뮬레이션 데이터 기반 신호 검증, 중복 신호 필터링 테스트, 성능 벤치마크",
         "priority": "high",
         "dependencies": [
-          7
+          "7"
         ],
         "status": "pending",
         "subtasks": [
@@ -503,7 +565,8 @@
             "dependencies": [],
             "details": "1시간 차트에서 Break of Market Structure(BMS) 확인, 15분 차트에서 Fair Value Gap(FVG) 또는 Order Block(OB) 감지, 1분 차트에서 정확한 진입 타이밍 포착, 신호 강도 및 신뢰도 계산 로직 포함",
             "status": "pending",
-            "testStrategy": "시뮬레이션 데이터로 BMS-FVG-진입 시퀀스 검증, 신호 정확도 테스트"
+            "testStrategy": "시뮬레이션 데이터로 BMS-FVG-진입 시퀀스 검증, 신호 정확도 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -512,7 +575,8 @@
             "dependencies": [],
             "details": "15분 차트에서 Liquidity Sweep 감지 로직, Fair Value Gap 즉시 감지 및 검증, 빠른 진입 신호 생성, 높은 위험-수익 비율 계산, 시장 변동성 고려한 신호 강도 조정",
             "status": "pending",
-            "testStrategy": "Liquidity Sweep과 FVG 동시 발생 시나리오 테스트, 즉시 진입 로직 검증"
+            "testStrategy": "Liquidity Sweep과 FVG 동시 발생 시나리오 테스트, 즉시 진입 로직 검증",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -521,7 +585,8 @@
             "dependencies": [],
             "details": "1시간 차트 추세 방향 분석, 15분 Order Block 및 Fair Value Gap 확인, Liquidity 레벨 조건 체크, 다중 조건 만족 시 신호 생성, 각 조건별 가중치 적용한 종합 신뢰도 계산",
             "status": "pending",
-            "testStrategy": "다중 조건 조합 시나리오 테스트, 가중치 기반 신뢰도 계산 검증"
+            "testStrategy": "다중 조건 조합 시나리오 테스트, 가중치 기반 신뢰도 계산 검증",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -534,7 +599,8 @@
             ],
             "details": "Signal 데이터 클래스 정의 (진입가, 방향, 신뢰도, 손절가, 익절가, 타임스탬프), 각 전략별 신호 생성 인터페이스, 신호 검증 로직, signal_generated 이벤트 발행 메커니즘, 신호 로깅 및 추적 시스템",
             "status": "pending",
-            "testStrategy": "신호 클래스 필드 검증, 전략별 신호 생성 테스트, 이벤트 발행 확인"
+            "testStrategy": "신호 클래스 필드 검증, 전략별 신호 생성 테스트, 이벤트 발행 확인",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -545,7 +611,8 @@
             ],
             "details": "시간 윈도우 기반 중복 감지 (5분 이내), 가격 범위 기반 중복 판단 (1% 이내), 전략 간 신호 유사성 검사, 기존 포지션과의 충돌 확인, 중복 신호 제거 및 로깅, 필터링 규칙 설정 가능",
             "status": "pending",
-            "testStrategy": "동일 시간대 중복 신호 테스트, 가격 범위 필터링 검증, 전략 간 충돌 시나리오 테스트"
+            "testStrategy": "동일 시간대 중복 신호 테스트, 가격 범위 필터링 검증, 전략 간 충돌 시나리오 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 6,
@@ -556,7 +623,8 @@
             ],
             "details": "신호별 우선순위 점수 계산 (신뢰도, 전략 타입, 시장 조건), 우선순위 큐 기반 신호 정렬, 동시 신호 발생 시 최적 신호 선택 로직, 우선순위 조정 규칙 설정, 선택된 신호 실행 및 나머지 신호 대기/취소 처리",
             "status": "pending",
-            "testStrategy": "우선순위 점수 계산 검증, 다중 신호 선택 로직 테스트, 우선순위 큐 동작 확인"
+            "testStrategy": "우선순위 점수 계산 검증, 다중 신호 선택 로직 테스트, 우선순위 큐 동작 확인",
+            "parentId": "undefined"
           },
           {
             "id": 7,
@@ -567,9 +635,13 @@
             ],
             "details": "전략별 활성화 상태 관리 (enable/disable), 런타임 전략 설정 변경 기능, 전략별 파라미터 조정 인터페이스 (신뢰도 임계값, 시간 윈도우 등), 설정 저장 및 로드 기능, 전략 성능 모니터링 및 자동 조정 기능",
             "status": "pending",
-            "testStrategy": "전략 활성화/비활성화 테스트, 런타임 설정 변경 검증, 설정 저장/로드 확인"
+            "testStrategy": "전략 활성화/비활성화 테스트, 런타임 설정 변경 검증, 설정 저장/로드 확인",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 9,
+        "recommendedSubtasks": 7,
+        "expansionPrompt": "복합적인 매매 전략을 체계적으로 구현하여 전략 A 로직, 전략 B 로직, 전략 C 로직, 신호 생성 시스템, 중복 필터링, 우선순위 관리, 전략 제어로 세분화"
       },
       {
         "id": 9,
@@ -579,7 +651,7 @@
         "testStrategy": "다양한 계좌 잔고에서 포지션 사이징 검증, 손절/익절 레벨 계산 정확성 테스트, 일일 한도 시뮬레이션",
         "priority": "high",
         "dependencies": [
-          8
+          "8"
         ],
         "status": "pending",
         "subtasks": [
@@ -590,7 +662,8 @@
             "dependencies": [],
             "details": "PositionSizer 클래스 구현: 계좌 잔고 조회, 2% 리스크 계산 (balance * 0.02), 레버리지 5배 적용, 최소/최대 포지션 사이즈 검증, 유효성 검사 로직 포함",
             "status": "pending",
-            "testStrategy": "다양한 계좌 잔고 시나리오에서 포지션 사이징 계산 정확성 검증, 레버리지 적용 테스트"
+            "testStrategy": "다양한 계좌 잔고 시나리오에서 포지션 사이징 계산 정확성 검증, 레버리지 적용 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -601,7 +674,8 @@
             ],
             "details": "StopLossCalculator 클래스: 구조적 레벨 분석, 가격 대비 0.1-0.3% 톨러런스 적용, 진입가 대비 손절가 거리 계산, 리스크 대비 포지션 사이즈 재검증",
             "status": "pending",
-            "testStrategy": "구조적 레벨 감지 정확성 테스트, 톨러런스 적용 검증, 다양한 시장 상황에서 손절가 계산 테스트"
+            "testStrategy": "구조적 레벨 감지 정확성 테스트, 톨러런스 적용 검증, 다양한 시장 상황에서 손절가 계산 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -612,7 +686,8 @@
             ],
             "details": "TakeProfitCalculator 클래스: Liquidity 레벨 분석, 리스크 대비 수익률 계산(최소 1:1.5 비율), 부분 익절 로직, 트레일링 스톱 적용 가능성 검토",
             "status": "pending",
-            "testStrategy": "Liquidity 레벨 감지 테스트, 리스크 대비 수익률 검증, 부분 익절 로직 시뮬레이션"
+            "testStrategy": "Liquidity 레벨 감지 테스트, 리스크 대비 수익률 검증, 부분 익절 로직 시뮬레이션",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -623,7 +698,8 @@
             ],
             "details": "DailyLossMonitor 클래스: 일일 시작 잔고 기록, 실시간 손익 계산, 6% 한도 도달 감지, daily_loss_limit_reached 이벤트 발행, SQLite 기반 일일 손익 저장",
             "status": "pending",
-            "testStrategy": "일일 손실 한도 시뮬레이션, 실시간 손익 계산 정확성 검증, 이벤트 발행 테스트"
+            "testStrategy": "일일 손실 한도 시뮬레이션, 실시간 손익 계산 정확성 검증, 이벤트 발행 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -634,9 +710,13 @@
             ],
             "details": "RiskValidator 클래스: 포지션 사이징 검증, 손절/익절 레벨 유효성 확인, 일일 한도 체크, 신규 진입 차단 플래그 관리, 주문 승인/거부 결정, risk_check_passed/failed 이벤트 발행",
             "status": "pending",
-            "testStrategy": "통합 리스크 검증 테스트, 진입 차단 로직 검증, 다양한 리스크 시나리오에서 주문 승인/거부 테스트"
+            "testStrategy": "통합 리스크 검증 테스트, 진입 차단 로직 검증, 다양한 리스크 시나리오에서 주문 승인/거부 테스트",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "리스크 관리를 체계적으로 구현하여 포지션 사이징 계산, 손절/익절 레벨 설정, 일일 한도 모니터링, 실시간 손익 추적, 진입 제어 로직으로 세분화"
       },
       {
         "id": 10,
@@ -646,7 +726,7 @@
         "testStrategy": "테스트넷에서 주문 실행 테스트, 재시도 로직 검증, 포지션 복구 시뮬레이션, 이벤트 발행 확인",
         "priority": "high",
         "dependencies": [
-          9
+          "9"
         ],
         "status": "pending",
         "subtasks": [
@@ -657,7 +737,8 @@
             "dependencies": [],
             "details": "OrderExecutor 클래스 구현, 바이낸스 선물 API 연동, 시장가/지정가/조건부 주문 타입별 실행 로직, 비동기 주문 전송 및 응답 처리, 주문 파라미터 검증 및 타임스탬프 관리",
             "status": "pending",
-            "testStrategy": "테스트넷에서 각 주문 타입별 실행 테스트, 주문 파라미터 검증 테스트, 비동기 동시성 테스트"
+            "testStrategy": "테스트넷에서 각 주문 타입별 실행 테스트, 주문 파라미터 검증 테스트, 비동기 동시성 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -668,7 +749,8 @@
             ],
             "details": "RetryManager 클래스 구현, 지수 백오프 재시도 패턴 (1s, 2s, 5s), 재시도 가능한 에러 타입 분류 (네트워크, API 한도 등), 재시도 불가능한 에러 처리 (잔고 부족 등), 재시도 횟수 및 간격 로깅",
             "status": "pending",
-            "testStrategy": "재시도 로직 단위 테스트, 네트워크 에러 시뮬레이션, 재시도 간격 정확성 검증"
+            "testStrategy": "재시도 로직 단위 테스트, 네트워크 에러 시뮬레이션, 재시도 간격 정확성 검증",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -680,7 +762,8 @@
             ],
             "details": "OrderTracker 클래스 구현, 주문 상태 enum (PENDING, PLACED, FILLED, FAILED, CANCELLED), 상태 변경 시 이벤트 자동 발행, 주문 ID별 상태 맵핑 관리, 바이낸스 웹소켓으로 실시간 상태 업데이트",
             "status": "pending",
-            "testStrategy": "주문 상태 변경 이벤트 검증, 웹소켓 연결 테스트, 상태 추적 정확성 테스트"
+            "testStrategy": "주문 상태 변경 이벤트 검증, 웹소켓 연결 테스트, 상태 추적 정확성 테스트",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -691,7 +774,8 @@
             ],
             "details": "Position 클래스 구현 (symbol, size, entry_price, side, pnl), PositionManager 클래스로 포지션 생명주기 관리, 포지션 상태 enum (OPENED, CLOSED, UPDATED), 실시간 손익 계산, 포지션 변경 시 이벤트 발행, 메모리 및 로컬 저장소 동기화",
             "status": "pending",
-            "testStrategy": "포지션 생성/수정/종료 테스트, PnL 계산 정확성 검증, 이벤트 발행 확인"
+            "testStrategy": "포지션 생성/수정/종료 테스트, PnL 계산 정확성 검증, 이벤트 발행 확인",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -702,7 +786,8 @@
             ],
             "details": "PositionMonitor 클래스 구현, 웹소켓으로 실시간 포지션 정보 수신, 시스템 재시작 시 바이낸스 position API 조회하여 포지션 복구, 로컬 상태와 거래소 상태 동기화, 불일치 감지 및 알림 시스템",
             "status": "pending",
-            "testStrategy": "시스템 재시작 시뮬레이션, 포지션 복구 검증, 상태 동기화 테스트, 실시간 모니터링 정확성 확인"
+            "testStrategy": "시스템 재시작 시뮬레이션, 포지션 복구 검증, 상태 동기화 테스트, 실시간 모니터링 정확성 확인",
+            "parentId": "undefined"
           },
           {
             "id": 6,
@@ -713,14 +798,24 @@
             ],
             "details": "EmergencyManager 클래스 구현, 모든 미청산 포지션 즉시 시장가 청산, 신규 주문 차단 플래그 설정, 긴급 청산 이벤트 발행, 청산 진행 상황 실시간 로깅, 청산 완료 후 시스템 일시 정지",
             "status": "pending",
-            "testStrategy": "강제 청산 시뮬레이션, 신규 주문 차단 검증, 청산 속도 및 완료율 테스트"
+            "testStrategy": "강제 청산 시뮬레이션, 신규 주문 차단 검증, 청산 속도 및 완료율 테스트",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "주문 시스템을 안정적으로 구현하여 비동기 주문 실행, 재시도 로직, 주문 상태 추적, 포지션 관리, 포지션 복구, 긴급 청산으로 세분화"
       }
     ],
     "metadata": {
-      "created": "2025-10-18T05:48:58.559Z",
-      "updated": "2025-10-18T05:48:58.559Z",
+      "version": "1.0.0",
+      "lastModified": "2025-10-18T10:28:22.391Z",
+      "taskCount": 10,
+      "completedCount": 1,
+      "tags": [
+        "master"
+      ],
+      "created": "2025-10-18T10:28:52.692Z",
       "description": "Tasks for master context"
     }
   }

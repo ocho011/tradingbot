@@ -228,4 +228,22 @@ node_modules/
 
 # Task files
 # tasks.json
-# tasks/ 
+# tasks/
+
+# Trading Bot Specific
+# Database files
+data/*.db
+data/*.db-journal
+data/*.db-wal
+
+# Log files (keep directory structure)
+logs/*.log
+logs/*.log.*
+
+# Backup files
+*.backup
+*.bak
+
+# API keys and secrets (already covered by .env)
+secrets.json
+credentials.json

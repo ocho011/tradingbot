@@ -8,7 +8,9 @@
       "Bash(task-master expand:*)",
       "Bash(git add .)",
       "Bash(git commit -m \"$(cat <<''EOF''\nAdd development tooling and configuration\n\n- Add Claude Code and Task Master AI integration\n- Configure MCP servers (Serena, Task Master, etc.)\n- Add environment variable template\n- Update .gitignore for development files\n- Add project documentation and instructions\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(task-master set-status --id=1 --status=in-progress)",
+      "Bash(python3 -m venv venv)"
     ]
   },
   "enableAllProjectMcpServers": true,
