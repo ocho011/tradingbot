@@ -94,6 +94,11 @@ class EventType(str, Enum):
     TAKE_PROFIT_HIT = "take_profit_hit"
     RISK_LIMIT_EXCEEDED = "risk_limit_exceeded"
 
+    # Exchange connection events
+    EXCHANGE_CONNECTED = "exchange_connected"
+    EXCHANGE_DISCONNECTED = "exchange_disconnected"
+    EXCHANGE_ERROR = "exchange_error"
+
     # System events
     SYSTEM_START = "system_start"
     SYSTEM_STOP = "system_stop"

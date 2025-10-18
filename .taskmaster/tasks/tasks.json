@@ -160,7 +160,7 @@
         "dependencies": [
           "2"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -168,9 +168,10 @@
             "description": "ccxt.pro를 사용하여 바이낸스 거래소 연결을 위한 기본 클래스를 초기화하고 테스트넷과 메인넷 환경을 분리하여 구성",
             "dependencies": [],
             "details": "ccxt.pro.binance() 인스턴스 생성, 환경 변수에서 API 키 로드, testnet/mainnet 스위치 구현, 기본 연결 설정 및 API 엔드포인트 구성, 초기 연결 테스트 수행",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "테스트넷 및 메인넷 연결 성공 확인, API 키 유효성 검증, 환경 분리 동작 테스트",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-18T15:04:16.335Z"
           },
           {
             "id": 2,
@@ -235,7 +236,8 @@
         ],
         "complexity": 7,
         "recommendedSubtasks": 6,
-        "expansionPrompt": "API 연동을 단계별로 구현하여 ccxt.pro 초기화, WebSocket 연결 관리, 하트비트 모니터링, 재연결 로직, REST API 래퍼, 권한 검증으로 세분화"
+        "expansionPrompt": "API 연동을 단계별로 구현하여 ccxt.pro 초기화, WebSocket 연결 관리, 하트비트 모니터링, 재연결 로직, REST API 래퍼, 권한 검증으로 세분화",
+        "updatedAt": "2025-10-18T15:04:16.335Z"
       },
       {
         "id": "4",
@@ -815,7 +817,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-18T14:25:44.767Z",
+      "lastModified": "2025-10-18T15:04:16.336Z",
       "taskCount": 10,
       "completedCount": 2,
       "tags": [
