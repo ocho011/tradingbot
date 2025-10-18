@@ -1,0 +1,445 @@
+"""
+Unit tests for BinanceManager WebSocket subscription functionality.
+
+Tests candle stream subscriptions, multi-symbol/timeframe support,
+data validation, and event publishing.
+"""
+
+import pytest
+import asyncio
+from unittest.mock import AsyncMock, Mock, patch, call
+from datetime import datetime
+
+from src.services.exchange.binance_manager import BinanceManager, BinanceConnectionError
+from src.core.config import BinanceConfig
+from src.core.events import EventBus, EventType
+from src.core.constants import TimeFrame
+
+
+@pytest.fixture
+def binance_config():
+    """Create test Binance configuration."""
+    return BinanceConfig(
+        api_key="test_api_key",
+        secret_key="test_secret_key",
+        testnet=True
+    )
+
+
+@pytest.fixture
+def event_bus():
+    """Create mock event bus."""
+    bus = Mock(spec=EventBus)
+    bus.publish = AsyncMock()
+    return bus
+
+
+@pytest.fixture
+async def binance_manager(binance_config, event_bus):
+    """Create initialized BinanceManager instance for testing."""
+    manager = BinanceManager(config=binance_config, event_bus=event_bus)
+
+    # Mock exchange initialization
+    mock_exchange = AsyncMock()
+    mock_exchange.fetch_time = AsyncMock(return_value=1234567890000)
+    manager.exchange = mock_exchange
+    manager._connected = True
+    manager._connection_tested = True
+
+    yield manager
+
+    # Cleanup
+    await manager.close()
+
+
+class TestCandleSubscription:
+    """Test candle stream subscription functionality."""
+
+    @pytest.mark.asyncio
+    async def test_subscribe_single_symbol_single_timeframe(self, binance_manager, event_bus):
+        """Test subscribing to single symbol and timeframe."""
+        symbol = "BTCUSDT"
+        timeframes = [TimeFrame.M1]
+
+        # Mock watch_ohlcv to prevent actual WebSocket connection
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        await binance_manager.subscribe_candles(symbol, timeframes)
+
+        assert symbol in binance_manager._ws_subscriptions
+        assert TimeFrame.M1 in binance_manager._ws_subscriptions[symbol]
+        assert binance_manager._ws_running is True
+        assert f"{symbol}:{TimeFrame.M1.value}" in binance_manager._ws_tasks
+
+        # Cleanup: stop tasks to prevent hanging
+        binance_manager._ws_running = False
+        for task in binance_manager._ws_tasks.values():
+            task.cancel()
+        await asyncio.gather(*binance_manager._ws_tasks.values(), return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_subscribe_single_symbol_multiple_timeframes(self, binance_manager):
+        """Test subscribing to multiple timeframes for single symbol."""
+        symbol = "BTCUSDT"
+        timeframes = [TimeFrame.M1, TimeFrame.M15, TimeFrame.H1]
+
+        # Mock watch_ohlcv to prevent actual WebSocket connection
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        await binance_manager.subscribe_candles(symbol, timeframes)
+
+        assert symbol in binance_manager._ws_subscriptions
+        assert len(binance_manager._ws_subscriptions[symbol]) == 3
+        assert all(tf in binance_manager._ws_subscriptions[symbol] for tf in timeframes)
+        assert len(binance_manager._ws_tasks) == 3
+
+        # Cleanup
+        binance_manager._ws_running = False
+        for task in binance_manager._ws_tasks.values():
+            task.cancel()
+        await asyncio.gather(*binance_manager._ws_tasks.values(), return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_subscribe_multiple_symbols(self, binance_manager):
+        """Test subscribing to multiple symbols."""
+        symbols = ["BTCUSDT", "ETHUSDT"]
+        timeframes = [TimeFrame.M1, TimeFrame.M15]
+
+        # Mock watch_ohlcv to prevent actual WebSocket connection
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        for symbol in symbols:
+            await binance_manager.subscribe_candles(symbol, timeframes)
+
+        assert len(binance_manager._ws_subscriptions) == 2
+        for symbol in symbols:
+            assert symbol in binance_manager._ws_subscriptions
+            assert len(binance_manager._ws_subscriptions[symbol]) == 2
+
+        # 2 symbols * 2 timeframes = 4 tasks
+        assert len(binance_manager._ws_tasks) == 4
+
+        # Cleanup
+        binance_manager._ws_running = False
+        for task in binance_manager._ws_tasks.values():
+            task.cancel()
+        await asyncio.gather(*binance_manager._ws_tasks.values(), return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_subscribe_duplicate_prevention(self, binance_manager):
+        """Test that duplicate subscriptions are prevented."""
+        symbol = "BTCUSDT"
+        timeframes = [TimeFrame.M1]
+
+        # Mock watch_ohlcv to prevent actual WebSocket connection
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        # Subscribe twice
+        await binance_manager.subscribe_candles(symbol, timeframes)
+        await binance_manager.subscribe_candles(symbol, timeframes)
+
+        # Should only have one subscription
+        assert len(binance_manager._ws_subscriptions[symbol]) == 1
+        assert len(binance_manager._ws_tasks) == 1
+
+        # Cleanup
+        binance_manager._ws_running = False
+        for task in binance_manager._ws_tasks.values():
+            task.cancel()
+        await asyncio.gather(*binance_manager._ws_tasks.values(), return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_subscribe_without_exchange_initialized(self, binance_config, event_bus):
+        """Test subscription fails without initialized exchange."""
+        manager = BinanceManager(config=binance_config, event_bus=event_bus)
+        manager.exchange = None
+
+        with pytest.raises(BinanceConnectionError, match="Exchange not initialized"):
+            await manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+
+    @pytest.mark.asyncio
+    async def test_subscribe_auto_connects(self, binance_config, event_bus):
+        """Test subscription auto-connects if not connected."""
+        manager = BinanceManager(config=binance_config, event_bus=event_bus)
+
+        mock_exchange = AsyncMock()
+        mock_exchange.fetch_time = AsyncMock(return_value=1234567890000)
+        mock_exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        manager.exchange = mock_exchange
+        manager._connected = False
+
+        await manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+
+        # Should have called test_connection
+        mock_exchange.fetch_time.assert_called_once()
+        assert manager.is_connected
+
+        await manager.close()
+
+
+class TestCandleWatcher:
+    """Test candle watching and event publishing."""
+
+    @pytest.mark.asyncio
+    async def test_watch_candles_publishes_events(self, binance_manager, event_bus):
+        """Test that candle watcher publishes events correctly."""
+        symbol = "BTCUSDT"
+        timeframe = TimeFrame.M1
+
+        # Mock watch_ohlcv to return sample candle data once, then empty to exit loop
+        sample_candle = [
+            1234567890000,  # timestamp
+            50000.0,  # open
+            51000.0,  # high
+            49000.0,  # low
+            50500.0,  # close
+            100.5  # volume
+        ]
+
+        call_count = 0
+        async def mock_watch_ohlcv(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return [sample_candle]
+            # Return empty to exit loop
+            binance_manager._ws_running = False
+            return []
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
+
+        # Start watching
+        binance_manager._ws_running = True
+        watch_task = asyncio.create_task(binance_manager._watch_candles(symbol, timeframe))
+
+        # Wait for task to complete
+        await asyncio.sleep(0.5)
+
+        # Verify event was published
+        assert event_bus.publish.called
+        published_event = event_bus.publish.call_args[0][0]
+
+        assert published_event.event_type == EventType.CANDLE_RECEIVED
+        assert published_event.data['symbol'] == symbol
+        assert published_event.data['timeframe'] == timeframe.value
+        assert published_event.data['open'] == 50000.0
+        assert published_event.data['close'] == 50500.0
+
+        # Cleanup
+        if not watch_task.done():
+            watch_task.cancel()
+            try:
+                await watch_task
+            except asyncio.CancelledError:
+                pass
+
+    @pytest.mark.asyncio
+    async def test_watch_candles_handles_errors(self, binance_manager, event_bus):
+        """Test that candle watcher handles errors gracefully."""
+        symbol = "BTCUSDT"
+        timeframe = TimeFrame.M1
+
+        # Mock watch_ohlcv to raise error first, then return data, then exit
+        error_count = 0
+
+        async def mock_watch_with_error(*args, **kwargs):
+            nonlocal error_count
+            error_count += 1
+            if error_count == 1:
+                raise Exception("Network error")
+            elif error_count == 2:
+                # Return valid candle after error
+                return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+            else:
+                # Exit loop after recovery
+                binance_manager._ws_running = False
+                return []
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_with_error
+
+        # Start watching
+        binance_manager._ws_running = True
+        watch_task = asyncio.create_task(binance_manager._watch_candles(symbol, timeframe))
+
+        # Wait for execution
+        await asyncio.sleep(2.0)  # Enough time for error and recovery
+
+        # Should have recovered and published event
+        assert event_bus.publish.called
+
+        # Cleanup
+        if not watch_task.done():
+            watch_task.cancel()
+            try:
+                await watch_task
+            except asyncio.CancelledError:
+                pass
+
+
+class TestCandleValidation:
+    """Test candle data validation."""
+
+    def test_validate_candle_valid_data(self, binance_manager):
+        """Test validation with valid candle data."""
+        candle_data = {
+            'symbol': 'BTCUSDT',
+            'timeframe': '1m',
+            'timestamp': 1234567890000,
+            'open': 50000.0,
+            'high': 51000.0,
+            'low': 49000.0,
+            'close': 50500.0,
+            'volume': 100.5
+        }
+
+        assert binance_manager._validate_candle(candle_data) is True
+
+    def test_validate_candle_missing_fields(self, binance_manager):
+        """Test validation fails with missing fields."""
+        candle_data = {
+            'symbol': 'BTCUSDT',
+            'timeframe': '1m',
+            # Missing other required fields
+        }
+
+        assert binance_manager._validate_candle(candle_data) is False
+
+    def test_validate_candle_invalid_ohlc(self, binance_manager):
+        """Test validation fails with invalid OHLC relationships."""
+        # High is lower than low
+        candle_data = {
+            'symbol': 'BTCUSDT',
+            'timeframe': '1m',
+            'timestamp': 1234567890000,
+            'open': 50000.0,
+            'high': 48000.0,  # Invalid: high < low
+            'low': 49000.0,
+            'close': 50500.0,
+            'volume': 100.5
+        }
+
+        assert binance_manager._validate_candle(candle_data) is False
+
+    def test_validate_candle_negative_values(self, binance_manager):
+        """Test validation fails with negative values."""
+        candle_data = {
+            'symbol': 'BTCUSDT',
+            'timeframe': '1m',
+            'timestamp': 1234567890000,
+            'open': 50000.0,
+            'high': 51000.0,
+            'low': -49000.0,  # Invalid: negative
+            'close': 50500.0,
+            'volume': 100.5
+        }
+
+        assert binance_manager._validate_candle(candle_data) is False
+
+
+class TestUnsubscribe:
+    """Test unsubscribe functionality."""
+
+    @pytest.mark.asyncio
+    async def test_unsubscribe_specific_timeframe(self, binance_manager):
+        """Test unsubscribing from specific timeframe."""
+        symbol = "BTCUSDT"
+        timeframes = [TimeFrame.M1, TimeFrame.M15, TimeFrame.H1]
+
+        # Mock watch_ohlcv to prevent actual WebSocket connection
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        await binance_manager.subscribe_candles(symbol, timeframes)
+
+        # Unsubscribe from M1 only
+        await binance_manager.unsubscribe_candles(symbol, TimeFrame.M1)
+
+        assert symbol in binance_manager._ws_subscriptions
+        assert TimeFrame.M1 not in binance_manager._ws_subscriptions[symbol]
+        assert TimeFrame.M15 in binance_manager._ws_subscriptions[symbol]
+        assert TimeFrame.H1 in binance_manager._ws_subscriptions[symbol]
+
+        # Cleanup
+        await binance_manager.close()
+
+    @pytest.mark.asyncio
+    async def test_unsubscribe_all_timeframes(self, binance_manager):
+        """Test unsubscribing from all timeframes for a symbol."""
+        symbol = "BTCUSDT"
+        timeframes = [TimeFrame.M1, TimeFrame.M15]
+
+        # Mock watch_ohlcv to prevent actual WebSocket connection
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        await binance_manager.subscribe_candles(symbol, timeframes)
+
+        # Unsubscribe all
+        await binance_manager.unsubscribe_candles(symbol)
+
+        assert symbol not in binance_manager._ws_subscriptions
+        assert len(binance_manager._ws_tasks) == 0
+
+    @pytest.mark.asyncio
+    async def test_unsubscribe_nonexistent_subscription(self, binance_manager):
+        """Test unsubscribing from non-existent subscription doesn't error."""
+        # Should not raise error
+        await binance_manager.unsubscribe_candles("BTCUSDT", TimeFrame.M1)
+
+
+class TestSubscriptionTracking:
+    """Test subscription tracking functionality."""
+
+    @pytest.mark.asyncio
+    async def test_get_active_subscriptions(self, binance_manager):
+        """Test getting active subscriptions."""
+        # Mock watch_ohlcv to prevent actual WebSocket connection
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1, TimeFrame.M15])
+        await binance_manager.subscribe_candles("ETHUSDT", [TimeFrame.H1])
+
+        subscriptions = binance_manager.get_active_subscriptions()
+
+        assert len(subscriptions) == 2
+        assert 'BTCUSDT' in subscriptions
+        assert 'ETHUSDT' in subscriptions
+        assert set(subscriptions['BTCUSDT']) == {'1m', '15m'}
+        assert subscriptions['ETHUSDT'] == ['1h']
+
+        # Cleanup
+        await binance_manager.close()
+
+    @pytest.mark.asyncio
+    async def test_get_active_subscriptions_empty(self, binance_manager):
+        """Test getting subscriptions when none active."""
+        subscriptions = binance_manager.get_active_subscriptions()
+        assert subscriptions == {}
+
+
+class TestCloseWithWebSocket:
+    """Test closing manager with active WebSocket subscriptions."""
+
+    @pytest.mark.asyncio
+    async def test_close_cancels_subscriptions(self, binance_manager):
+        """Test that close() cancels all active subscriptions."""
+        # Mock watch_ohlcv to prevent actual WebSocket connection
+        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+
+        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1, TimeFrame.M15])
+        await binance_manager.subscribe_candles("ETHUSDT", [TimeFrame.H1])
+
+        assert len(binance_manager._ws_tasks) == 3
+
+        await binance_manager.close()
+
+        # All tasks should be cancelled
+        assert len(binance_manager._ws_tasks) == 0
+        assert len(binance_manager._ws_subscriptions) == 0
+        assert binance_manager._ws_running is False
+
+    @pytest.mark.asyncio
+    async def test_close_without_subscriptions(self, binance_manager):
+        """Test close without active subscriptions."""
+        # Should not raise error
+        await binance_manager.close()
+
+        assert not binance_manager.is_connected
