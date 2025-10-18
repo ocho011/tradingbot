@@ -181,10 +181,10 @@
               1
             ],
             "details": "1분, 15분, 1시간 타임프레임 캔들 스트림 구독, 멀티 심볼 지원 (BTCUSDT, ETHUSDT), WebSocket 연결 설정 및 메시지 파싱, 캔들 데이터 검증 및 포맷팅",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "실시간 캔들 데이터 수신 확인, 다중 타임프레임 데이터 검증, 메시지 파싱 정확성 테스트",
             "parentId": "undefined",
-            "updatedAt": "2025-10-18T15:06:56.645Z"
+            "updatedAt": "2025-10-18T15:42:31.366Z"
           },
           {
             "id": 3,
@@ -194,9 +194,10 @@
               2
             ],
             "details": "주기적 핑/퐁 메시지 전송 (30초 간격), 응답 시간 모니터링, 연결 상태 플래그 관리, 타임아웃 감지 로직, 연결 상태 변화 이벤트 발행 (ws_connected, ws_disconnected)",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "하트비트 메시지 송수신 확인, 타임아웃 감지 정확성 검증, 연결 상태 이벤트 발행 테스트",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-18T21:02:22.861Z"
           },
           {
             "id": 4,
@@ -238,7 +239,7 @@
         "complexity": 7,
         "recommendedSubtasks": 6,
         "expansionPrompt": "API 연동을 단계별로 구현하여 ccxt.pro 초기화, WebSocket 연결 관리, 하트비트 모니터링, 재연결 로직, REST API 래퍼, 권한 검증으로 세분화",
-        "updatedAt": "2025-10-18T15:06:56.645Z"
+        "updatedAt": "2025-10-18T21:02:22.861Z"
       },
       {
         "id": "4",
@@ -818,7 +819,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-18T15:06:56.646Z",
+      "lastModified": "2025-10-18T21:02:22.862Z",
       "taskCount": 10,
       "completedCount": 2,
       "tags": [

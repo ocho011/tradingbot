@@ -7,7 +7,8 @@ WebSocket stream subscriptions, and basic API key validation for Binance cryptoc
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List, Set, Callable
+import time
+from typing import Dict, Any, Optional, List, Set
 from datetime import datetime
 import ccxt.async_support as ccxt
 
@@ -65,6 +66,14 @@ class BinanceManager:
         self._ws_subscriptions: Dict[str, Set[TimeFrame]] = {}  # symbol -> set of timeframes
         self._ws_tasks: Dict[str, asyncio.Task] = {}  # subscription_key -> task
         self._ws_running = False
+
+        # Heartbeat monitoring
+        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._heartbeat_running = False
+        self._last_heartbeat_time: Optional[float] = None
+        self._heartbeat_interval = 30  # seconds
+        self._heartbeat_timeout = 60  # seconds
+        self._ws_connection_healthy = False
 
         logger.info(
             f"Initializing BinanceManager (testnet={'enabled' if self.config.testnet else 'disabled'})"
@@ -275,6 +284,10 @@ class BinanceManager:
 
         self._ws_running = True
 
+        # Start heartbeat monitor if not already running
+        if not self._heartbeat_running:
+            await self.start_heartbeat_monitor()
+
     async def _watch_candles(self, symbol: str, timeframe: TimeFrame) -> None:
         """
         Internal method to watch candles for a specific symbol and timeframe.
@@ -348,6 +361,160 @@ class BinanceManager:
                 self._ws_subscriptions[symbol].discard(timeframe)
                 if not self._ws_subscriptions[symbol]:
                     del self._ws_subscriptions[symbol]
+
+    async def _heartbeat_monitor(self) -> None:
+        """
+        Monitor WebSocket connection health through periodic heartbeat checks.
+
+        Sends periodic pings and monitors responses to detect connection issues.
+        Publishes connection state change events when health status changes.
+        """
+        logger.info("Starting heartbeat monitor")
+
+        try:
+            while self._heartbeat_running and self._ws_running:
+                try:
+                    current_time = time.time()
+
+                    # Check if we have an active connection
+                    if self.exchange and self._ws_subscriptions:
+                        # Send a lightweight request to verify connection
+                        # Using fetch_time as it's a simple, fast endpoint
+                        ping_start = time.time()
+                        await self.exchange.fetch_time()
+                        response_time = time.time() - ping_start
+
+                        # Update heartbeat time
+                        self._last_heartbeat_time = current_time
+
+                        # Check if connection was previously unhealthy
+                        if not self._ws_connection_healthy:
+                            self._ws_connection_healthy = True
+                            logger.info(f"✓ WebSocket connection restored (response time: {response_time:.3f}s)")
+
+                            # Publish connection restored event
+                            if self.event_bus:
+                                await self.event_bus.publish(Event(
+                                    event_type=EventType.EXCHANGE_CONNECTED,
+                                    priority=7,
+                                    data={
+                                        'exchange': 'binance',
+                                        'testnet': self.config.testnet,
+                                        'response_time': response_time,
+                                        'message': 'WebSocket connection restored'
+                                    },
+                                    source='BinanceManager.Heartbeat'
+                                ))
+                        else:
+                            logger.debug(f"Heartbeat OK (response time: {response_time:.3f}s)")
+
+                    # Check for timeout
+                    elif self._last_heartbeat_time:
+                        time_since_last = current_time - self._last_heartbeat_time
+                        if time_since_last > self._heartbeat_timeout:
+                            if self._ws_connection_healthy:
+                                self._ws_connection_healthy = False
+                                logger.warning(f"⚠ WebSocket connection timeout detected ({time_since_last:.1f}s)")
+
+                                # Publish connection lost event
+                                if self.event_bus:
+                                    await self.event_bus.publish(Event(
+                                        event_type=EventType.EXCHANGE_DISCONNECTED,
+                                        priority=8,
+                                        data={
+                                            'exchange': 'binance',
+                                            'reason': 'heartbeat_timeout',
+                                            'timeout_seconds': time_since_last
+                                        },
+                                        source='BinanceManager.Heartbeat'
+                                    ))
+
+                except asyncio.CancelledError:
+                    logger.info("Heartbeat monitor cancelled")
+                    raise
+
+                except Exception as e:
+                    logger.error(f"Error in heartbeat monitor: {e}", exc_info=True)
+
+                    # Mark connection as unhealthy on errors
+                    if self._ws_connection_healthy:
+                        self._ws_connection_healthy = False
+                        logger.warning("⚠ WebSocket connection marked unhealthy due to heartbeat error")
+
+                        # Publish connection error event
+                        if self.event_bus:
+                            await self.event_bus.publish(Event(
+                                event_type=EventType.EXCHANGE_ERROR,
+                                priority=8,
+                                data={
+                                    'exchange': 'binance',
+                                    'error': str(e),
+                                    'source': 'heartbeat_monitor'
+                                },
+                                source='BinanceManager.Heartbeat'
+                            ))
+
+                # Wait for next heartbeat interval
+                await asyncio.sleep(self._heartbeat_interval)
+
+        except asyncio.CancelledError:
+            logger.info("Heartbeat monitor stopped")
+        except Exception as e:
+            logger.error(f"Fatal error in heartbeat monitor: {e}", exc_info=True)
+        finally:
+            self._heartbeat_running = False
+            logger.info("Heartbeat monitor terminated")
+
+    async def start_heartbeat_monitor(self) -> None:
+        """
+        Start the heartbeat monitoring system.
+
+        Should be called after WebSocket subscriptions are active.
+        """
+        if self._heartbeat_running:
+            logger.debug("Heartbeat monitor already running")
+            return
+
+        if not self._ws_running:
+            logger.warning("Cannot start heartbeat monitor: WebSocket not running")
+            return
+
+        self._heartbeat_running = True
+        self._last_heartbeat_time = time.time()
+        self._ws_connection_healthy = True
+
+        self._heartbeat_task = asyncio.create_task(
+            self._heartbeat_monitor(),
+            name="heartbeat_monitor"
+        )
+
+        logger.info(f"✓ Heartbeat monitor started (interval: {self._heartbeat_interval}s, timeout: {self._heartbeat_timeout}s)")
+
+    async def stop_heartbeat_monitor(self) -> None:
+        """
+        Stop the heartbeat monitoring system.
+        """
+        if not self._heartbeat_running:
+            return
+
+        logger.info("Stopping heartbeat monitor...")
+        self._heartbeat_running = False
+
+        if self._heartbeat_task and not self._heartbeat_task.done():
+            self._heartbeat_task.cancel()
+            try:
+                await self._heartbeat_task
+            except asyncio.CancelledError:
+                pass
+
+        self._heartbeat_task = None
+        self._ws_connection_healthy = False
+        logger.info("Heartbeat monitor stopped")
+
+    @property
+    def is_websocket_healthy(self) -> bool:
+        """Check if WebSocket connection is healthy based on heartbeat monitoring."""
+        return self._ws_connection_healthy and self._heartbeat_running
 
     def _validate_candle(self, candle_data: Dict[str, Any]) -> bool:
         """
@@ -434,14 +601,17 @@ class BinanceManager:
         """
         Close the exchange connection and cleanup resources.
 
-        Stops all WebSocket subscriptions and closes the ccxt exchange connection.
+        Stops all WebSocket subscriptions, heartbeat monitor, and closes the ccxt exchange connection.
         """
+        # Stop heartbeat monitor first
+        await self.stop_heartbeat_monitor()
+
         # Stop WebSocket subscriptions
         self._ws_running = False
 
         if self._ws_tasks:
             logger.info(f"Cancelling {len(self._ws_tasks)} WebSocket subscription tasks...")
-            for subscription_key, task in self._ws_tasks.items():
+            for task in self._ws_tasks.values():
                 if not task.done():
                     task.cancel()
 
