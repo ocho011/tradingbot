@@ -254,7 +254,7 @@
         "dependencies": [
           "3"
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -312,15 +312,16 @@
               4
             ],
             "details": "CandleDataManager 메인 클래스 구현, 멀티 심볼 (BTCUSDT, ETHUSDT) 및 타임프레임 (1m, 15m, 1h) 동시 관리, 각 심볼/타임프레임별 독립적 스토리지 관리, 동적 심볼 추가/제거 기능, 전체 데이터 상태 모니터링 대시보드, 메모리 사용량 최적화 및 가비지 컬렉션, 시스템 리소스 모니터링 기능",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "멀티 심볼 동시 처리 테스트, 메모리 사용량 모니터링 테스트, 동적 심볼 관리 테스트, 전체 시스템 성능 테스트",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-19T11:18:05.686Z"
           }
         ],
         "complexity": 6,
         "recommendedSubtasks": 5,
         "expansionPrompt": "데이터 처리 파이프라인을 구성하여 캔들 데이터 모델 설계, 메모리 스토리지 구현, 과거 데이터 로드, 실시간 수신 처리, 멀티 심볼 지원으로 세분화",
-        "updatedAt": "2025-10-19T07:34:06.210Z"
+        "updatedAt": "2025-10-19T11:18:05.686Z"
       },
       {
         "id": "5",
@@ -825,9 +826,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-19T07:34:06.210Z",
+      "lastModified": "2025-10-19T11:18:05.687Z",
       "taskCount": 10,
-      "completedCount": 3,
+      "completedCount": 4,
       "tags": [
         "master"
       ]
