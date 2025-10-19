@@ -333,7 +333,7 @@
         "dependencies": [
           "2"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -341,9 +341,10 @@
             "description": "거래 이력, 포지션, 통계, 백테스팅 결과를 위한 SQLite 데이터베이스 스키마를 설계하고 테이블 구조를 정의합니다.",
             "dependencies": [],
             "details": "trades 테이블 (id, symbol, strategy, entry_time, exit_time, entry_price, exit_price, quantity, pnl, leverage), positions 테이블 (id, symbol, strategy, size, entry_price, unrealized_pnl, status, timestamp), statistics 테이블 (id, strategy, date, total_trades, win_rate, total_pnl, daily_stats, monthly_stats), backtest_results 테이블 (id, strategy, start_date, end_date, total_return, sharpe_ratio, max_drawdown, configuration) 스키마 설계 및 인덱스 정의",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "테이블 생성 스크립트 실행 테스트, 제약 조건 검증, 인덱스 성능 테스트",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-19T12:04:30.157Z"
           },
           {
             "id": 2,
@@ -384,7 +385,8 @@
         ],
         "complexity": 5,
         "recommendedSubtasks": 4,
-        "expansionPrompt": "데이터베이스 레이어를 체계적으로 구현하여 스키마 설계, ORM 설정, 데이터 모델 구현, 연결 풀 및 마이그레이션 관리로 세분화"
+        "expansionPrompt": "데이터베이스 레이어를 체계적으로 구현하여 스키마 설계, ORM 설정, 데이터 모델 구현, 연결 풀 및 마이그레이션 관리로 세분화",
+        "updatedAt": "2025-10-19T12:04:30.157Z"
       },
       {
         "id": "6",
@@ -826,7 +828,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-19T11:18:05.687Z",
+      "lastModified": "2025-10-19T12:04:30.157Z",
       "taskCount": 10,
       "completedCount": 4,
       "tags": [
