@@ -299,9 +299,10 @@
               3
             ],
             "details": "RealtimeCandleProcessor 클래스 구현, WebSocket 캔들 스트림 데이터 파싱, 캔들 완성 감지 로직 (시간 기반), candle_closed 이벤트 자동 발행, 실시간 데이터 검증 (이상치 필터링), 캔들 업데이트 시 메모리 스토리지 동기화, 데이터 무결성 보장 (중복 제거, 순서 보장)",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "실시간 캔들 수신 테스트, 캔들 완성 이벤트 발행 검증, 데이터 검증 로직 테스트, 이벤트 타이밍 테스트",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-19T07:34:06.210Z"
           },
           {
             "id": 5,
@@ -319,7 +320,7 @@
         "complexity": 6,
         "recommendedSubtasks": 5,
         "expansionPrompt": "데이터 처리 파이프라인을 구성하여 캔들 데이터 모델 설계, 메모리 스토리지 구현, 과거 데이터 로드, 실시간 수신 처리, 멀티 심볼 지원으로 세분화",
-        "updatedAt": "2025-10-19T07:20:09.192Z"
+        "updatedAt": "2025-10-19T07:34:06.210Z"
       },
       {
         "id": "5",
@@ -824,7 +825,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-19T07:20:09.192Z",
+      "lastModified": "2025-10-19T07:34:06.210Z",
       "taskCount": 10,
       "completedCount": 3,
       "tags": [

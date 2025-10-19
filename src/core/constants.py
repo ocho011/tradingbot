@@ -72,6 +72,7 @@ class EventType(str, Enum):
 
     # Market data events
     CANDLE_RECEIVED = "candle_received"
+    CANDLE_CLOSED = "candle_closed"
     ORDERBOOK_UPDATE = "orderbook_update"
 
     # ICT indicator events
