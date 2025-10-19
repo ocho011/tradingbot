@@ -15,6 +15,7 @@ import ccxt.async_support as ccxt
 from src.core.config import BinanceConfig
 from src.core.events import Event, EventBus
 from src.core.constants import EventType, TimeFrame
+from src.services.exchange.permissions import PermissionVerifier, PermissionType
 
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,9 @@ class BinanceManager:
         self._reconnect_task: Optional[asyncio.Task] = None
         self._is_reconnecting = False
 
+        # Permission verification system (initialized after exchange setup)
+        self._permission_verifier: Optional[PermissionVerifier] = None
+
         logger.info(
             f"Initializing BinanceManager (testnet={'enabled' if self.config.testnet else 'disabled'})"
         )
@@ -119,6 +123,14 @@ class BinanceManager:
             if self.config.testnet:
                 logger.info("Configuring Binance testnet endpoints")
                 self.exchange.set_sandbox_mode(True)
+
+            # Initialize permission verifier
+            self._permission_verifier = PermissionVerifier(
+                exchange=self.exchange,
+                event_bus=self.event_bus,
+                cache_ttl=3600,  # 1 hour cache
+                revalidate_interval=3600  # Re-validate every hour
+            )
 
             logger.info(f"Binance exchange initialized (testnet={self.config.testnet})")
 
@@ -189,9 +201,23 @@ class BinanceManager:
 
             raise BinanceConnectionError(error_msg) from e
 
-    async def validate_api_permissions(self) -> Dict[str, bool]:
+    async def validate_api_permissions(
+        self,
+        force_refresh: bool = False,
+        start_monitoring: bool = True
+    ) -> Dict[str, bool]:
         """
-        Validate API key permissions (read, trade).
+        Validate API key permissions with enhanced caching and monitoring.
+
+        This method uses the PermissionVerifier system which provides:
+        - Permission caching with 1-hour TTL
+        - Automatic periodic re-validation
+        - Change detection and event notifications
+        - Error tracking and alerts
+
+        Args:
+            force_refresh: Force fresh verification ignoring cache
+            start_monitoring: Start periodic re-validation if not already running
 
         Returns:
             Dictionary with permission status:
@@ -199,43 +225,99 @@ class BinanceManager:
             - 'trade': Can place orders
 
         Raises:
-            BinanceConnectionError: If permission check fails
+            BinanceConnectionError: If permission check fails and no cache available
         """
         if not self.exchange:
             raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
 
+        if not self._permission_verifier:
+            raise BinanceConnectionError("Permission verifier not initialized.")
+
         if not self._connection_tested:
             await self.test_connection()
 
-        permissions = {'read': False, 'trade': False}
-
         try:
-            logger.info("Validating API key permissions...")
+            # Use the enhanced permission verifier
+            permissions = await self._permission_verifier.verify_permissions(
+                force_refresh=force_refresh
+            )
 
-            # Test read permission by fetching account balance
-            try:
-                await self.exchange.fetch_balance()
-                permissions['read'] = True
-                logger.info("✓ Read permission: GRANTED")
-            except Exception as e:
-                logger.warning(f"✗ Read permission: DENIED ({e})")
+            # Start periodic monitoring if requested and not already running
+            if start_monitoring and not self._permission_verifier.is_validation_running:
+                await self._permission_verifier.start_periodic_validation()
 
-            # Test trade permission by fetching open orders (safe read operation)
-            # Note: We don't actually place test orders to avoid affecting account
-            try:
-                await self.exchange.fetch_open_orders()
-                permissions['trade'] = True
-                logger.info("✓ Trade permission: GRANTED")
-            except Exception as e:
-                logger.warning(f"✗ Trade permission: DENIED ({e})")
-
-            logger.info(f"API permissions: read={permissions['read']}, trade={permissions['trade']}")
             return permissions
 
         except Exception as e:
             error_msg = f"Failed to validate API permissions: {e}"
             logger.error(error_msg, exc_info=True)
             raise BinanceConnectionError(error_msg) from e
+
+    def get_permission_status(self) -> Dict[str, Any]:
+        """
+        Get detailed permission status information.
+
+        Returns:
+            Dictionary containing:
+            - 'read': Read permission status
+            - 'trade': Trade permission status
+            - 'last_checked': Last verification timestamp
+            - 'last_changed': Last permission change timestamp
+            - 'check_count': Number of verifications performed
+            - 'error_count': Number of verification errors
+
+        Raises:
+            BinanceConnectionError: If permission verifier not initialized
+        """
+        if not self._permission_verifier:
+            raise BinanceConnectionError("Permission verifier not initialized.")
+
+        return self._permission_verifier.get_status()
+
+    def has_permission(self, permission_type: PermissionType) -> bool:
+        """
+        Check if a specific permission is granted.
+
+        Args:
+            permission_type: Type of permission to check
+
+        Returns:
+            True if permission is granted, False otherwise
+
+        Raises:
+            BinanceConnectionError: If permission verifier not initialized
+        """
+        if not self._permission_verifier:
+            raise BinanceConnectionError("Permission verifier not initialized.")
+
+        return self._permission_verifier.is_permission_granted(permission_type)
+
+    async def start_permission_monitoring(self) -> None:
+        """
+        Start periodic permission re-validation.
+
+        Automatically re-validates permissions every hour and publishes
+        change events when permissions are modified.
+
+        Raises:
+            BinanceConnectionError: If permission verifier not initialized
+        """
+        if not self._permission_verifier:
+            raise BinanceConnectionError("Permission verifier not initialized.")
+
+        await self._permission_verifier.start_periodic_validation()
+
+    async def stop_permission_monitoring(self) -> None:
+        """
+        Stop periodic permission re-validation.
+
+        Raises:
+            BinanceConnectionError: If permission verifier not initialized
+        """
+        if not self._permission_verifier:
+            raise BinanceConnectionError("Permission verifier not initialized.")
+
+        await self._permission_verifier.stop_periodic_validation()
 
     # ========== REST API Wrapper Methods ==========
 
@@ -1077,9 +1159,14 @@ class BinanceManager:
         """
         Close the exchange connection and cleanup resources.
 
-        Stops all WebSocket subscriptions, heartbeat monitor, and closes the ccxt exchange connection.
+        Stops all WebSocket subscriptions, heartbeat monitor, permission monitoring,
+        and closes the ccxt exchange connection.
         """
-        # Stop heartbeat monitor first
+        # Stop permission monitoring
+        if self._permission_verifier:
+            await self.stop_permission_monitoring()
+
+        # Stop heartbeat monitor
         await self.stop_heartbeat_monitor()
 
         # Stop WebSocket subscriptions
