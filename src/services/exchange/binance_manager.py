@@ -237,6 +237,334 @@ class BinanceManager:
             logger.error(error_msg, exc_info=True)
             raise BinanceConnectionError(error_msg) from e
 
+    # ========== REST API Wrapper Methods ==========
+
+    async def fetch_balance(self) -> Dict[str, Any]:
+        """
+        Fetch account balance information.
+
+        Returns:
+            Dictionary containing:
+            - 'free': Available balances per currency
+            - 'used': Balances in active orders per currency
+            - 'total': Total balances per currency
+            - Asset-specific details with free/used/total amounts
+
+        Raises:
+            BinanceConnectionError: If exchange not initialized or API call fails
+        """
+        if not self.exchange:
+            raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
+
+        try:
+            logger.debug("Fetching account balance...")
+            balance = await self.exchange.fetch_balance()
+            logger.debug(f"Balance retrieved: {len(balance.get('info', {}))} assets")
+            return balance
+
+        except Exception as e:
+            error_msg = f"Failed to fetch balance: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise BinanceConnectionError(error_msg) from e
+
+    async def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        Fetch open positions information.
+
+        Args:
+            symbols: Optional list of symbols to fetch positions for.
+                    If None, fetches all open positions.
+
+        Returns:
+            List of position dictionaries containing:
+            - 'symbol': Trading pair
+            - 'side': 'long' or 'short'
+            - 'contracts': Position size in contracts
+            - 'contractSize': Contract size
+            - 'unrealizedPnl': Unrealized profit/loss
+            - 'leverage': Position leverage
+            - 'liquidationPrice': Liquidation price
+            - 'entryPrice': Average entry price
+            - 'markPrice': Current mark price
+            - Additional position details
+
+        Raises:
+            BinanceConnectionError: If exchange not initialized or API call fails
+        """
+        if not self.exchange:
+            raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
+
+        try:
+            logger.debug(f"Fetching positions for {symbols if symbols else 'all symbols'}...")
+            positions = await self.exchange.fetch_positions(symbols)
+
+            # Filter out zero positions
+            active_positions = [p for p in positions if float(p.get('contracts', 0)) != 0]
+
+            logger.debug(f"Retrieved {len(active_positions)} active positions (of {len(positions)} total)")
+            return active_positions
+
+        except Exception as e:
+            error_msg = f"Failed to fetch positions: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise BinanceConnectionError(error_msg) from e
+
+    async def fetch_orders(
+        self,
+        symbol: Optional[str] = None,
+        since: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch order history.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USDT'). If None, fetches all symbols.
+            since: Timestamp in milliseconds to fetch orders from
+            limit: Maximum number of orders to return
+
+        Returns:
+            List of order dictionaries containing:
+            - 'id': Order ID
+            - 'symbol': Trading pair
+            - 'type': Order type (market, limit, etc.)
+            - 'side': 'buy' or 'sell'
+            - 'price': Order price
+            - 'amount': Order amount
+            - 'cost': Total cost
+            - 'filled': Filled amount
+            - 'remaining': Remaining amount
+            - 'status': Order status (open, closed, canceled)
+            - 'timestamp': Order creation time
+            - Additional order details
+
+        Raises:
+            BinanceConnectionError: If exchange not initialized or API call fails
+        """
+        if not self.exchange:
+            raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
+
+        try:
+            logger.debug(f"Fetching orders for {symbol or 'all symbols'}...")
+            orders = await self.exchange.fetch_orders(symbol, since, limit)
+            logger.debug(f"Retrieved {len(orders)} orders")
+            return orders
+
+        except Exception as e:
+            error_msg = f"Failed to fetch orders: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise BinanceConnectionError(error_msg) from e
+
+    async def fetch_open_orders(
+        self,
+        symbol: Optional[str] = None,
+        since: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch currently open orders.
+
+        Args:
+            symbol: Trading pair symbol. If None, fetches for all symbols.
+            since: Timestamp in milliseconds
+            limit: Maximum number of orders to return
+
+        Returns:
+            List of open order dictionaries (same format as fetch_orders)
+
+        Raises:
+            BinanceConnectionError: If exchange not initialized or API call fails
+        """
+        if not self.exchange:
+            raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
+
+        try:
+            logger.debug(f"Fetching open orders for {symbol or 'all symbols'}...")
+            orders = await self.exchange.fetch_open_orders(symbol, since, limit)
+            logger.debug(f"Retrieved {len(orders)} open orders")
+            return orders
+
+        except Exception as e:
+            error_msg = f"Failed to fetch open orders: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise BinanceConnectionError(error_msg) from e
+
+    async def fetch_closed_orders(
+        self,
+        symbol: Optional[str] = None,
+        since: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch closed (filled/canceled) orders.
+
+        Args:
+            symbol: Trading pair symbol. If None, fetches for all symbols.
+            since: Timestamp in milliseconds
+            limit: Maximum number of orders to return
+
+        Returns:
+            List of closed order dictionaries (same format as fetch_orders)
+
+        Raises:
+            BinanceConnectionError: If exchange not initialized or API call fails
+        """
+        if not self.exchange:
+            raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
+
+        try:
+            logger.debug(f"Fetching closed orders for {symbol or 'all symbols'}...")
+            orders = await self.exchange.fetch_closed_orders(symbol, since, limit)
+            logger.debug(f"Retrieved {len(orders)} closed orders")
+            return orders
+
+        except Exception as e:
+            error_msg = f"Failed to fetch closed orders: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise BinanceConnectionError(error_msg) from e
+
+    async def fetch_ticker(self, symbol: str) -> Dict[str, Any]:
+        """
+        Fetch current ticker data for a symbol.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USDT')
+
+        Returns:
+            Dictionary containing:
+            - 'symbol': Trading pair
+            - 'last': Last traded price
+            - 'bid': Highest bid price
+            - 'ask': Lowest ask price
+            - 'high': 24h high
+            - 'low': 24h low
+            - 'volume': 24h volume
+            - 'quoteVolume': 24h quote currency volume
+            - 'timestamp': Ticker timestamp
+            - Additional ticker data
+
+        Raises:
+            BinanceConnectionError: If exchange not initialized or API call fails
+        """
+        if not self.exchange:
+            raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
+
+        try:
+            logger.debug(f"Fetching ticker for {symbol}...")
+            ticker = await self.exchange.fetch_ticker(symbol)
+            logger.debug(f"Ticker retrieved: {symbol} @ {ticker.get('last')}")
+            return ticker
+
+        except Exception as e:
+            error_msg = f"Failed to fetch ticker for {symbol}: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise BinanceConnectionError(error_msg) from e
+
+    async def fetch_ohlcv(
+        self,
+        symbol: str,
+        timeframe: str = '1m',
+        since: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> List[List]:
+        """
+        Fetch OHLCV (candlestick) data.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USDT')
+            timeframe: Candle timeframe ('1m', '5m', '15m', '1h', '4h', '1d', etc.)
+            since: Timestamp in milliseconds to fetch from
+            limit: Maximum number of candles to return (default: 500, max: 1000)
+
+        Returns:
+            List of OHLCV arrays, each containing:
+            [timestamp, open, high, low, close, volume]
+
+        Raises:
+            BinanceConnectionError: If exchange not initialized or API call fails
+        """
+        if not self.exchange:
+            raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
+
+        try:
+            logger.debug(f"Fetching OHLCV for {symbol} {timeframe}...")
+            ohlcv = await self.exchange.fetch_ohlcv(symbol, timeframe, since, limit)
+            logger.debug(f"Retrieved {len(ohlcv)} candles for {symbol} {timeframe}")
+            return ohlcv
+
+        except Exception as e:
+            error_msg = f"Failed to fetch OHLCV for {symbol} {timeframe}: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise BinanceConnectionError(error_msg) from e
+
+    async def fetch_order_book(self, symbol: str, limit: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Fetch order book (market depth) for a symbol.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USDT')
+            limit: Order book depth limit (5, 10, 20, 50, 100, 500, 1000, 5000)
+
+        Returns:
+            Dictionary containing:
+            - 'symbol': Trading pair
+            - 'bids': List of [price, amount] bid orders (sorted high to low)
+            - 'asks': List of [price, amount] ask orders (sorted low to high)
+            - 'timestamp': Order book timestamp
+            - 'datetime': ISO datetime string
+
+        Raises:
+            BinanceConnectionError: If exchange not initialized or API call fails
+        """
+        if not self.exchange:
+            raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
+
+        try:
+            logger.debug(f"Fetching order book for {symbol} (limit={limit})...")
+            order_book = await self.exchange.fetch_order_book(symbol, limit)
+            logger.debug(
+                f"Order book retrieved: {symbol} "
+                f"({len(order_book['bids'])} bids, {len(order_book['asks'])} asks)"
+            )
+            return order_book
+
+        except Exception as e:
+            error_msg = f"Failed to fetch order book for {symbol}: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise BinanceConnectionError(error_msg) from e
+
+    async def fetch_trading_fees(self, symbol: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Fetch trading fees for symbol(s).
+
+        Args:
+            symbol: Trading pair symbol. If None, fetches fees for all symbols.
+
+        Returns:
+            Dictionary mapping symbols to fee information:
+            - 'maker': Maker fee rate (e.g., 0.0002 for 0.02%)
+            - 'taker': Taker fee rate
+            - Additional fee details
+
+        Raises:
+            BinanceConnectionError: If exchange not initialized or API call fails
+        """
+        if not self.exchange:
+            raise BinanceConnectionError("Exchange not initialized. Call initialize() first.")
+
+        try:
+            logger.debug(f"Fetching trading fees for {symbol or 'all symbols'}...")
+            fees = await self.exchange.fetch_trading_fees()
+
+            if symbol and symbol in fees:
+                return {symbol: fees[symbol]}
+            return fees
+
+        except Exception as e:
+            error_msg = f"Failed to fetch trading fees: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise BinanceConnectionError(error_msg) from e
+
     @property
     def is_connected(self) -> bool:
         """Check if connected to Binance."""
