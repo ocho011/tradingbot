@@ -239,6 +239,7 @@ node_modules/
 data/*.db
 data/*.db-journal
 data/*.db-wal
+:memory:*
 
 # Log files (keep directory structure)
 logs/*.log

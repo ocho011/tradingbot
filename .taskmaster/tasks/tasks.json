@@ -354,9 +354,10 @@
               1
             ],
             "details": "SQLAlchemy Base 클래스 정의, Trade, Position, Statistics, BacktestResult 모델 클래스 구현, 비동기 데이터베이스 엔진 설정, 세션 팩토리 구현, 연결 풀 설정 (pool_size=10, max_overflow=20), async_sessionmaker를 사용한 비동기 세션 관리, 데이터베이스 URL 설정 및 환경 변수 관리",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "ORM 모델 생성 테스트, 데이터베이스 연결 확인, 세션 생성/종료 테스트, 연결 풀 동작 검증",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-19T12:18:18.484Z"
           },
           {
             "id": 3,
@@ -386,7 +387,7 @@
         "complexity": 5,
         "recommendedSubtasks": 4,
         "expansionPrompt": "데이터베이스 레이어를 체계적으로 구현하여 스키마 설계, ORM 설정, 데이터 모델 구현, 연결 풀 및 마이그레이션 관리로 세분화",
-        "updatedAt": "2025-10-19T12:04:30.157Z"
+        "updatedAt": "2025-10-19T12:18:18.484Z"
       },
       {
         "id": "6",
@@ -828,7 +829,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-19T12:04:30.157Z",
+      "lastModified": "2025-10-19T12:18:18.485Z",
       "taskCount": 10,
       "completedCount": 4,
       "tags": [
