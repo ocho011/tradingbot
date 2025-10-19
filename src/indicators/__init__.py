@@ -9,11 +9,21 @@ from src.indicators.order_block import (
     OrderBlockDetector,
     SwingPoint
 )
+from src.indicators.fair_value_gap import (
+    FairValueGap,
+    FVGType,
+    FVGState,
+    FVGDetector
+)
 
 __all__ = [
     'OrderBlock',
     'OrderBlockType',
     'OrderBlockState',
     'OrderBlockDetector',
-    'SwingPoint'
+    'SwingPoint',
+    'FairValueGap',
+    'FVGType',
+    'FVGState',
+    'FVGDetector'
 ]
