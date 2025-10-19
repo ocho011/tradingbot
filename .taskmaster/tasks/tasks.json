@@ -274,7 +274,7 @@
               1
             ],
             "details": "CandleStorage 클래스 구현 (collections.deque 기반, 최대 500개 캔들 저장), 심볼별/타임프레임별 캔들 저장 딕셔너리 구조, 캔들 추가/조회/삭제 메서드, 메모리 사용량 모니터링 기능, LRU 방식 오래된 캔들 자동 삭제, 스레드 세이프 락 메커니즘 구현",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "최대 용량 테스트, 동시 접근 테스트, 메모리 사용량 모니터링 테스트, 캔들 조회 성능 테스트",
             "parentId": "undefined"
           },
@@ -830,7 +830,7 @@
       ],
       "created": "2025-10-19T06:50:31.183Z",
       "description": "Tasks for master context",
-      "updated": "2025-10-19T06:50:31.184Z"
+      "updated": "2025-10-19T07:05:36.423Z"
     }
   }
 }
