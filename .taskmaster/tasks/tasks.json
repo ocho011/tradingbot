@@ -367,9 +367,10 @@
               2
             ],
             "details": "TradeDAO, PositionDAO, StatisticsDAO, BacktestResultDAO 클래스 구현, 비동기 CRUD 메서드 (create, read, update, delete, list), 복잡한 쿼리 메서드 (get_trades_by_strategy, get_current_positions, calculate_daily_stats), 트랜잭션 관리 wrapper, 벌크 삽입 최적화, 페이지네이션 지원, 에러 핸들링 및 로깅",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "각 DAO 클래스의 CRUD 연산 테스트, 복잡한 쿼리 결과 검증, 트랜잭션 롤백 테스트, 벌크 삽입 성능 테스트",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-19T16:11:19.729Z"
           },
           {
             "id": 4,
@@ -387,7 +388,7 @@
         "complexity": 5,
         "recommendedSubtasks": 4,
         "expansionPrompt": "데이터베이스 레이어를 체계적으로 구현하여 스키마 설계, ORM 설정, 데이터 모델 구현, 연결 풀 및 마이그레이션 관리로 세분화",
-        "updatedAt": "2025-10-19T12:18:18.484Z"
+        "updatedAt": "2025-10-19T16:11:19.729Z"
       },
       {
         "id": "6",
@@ -829,7 +830,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-19T12:18:18.485Z",
+      "lastModified": "2025-10-19T16:11:19.729Z",
       "taskCount": 10,
       "completedCount": 4,
       "tags": [

@@ -19,7 +19,8 @@
       "Bash(python3 -m flake8 src/ tests/ --exclude=venv,env,.venv,serena --max-line-length=100 --extend-ignore=E501,W503 --count --statistics)",
       "Bash(python3 -m flake8 src/ tests/ --exclude=venv,env,.venv,serena --max-line-length=100 --extend-ignore=E501,W503 --statistics)",
       "Bash(sed -n '208,213p' tests/services/exchange/test_binance_manager.py)",
-      "Bash(python3 -m flake8 src/ tests/ --exclude=venv,env,.venv,serena --max-line-length=100 --extend-ignore=E501,W503)"
+      "Bash(python3 -m flake8 src/ tests/ --exclude=venv,env,.venv,serena --max-line-length=100 --extend-ignore=E501,W503)",
+      "Bash(python3 -m pytest tests/database/test_models.py::TestTradeModel::test_create_trade -v --tb=short)"
     ]
   },
   "enableAllProjectMcpServers": true,
