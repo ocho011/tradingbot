@@ -36,15 +36,38 @@ def event_bus():
 
 @pytest.fixture
 async def binance_manager(binance_config, event_bus):
-    """Create initialized BinanceManager instance for testing."""
+    """Create initialized BinanceManager instance for testing (with heartbeat disabled)."""
     manager = BinanceManager(config=binance_config, event_bus=event_bus)
 
     # Mock exchange initialization
     mock_exchange = AsyncMock()
     mock_exchange.fetch_time = AsyncMock(return_value=1234567890000)
+    mock_exchange.close = AsyncMock()  # Mock close() to prevent hanging
     manager.exchange = mock_exchange
     manager._connected = True
     manager._connection_tested = True
+    manager._heartbeat_running = True  # Prevent heartbeat from starting (non-heartbeat tests)
+
+    yield manager
+
+    # Cleanup
+    await manager.close()
+
+
+@pytest.fixture
+async def binance_manager_with_heartbeat(binance_config, event_bus):
+    """Create initialized BinanceManager instance for heartbeat testing."""
+    manager = BinanceManager(config=binance_config, event_bus=event_bus)
+
+    # Mock exchange initialization
+    mock_exchange = AsyncMock()
+    mock_exchange.fetch_time = AsyncMock(return_value=1234567890000)
+    mock_exchange.close = AsyncMock()  # Mock close() to prevent hanging
+    manager.exchange = mock_exchange
+    manager._connected = True
+    manager._connection_tested = True
+    manager._ws_running = True  # Enable WebSocket running state for heartbeat tests
+    # DON'T set _heartbeat_running - let heartbeat tests control it
 
     yield manager
 
@@ -62,7 +85,14 @@ class TestCandleSubscription:
         timeframes = [TimeFrame.M1]
 
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         await binance_manager.subscribe_candles(symbol, timeframes)
 
@@ -84,7 +114,14 @@ class TestCandleSubscription:
         timeframes = [TimeFrame.M1, TimeFrame.M15, TimeFrame.H1]
 
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         await binance_manager.subscribe_candles(symbol, timeframes)
 
@@ -106,7 +143,14 @@ class TestCandleSubscription:
         timeframes = [TimeFrame.M1, TimeFrame.M15]
 
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         for symbol in symbols:
             await binance_manager.subscribe_candles(symbol, timeframes)
@@ -132,7 +176,14 @@ class TestCandleSubscription:
         timeframes = [TimeFrame.M1]
 
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Subscribe twice
         await binance_manager.subscribe_candles(symbol, timeframes)
@@ -165,8 +216,10 @@ class TestCandleSubscription:
         mock_exchange = AsyncMock()
         mock_exchange.fetch_time = AsyncMock(return_value=1234567890000)
         mock_exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        mock_exchange.close = AsyncMock()  # Mock close() to prevent hanging
         manager.exchange = mock_exchange
         manager._connected = False
+        manager._heartbeat_running = True  # Prevent heartbeat from starting
 
         await manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
 
@@ -346,7 +399,14 @@ class TestUnsubscribe:
         timeframes = [TimeFrame.M1, TimeFrame.M15, TimeFrame.H1]
 
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         await binance_manager.subscribe_candles(symbol, timeframes)
 
@@ -368,7 +428,14 @@ class TestUnsubscribe:
         timeframes = [TimeFrame.M1, TimeFrame.M15]
 
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         await binance_manager.subscribe_candles(symbol, timeframes)
 
@@ -392,7 +459,14 @@ class TestSubscriptionTracking:
     async def test_get_active_subscriptions(self, binance_manager):
         """Test getting active subscriptions."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1, TimeFrame.M15])
         await binance_manager.subscribe_candles("ETHUSDT", [TimeFrame.H1])
@@ -422,7 +496,14 @@ class TestCloseWithWebSocket:
     async def test_close_cancels_subscriptions(self, binance_manager):
         """Test that close() cancels all active subscriptions."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1, TimeFrame.M15])
         await binance_manager.subscribe_candles("ETHUSDT", [TimeFrame.H1])
@@ -449,66 +530,79 @@ class TestHeartbeatMonitoring:
     """Test heartbeat monitoring system."""
 
     @pytest.mark.asyncio
-    async def test_heartbeat_starts_with_subscription(self, binance_manager):
+    async def test_heartbeat_starts_with_subscription(self, binance_manager_with_heartbeat):
         """Test that heartbeat monitor starts automatically with first subscription."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        # Use a function that yields control to prevent busy loop
+        async def mock_watch_ohlcv(*args, **kwargs):
+            await asyncio.sleep(0.01)  # Yield control to event loop
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
 
-        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+        binance_manager_with_heartbeat.exchange.watch_ohlcv = mock_watch_ohlcv
+
+        await binance_manager_with_heartbeat.subscribe_candles("BTCUSDT", [TimeFrame.M1])
 
         # Wait a moment for heartbeat to start
         await asyncio.sleep(0.1)
 
         # Heartbeat should be running
-        assert binance_manager._heartbeat_running is True
-        assert binance_manager._heartbeat_task is not None
-        assert binance_manager.is_websocket_healthy is True
+        assert binance_manager_with_heartbeat._heartbeat_running is True
+        assert binance_manager_with_heartbeat._heartbeat_task is not None
+        assert binance_manager_with_heartbeat.is_websocket_healthy is True
 
         # Cleanup
-        await binance_manager.close()
+        await binance_manager_with_heartbeat.close()
 
     @pytest.mark.asyncio
-    async def test_heartbeat_sends_periodic_pings(self, binance_manager, event_bus):
+    async def test_heartbeat_sends_periodic_pings(self, binance_manager_with_heartbeat, event_bus):
         """Test that heartbeat sends periodic pings."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+            await asyncio.sleep(0.01)  # Yield control to event loop
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+        binance_manager_with_heartbeat.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Set shorter interval for testing
-        binance_manager._heartbeat_interval = 0.5
+        binance_manager_with_heartbeat._heartbeat_interval = 0.5
 
-        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+        await binance_manager_with_heartbeat.subscribe_candles("BTCUSDT", [TimeFrame.M1])
 
         # Wait for multiple heartbeat cycles
-        initial_time = binance_manager._last_heartbeat_time
+        initial_time = binance_manager_with_heartbeat._last_heartbeat_time
         await asyncio.sleep(1.5)
 
         # Heartbeat time should have been updated
-        assert binance_manager._last_heartbeat_time > initial_time
-        assert binance_manager.is_websocket_healthy is True
+        assert binance_manager_with_heartbeat._last_heartbeat_time > initial_time
+        assert binance_manager_with_heartbeat.is_websocket_healthy is True
 
         # Cleanup
-        await binance_manager.close()
+        await binance_manager_with_heartbeat.close()
 
     @pytest.mark.asyncio
-    async def test_heartbeat_detects_timeout(self, binance_manager, event_bus):
+    async def test_heartbeat_detects_connection_timeout(self, binance_manager_with_heartbeat, event_bus):
         """Test that heartbeat detects connection timeout."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+            await asyncio.sleep(0.01)  # Yield control to event loop
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+        binance_manager_with_heartbeat.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Set short timeout for testing
-        binance_manager._heartbeat_interval = 0.2
-        binance_manager._heartbeat_timeout = 0.5
+        binance_manager_with_heartbeat._heartbeat_interval = 0.2
+        binance_manager_with_heartbeat._heartbeat_timeout = 0.5
 
-        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+        await binance_manager_with_heartbeat.subscribe_candles("BTCUSDT", [TimeFrame.M1])
 
         # Mock exchange.fetch_time to fail (simulating network issue)
-        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Network error"))
+        binance_manager_with_heartbeat.exchange.fetch_time = AsyncMock(side_effect=Exception("Network error"))
 
         # Wait for timeout to be detected
         await asyncio.sleep(1.0)
 
         # Connection should be marked unhealthy
-        assert binance_manager.is_websocket_healthy is False
+        assert binance_manager_with_heartbeat.is_websocket_healthy is False
 
         # Should have published disconnection event
         # Find EXCHANGE_DISCONNECTED or EXCHANGE_ERROR events
@@ -519,37 +613,41 @@ class TestHeartbeatMonitoring:
         assert len(disconnection_events) > 0
 
         # Cleanup
-        await binance_manager.close()
+        await binance_manager_with_heartbeat.close()
 
     @pytest.mark.asyncio
-    async def test_heartbeat_recovers_after_failure(self, binance_manager, event_bus):
+    async def test_heartbeat_recovers_after_failure(self, binance_manager_with_heartbeat, event_bus):
         """Test that heartbeat can recover after temporary failure."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+            await asyncio.sleep(0.01)  # Yield control to event loop
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+        binance_manager_with_heartbeat.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Set short intervals for testing
-        binance_manager._heartbeat_interval = 0.3
+        binance_manager_with_heartbeat._heartbeat_interval = 0.3
 
-        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+        await binance_manager_with_heartbeat.subscribe_candles("BTCUSDT", [TimeFrame.M1])
 
         # Initially healthy
         await asyncio.sleep(0.5)
-        assert binance_manager.is_websocket_healthy is True
+        assert binance_manager_with_heartbeat.is_websocket_healthy is True
 
         # Simulate temporary failure
-        original_fetch_time = binance_manager.exchange.fetch_time
-        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Temporary network error"))
+        original_fetch_time = binance_manager_with_heartbeat.exchange.fetch_time
+        binance_manager_with_heartbeat.exchange.fetch_time = AsyncMock(side_effect=Exception("Temporary network error"))
 
         # Wait for failure to be detected
         await asyncio.sleep(0.5)
-        assert binance_manager.is_websocket_healthy is False
+        assert binance_manager_with_heartbeat.is_websocket_healthy is False
 
         # Restore connection
-        binance_manager.exchange.fetch_time = original_fetch_time
+        binance_manager_with_heartbeat.exchange.fetch_time = original_fetch_time
 
         # Wait for recovery
         await asyncio.sleep(0.5)
-        assert binance_manager.is_websocket_healthy is True
+        assert binance_manager_with_heartbeat.is_websocket_healthy is True
 
         # Should have published recovery event
         recovery_events = [
@@ -560,74 +658,86 @@ class TestHeartbeatMonitoring:
         assert len(recovery_events) > 0
 
         # Cleanup
-        await binance_manager.close()
+        await binance_manager_with_heartbeat.close()
 
     @pytest.mark.asyncio
-    async def test_heartbeat_stops_on_close(self, binance_manager):
+    async def test_heartbeat_stops_when_manager_closes(self, binance_manager_with_heartbeat):
         """Test that heartbeat monitor stops when manager closes."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+            await asyncio.sleep(0.01)  # Yield control to event loop
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
 
-        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+        binance_manager_with_heartbeat.exchange.watch_ohlcv = mock_watch_ohlcv
+
+        await binance_manager_with_heartbeat.subscribe_candles("BTCUSDT", [TimeFrame.M1])
 
         # Verify heartbeat is running
-        assert binance_manager._heartbeat_running is True
+        assert binance_manager_with_heartbeat._heartbeat_running is True
 
         # Close manager
-        await binance_manager.close()
+        await binance_manager_with_heartbeat.close()
 
         # Heartbeat should be stopped
-        assert binance_manager._heartbeat_running is False
-        assert binance_manager._heartbeat_task is None
-        assert binance_manager.is_websocket_healthy is False
+        assert binance_manager_with_heartbeat._heartbeat_running is False
+        assert binance_manager_with_heartbeat._heartbeat_task is None
+        assert binance_manager_with_heartbeat.is_websocket_healthy is False
 
     @pytest.mark.asyncio
-    async def test_heartbeat_response_time_tracking(self, binance_manager, event_bus):
+    async def test_heartbeat_tracks_response_times(self, binance_manager_with_heartbeat, event_bus):
         """Test that heartbeat tracks response times."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+            await asyncio.sleep(0.01)  # Yield control to event loop
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+        binance_manager_with_heartbeat.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Set short interval for testing
-        binance_manager._heartbeat_interval = 0.3
+        binance_manager_with_heartbeat._heartbeat_interval = 0.3
 
         # Mock fetch_time with a delay to simulate response time
         async def mock_fetch_time_with_delay():
             await asyncio.sleep(0.05)  # 50ms delay
             return 1234567890000
 
-        binance_manager.exchange.fetch_time = mock_fetch_time_with_delay
+        binance_manager_with_heartbeat.exchange.fetch_time = mock_fetch_time_with_delay
 
-        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+        await binance_manager_with_heartbeat.subscribe_candles("BTCUSDT", [TimeFrame.M1])
 
         # Wait for heartbeat to execute
         await asyncio.sleep(0.5)
 
         # Response time should be tracked (check logs or events would contain response_time)
-        assert binance_manager.is_websocket_healthy is True
+        assert binance_manager_with_heartbeat.is_websocket_healthy is True
 
         # Cleanup
-        await binance_manager.close()
+        await binance_manager_with_heartbeat.close()
 
     @pytest.mark.asyncio
-    async def test_heartbeat_publishes_connection_events(self, binance_manager, event_bus):
+    async def test_heartbeat_publishes_connection_events(self, binance_manager_with_heartbeat, event_bus):
         """Test that heartbeat publishes appropriate connection state events."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+            await asyncio.sleep(0.01)  # Yield control to event loop
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+        binance_manager_with_heartbeat.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Set intervals for testing
-        binance_manager._heartbeat_interval = 0.2
+        binance_manager_with_heartbeat._heartbeat_interval = 0.2
 
-        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+        await binance_manager_with_heartbeat.subscribe_candles("BTCUSDT", [TimeFrame.M1])
 
         # Wait for initial heartbeat
         await asyncio.sleep(0.3)
 
         # Simulate connection failure
-        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Connection lost"))
+        binance_manager_with_heartbeat.exchange.fetch_time = AsyncMock(side_effect=Exception("Connection lost"))
         await asyncio.sleep(0.3)
 
         # Restore connection
-        binance_manager.exchange.fetch_time = AsyncMock(return_value=1234567890000)
+        binance_manager_with_heartbeat.exchange.fetch_time = AsyncMock(return_value=1234567890000)
         await asyncio.sleep(0.3)
 
         # Should have published multiple events
@@ -641,67 +751,86 @@ class TestHeartbeatMonitoring:
         assert len(connection_events) > 0
 
         # Cleanup
-        await binance_manager.close()
+        await binance_manager_with_heartbeat.close()
 
     @pytest.mark.asyncio
-    async def test_heartbeat_property_reflects_state(self, binance_manager):
+    async def test_heartbeat_property_reflects_state(self, binance_manager_with_heartbeat):
         """Test that is_websocket_healthy property reflects actual state."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+            await asyncio.sleep(0.01)  # Yield control to event loop
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+        binance_manager_with_heartbeat.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Before subscription
-        assert binance_manager.is_websocket_healthy is False
+        assert binance_manager_with_heartbeat.is_websocket_healthy is False
 
-        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+        await binance_manager_with_heartbeat.subscribe_candles("BTCUSDT", [TimeFrame.M1])
         await asyncio.sleep(0.1)
 
         # After subscription
-        assert binance_manager.is_websocket_healthy is True
+        assert binance_manager_with_heartbeat.is_websocket_healthy is True
 
         # After close
-        await binance_manager.close()
-        assert binance_manager.is_websocket_healthy is False
+        await binance_manager_with_heartbeat.close()
+        assert binance_manager_with_heartbeat.is_websocket_healthy is False
 
 
 class TestExponentialBackoffReconnection:
     """Test exponential backoff reconnection logic."""
 
     @pytest.mark.asyncio
-    async def test_reconnection_triggered_on_timeout(self, binance_manager, event_bus):
+    async def test_reconnection_triggered_on_timeout(self, binance_manager_with_heartbeat, event_bus):
         """Test that reconnection is automatically triggered on heartbeat timeout."""
         # Mock watch_ohlcv to prevent actual WebSocket connection
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager_with_heartbeat.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Set short timeout for testing
-        binance_manager._heartbeat_interval = 0.2
-        binance_manager._heartbeat_timeout = 0.5
+        binance_manager_with_heartbeat._heartbeat_interval = 0.2
+        binance_manager_with_heartbeat._heartbeat_timeout = 0.5
 
-        await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1])
+        await binance_manager_with_heartbeat.subscribe_candles("BTCUSDT", [TimeFrame.M1])
 
         # Initially healthy
         await asyncio.sleep(0.3)
-        assert binance_manager.is_websocket_healthy is True
+        assert binance_manager_with_heartbeat.is_websocket_healthy is True
 
         # Mock exchange.fetch_time to fail (simulating network issue)
-        binance_manager.exchange.fetch_time = AsyncMock(side_effect=Exception("Network error"))
+        binance_manager_with_heartbeat.exchange.fetch_time = AsyncMock(side_effect=Exception("Network error"))
 
         # Wait for timeout and reconnection to trigger
         await asyncio.sleep(1.0)
 
         # Reconnection should have been triggered
-        assert binance_manager._reconnect_attempts > 0 or binance_manager._is_reconnecting
+        assert binance_manager_with_heartbeat._reconnect_attempts > 0 or binance_manager_with_heartbeat._is_reconnecting
 
         # Cleanup
-        await binance_manager.close()
+        await binance_manager_with_heartbeat.close()
 
     @pytest.mark.asyncio
     async def test_exponential_backoff_delays(self, binance_manager, event_bus):
         """Test that reconnection delays follow exponential backoff pattern."""
         # Mock watch_ohlcv
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Configure for testing
         binance_manager._reconnect_base_delay = 0.1
+        binance_manager._reconnect_current_delay = 0.1  # Must reset current delay when changing base delay
         binance_manager._reconnect_max_delay = 1.0
         binance_manager._reconnect_max_retries = 4
 
@@ -735,7 +864,14 @@ class TestExponentialBackoffReconnection:
     async def test_reconnection_success_resets_state(self, binance_manager, event_bus):
         """Test that successful reconnection resets retry state."""
         # Mock watch_ohlcv
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Configure for testing
         binance_manager._reconnect_base_delay = 0.05
@@ -774,7 +910,14 @@ class TestExponentialBackoffReconnection:
     async def test_max_retries_exceeded(self, binance_manager, event_bus):
         """Test that reconnection stops after max retries."""
         # Mock watch_ohlcv
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Configure for testing
         binance_manager._reconnect_base_delay = 0.05
@@ -807,7 +950,14 @@ class TestExponentialBackoffReconnection:
     async def test_reconnection_resubscribes_streams(self, binance_manager, event_bus):
         """Test that successful reconnection resubscribes to WebSocket streams."""
         # Mock watch_ohlcv
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Subscribe to multiple streams
         await binance_manager.subscribe_candles("BTCUSDT", [TimeFrame.M1, TimeFrame.M15])
@@ -863,7 +1013,14 @@ class TestExponentialBackoffReconnection:
     async def test_reconnection_not_triggered_when_disabled(self, binance_manager, event_bus):
         """Test that reconnection is not triggered when disabled."""
         # Mock watch_ohlcv
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Disable reconnection
         binance_manager._reconnect_enabled = False
@@ -891,7 +1048,14 @@ class TestExponentialBackoffReconnection:
     async def test_concurrent_reconnection_prevented(self, binance_manager):
         """Test that concurrent reconnection attempts are prevented."""
         # Mock watch_ohlcv
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Configure for testing
         binance_manager._reconnect_base_delay = 0.5
@@ -918,7 +1082,14 @@ class TestExponentialBackoffReconnection:
     async def test_reconnection_publishes_attempt_events(self, binance_manager, event_bus):
         """Test that reconnection publishes events for each attempt."""
         # Mock watch_ohlcv
-        binance_manager.exchange.watch_ohlcv = AsyncMock(return_value=[[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]])
+        async def mock_watch_ohlcv(*args, **kwargs):
+
+            await asyncio.sleep(0.01)  # Yield control to event loop
+
+            return [[1234567890000, 50000.0, 51000.0, 49000.0, 50500.0, 100.5]]
+
+
+        binance_manager.exchange.watch_ohlcv = mock_watch_ohlcv
 
         # Configure for testing
         binance_manager._reconnect_base_delay = 0.05
