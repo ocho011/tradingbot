@@ -5,7 +5,7 @@ This module provides the Candle class for representing candlestick data
 with validation, normalization, and utility methods.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 import logging
@@ -149,7 +149,7 @@ class Candle:
             TimeFrame.M30: 30 * 60 * 1000,     # 30 minutes
             TimeFrame.H1: 60 * 60 * 1000,      # 1 hour
             TimeFrame.H4: 4 * 60 * 60 * 1000,  # 4 hours
-            TimeFrame.D1: 24 * 60 * 60 * 1000, # 1 day
+            TimeFrame.D1: 24 * 60 * 60 * 1000,  # 1 day
         }
 
         if timeframe not in timeframe_ms:

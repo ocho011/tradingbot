@@ -9,7 +9,7 @@ with dynamic configuration, resource monitoring, and state management.
 import asyncio
 import logging
 import psutil
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from threading import RLock
@@ -17,7 +17,7 @@ from threading import RLock
 from src.core.constants import EventType, TimeFrame
 from src.core.events import Event, EventBus
 from src.models.candle import Candle
-from src.services.candle_storage import CandleStorage, StorageStats
+from src.services.candle_storage import CandleStorage
 from src.services.exchange.realtime_processor import RealtimeCandleProcessor
 
 
@@ -37,8 +37,9 @@ class SymbolConfig:
         """Convert to dictionary."""
         return {
             'symbol': self.symbol,
-            'timeframes': [tf.value for tf in sorted(self.timeframes,
-                          key=lambda x: Candle.get_timeframe_milliseconds(x))],
+            'timeframes': [tf.value for tf in sorted(
+                self.timeframes,
+                key=lambda x: Candle.get_timeframe_milliseconds(x))],
             'enabled': self.enabled,
             'added_at': self.added_at.isoformat()
         }

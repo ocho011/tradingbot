@@ -1,6 +1,6 @@
+from src.services.candle_storage import CandleStorage
 """
 Comprehensive test suite for CandleStorage.
-
 Tests cover:
 - Basic operations (add, get, remove)
 - LRU eviction behavior
@@ -8,18 +8,14 @@ Tests cover:
 - Memory monitoring
 - Edge cases and error handling
 """
-
 import pytest
 import time
 import threading
-from datetime import datetime, timezone
-
 from src.core.constants import TimeFrame
 from src.models.candle import Candle
-from src.services.candle_storage import CandleStorage, StorageStats
-
-
 # Test fixtures
+
+
 @pytest.fixture
 def storage():
     """Create a fresh CandleStorage instance for each test."""
@@ -81,7 +77,6 @@ class TestCandleStorageInit:
         """Test initialization with invalid max_candles raises error."""
         with pytest.raises(ValueError, match="max_candles must be positive"):
             CandleStorage(max_candles=0)
-
         with pytest.raises(ValueError, match="max_candles must be positive"):
             CandleStorage(max_candles=-1)
 
@@ -92,10 +87,8 @@ class TestBasicOperations:
     def test_add_single_candle(self, storage, sample_candle):
         """Test adding a single candle."""
         storage.add_candle(sample_candle)
-
         assert storage.get_candle_count() == 1
         assert storage.get_storage_count() == 1
-
         candles = storage.get_candles('BTCUSDT', TimeFrame.M1)
         assert len(candles) == 1
         assert candles[0] == sample_candle
@@ -107,10 +100,8 @@ class TestBasicOperations:
             candle = create_test_candle(timestamp=1704067200000 + i * 60000)
             candles_to_add.append(candle)
             storage.add_candle(candle)
-
         assert storage.get_candle_count() == 5
         assert storage.get_storage_count() == 1
-
         retrieved = storage.get_candles('BTCUSDT', TimeFrame.M1)
         assert len(retrieved) == 5
         assert retrieved == candles_to_add
@@ -119,10 +110,8 @@ class TestBasicOperations:
         """Test adding candles for different symbols."""
         btc_candle = create_test_candle(symbol='BTCUSDT')
         eth_candle = create_test_candle(symbol='ETHUSDT')
-
         storage.add_candle(btc_candle)
         storage.add_candle(eth_candle)
-
         assert storage.get_candle_count() == 2
         assert storage.get_storage_count() == 2
 
@@ -130,10 +119,8 @@ class TestBasicOperations:
         """Test adding candles for different timeframes."""
         m1_candle = create_test_candle(timeframe=TimeFrame.M1)
         m5_candle = create_test_candle(timeframe=TimeFrame.M5)
-
         storage.add_candle(m1_candle)
         storage.add_candle(m5_candle)
-
         assert storage.get_candle_count() == 2
         assert storage.get_storage_count() == 2
 
@@ -142,7 +129,6 @@ class TestBasicOperations:
         for i in range(3):
             candle = create_test_candle(timestamp=1704067200000 + i * 60000, close=42000.0 + i)
             storage.add_candle(candle)
-
         latest = storage.get_latest_candle('BTCUSDT', TimeFrame.M1)
         assert latest is not None
         assert latest.close == 42002.0  # Last candle
@@ -156,10 +142,8 @@ class TestBasicOperations:
         """Test getting candles with limit parameter."""
         for i in range(10):
             storage.add_candle(create_test_candle(timestamp=1704067200000 + i * 60000))
-
         candles = storage.get_candles('BTCUSDT', TimeFrame.M1, limit=5)
         assert len(candles) == 5
-
         # Should get the 5 most recent candles
         assert candles[0].timestamp == 1704067200000 + 5 * 60000
 
@@ -168,18 +152,15 @@ class TestBasicOperations:
         base_time = 1704067200000
         for i in range(10):
             storage.add_candle(create_test_candle(timestamp=base_time + i * 60000))
-
         # Get candles in middle range
         start_time = base_time + 3 * 60000
         end_time = base_time + 6 * 60000
-
         candles = storage.get_candles(
             'BTCUSDT',
             TimeFrame.M1,
             start_time=start_time,
             end_time=end_time
         )
-
         assert len(candles) == 4  # Timestamps 3, 4, 5, 6
         assert all(start_time <= c.timestamp <= end_time for c in candles)
 
@@ -188,14 +169,11 @@ class TestBasicOperations:
         base_time = 1704067200000
         for i in range(10):
             storage.add_candle(create_test_candle(timestamp=base_time + i * 60000))
-
         # Remove candles before timestamp 5
         before_time = base_time + 5 * 60000
         removed = storage.remove_candles('BTCUSDT', TimeFrame.M1, before_timestamp=before_time)
-
         assert removed == 5
         assert storage.get_candle_count() == 5
-
         remaining = storage.get_candles('BTCUSDT', TimeFrame.M1)
         assert all(c.timestamp >= before_time for c in remaining)
 
@@ -203,9 +181,7 @@ class TestBasicOperations:
         """Test removing all candles for symbol-timeframe pair."""
         for i in range(5):
             storage.add_candle(create_test_candle(timestamp=1704067200000 + i * 60000))
-
         removed = storage.remove_candles('BTCUSDT', TimeFrame.M1)
-
         assert removed == 5
         assert storage.get_candle_count() == 0
         assert storage.get_storage_count() == 0
@@ -224,10 +200,8 @@ class TestLRUEviction:
         # Add max_candles (10) + 1
         for i in range(11):
             storage.add_candle(create_test_candle(timestamp=1704067200000 + i * 60000))
-
         # Should have exactly max_candles
         assert storage.get_candle_count() == 10
-
         # First candle should be evicted
         candles = storage.get_candles('BTCUSDT', TimeFrame.M1)
         assert candles[0].timestamp == 1704067200000 + 60000  # Second candle
@@ -237,7 +211,6 @@ class TestLRUEviction:
         # Add more than max capacity
         for i in range(15):
             storage.add_candle(create_test_candle(timestamp=1704067200000 + i * 60000))
-
         stats = storage.get_stats()
         assert stats.evictions == 5  # 15 - 10
 
@@ -245,7 +218,6 @@ class TestLRUEviction:
         """Test no eviction when below max capacity."""
         for i in range(5):
             storage.add_candle(create_test_candle(timestamp=1704067200000 + i * 60000))
-
         stats = storage.get_stats()
         assert stats.evictions == 0
         assert storage.get_candle_count() == 5
@@ -255,11 +227,9 @@ class TestLRUEviction:
         # Fill BTC M1 storage
         for i in range(15):
             storage.add_candle(create_test_candle(symbol='BTCUSDT', timestamp=1704067200000 + i * 60000))
-
         # Fill ETH M1 storage
         for i in range(8):
             storage.add_candle(create_test_candle(symbol='ETHUSDT', timestamp=1704067200000 + i * 60000))
-
         # BTC should have max_candles, ETH should have 8
         assert storage.get_candle_count('BTCUSDT', TimeFrame.M1) == 10
         assert storage.get_candle_count('ETHUSDT', TimeFrame.M1) == 8
@@ -277,15 +247,11 @@ class TestThreadSafety:
             for i in range(candles_per_thread):
                 timestamp = 1704067200000 + (thread_id * candles_per_thread + i) * 60000
                 storage.add_candle(create_test_candle(timestamp=timestamp))
-
         threads = [threading.Thread(target=add_candles, args=(i,)) for i in range(num_threads)]
-
         for thread in threads:
             thread.start()
-
         for thread in threads:
             thread.join()
-
         # Should have exactly max_candles (10) due to LRU eviction
         assert storage.get_candle_count() == 10
 
@@ -294,7 +260,6 @@ class TestThreadSafety:
         # Pre-populate storage
         for i in range(5):
             storage.add_candle(create_test_candle(timestamp=1704067200000 + i * 60000))
-
         results = []
 
         def write_candles():
@@ -307,16 +272,12 @@ class TestThreadSafety:
                 candles = storage.get_candles('BTCUSDT', TimeFrame.M1)
                 results.append(len(candles))
                 time.sleep(0.001)
-
         write_thread = threading.Thread(target=write_candles)
         read_thread = threading.Thread(target=read_candles)
-
         write_thread.start()
         read_thread.start()
-
         write_thread.join()
         read_thread.join()
-
         # All reads should have succeeded (no exceptions)
         assert len(results) == 10
         assert all(isinstance(r, int) for r in results)
@@ -337,16 +298,12 @@ class TestThreadSafety:
         def clear_storage():
             time.sleep(0.005)
             storage.clear()
-
         add_thread = threading.Thread(target=add_candles)
         clear_thread = threading.Thread(target=clear_storage)
-
         add_thread.start()
         clear_thread.start()
-
         add_thread.join()
         clear_thread.join()
-
         # Should complete without errors
         assert isinstance(storage.get_candle_count(), int)
 
@@ -358,11 +315,9 @@ class TestMemoryMonitoring:
         """Test memory usage calculation."""
         initial_memory = storage.get_memory_usage()
         assert initial_memory > 0
-
         # Add candles and check memory increases
         for i in range(10):
             storage.add_candle(create_test_candle(timestamp=1704067200000 + i * 60000))
-
         after_memory = storage.get_memory_usage()
         assert after_memory > initial_memory
 
@@ -372,14 +327,11 @@ class TestMemoryMonitoring:
         for i in range(5):
             storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M1, timestamp=1704067200000 + i * 60000))
             storage.add_candle(create_test_candle(symbol='ETHUSDT', timeframe=TimeFrame.M5, timestamp=1704067200000 + i * 300000))
-
         stats = storage.get_stats()
-
         assert stats.total_candles == 10
         assert stats.storage_count == 2
         assert stats.memory_bytes > 0
         assert stats.evictions == 0
-
         # Test to_dict conversion
         stats_dict = stats.to_dict()
         assert 'total_candles' in stats_dict
@@ -390,11 +342,9 @@ class TestMemoryMonitoring:
         """Test memory is reduced after clearing storage."""
         for i in range(10):
             storage.add_candle(create_test_candle(timestamp=1704067200000 + i * 60000))
-
         before_clear = storage.get_memory_usage()
         storage.clear()
         after_clear = storage.get_memory_usage()
-
         assert after_clear < before_clear
 
 
@@ -405,9 +355,7 @@ class TestClearOperations:
         """Test clearing all storage."""
         storage.add_candle(create_test_candle(symbol='BTCUSDT'))
         storage.add_candle(create_test_candle(symbol='ETHUSDT'))
-
         removed = storage.clear()
-
         assert removed == 2
         assert storage.get_candle_count() == 0
         assert storage.get_storage_count() == 0
@@ -417,9 +365,7 @@ class TestClearOperations:
         storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M1))
         storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M5))
         storage.add_candle(create_test_candle(symbol='ETHUSDT', timeframe=TimeFrame.M1))
-
         removed = storage.clear(symbol='BTCUSDT')
-
         assert removed == 2
         assert storage.get_candle_count('BTCUSDT') == 0
         assert storage.get_candle_count('ETHUSDT') == 1
@@ -428,9 +374,7 @@ class TestClearOperations:
         """Test clearing specific symbol-timeframe."""
         storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M1))
         storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M5))
-
         removed = storage.clear(symbol='BTCUSDT', timeframe=TimeFrame.M1)
-
         assert removed == 1
         assert storage.get_candle_count('BTCUSDT', TimeFrame.M1) == 0
         assert storage.get_candle_count('BTCUSDT', TimeFrame.M5) == 1
@@ -444,9 +388,7 @@ class TestUtilityMethods:
         storage.add_candle(create_test_candle(symbol='BTCUSDT'))
         storage.add_candle(create_test_candle(symbol='ETHUSDT'))
         storage.add_candle(create_test_candle(symbol='BNBUSDT'))
-
         symbols = storage.get_symbols()
-
         assert len(symbols) == 3
         assert 'BTCUSDT' in symbols
         assert 'ETHUSDT' in symbols
@@ -458,9 +400,7 @@ class TestUtilityMethods:
         storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M1))
         storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.H1))
         storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M5))
-
         timeframes = storage.get_timeframes('BTCUSDT')
-
         assert len(timeframes) == 3
         # Should be sorted by duration
         assert timeframes[0] == TimeFrame.M1
@@ -470,13 +410,10 @@ class TestUtilityMethods:
     def test_get_storage_count(self, storage):
         """Test getting storage count."""
         assert storage.get_storage_count() == 0
-
         storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M1))
         assert storage.get_storage_count() == 1
-
         storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M5))
         assert storage.get_storage_count() == 2
-
         # Test filtering by symbol
         storage.add_candle(create_test_candle(symbol='ETHUSDT', timeframe=TimeFrame.M1))
         assert storage.get_storage_count('BTCUSDT') == 2
@@ -485,13 +422,10 @@ class TestUtilityMethods:
     def test_get_candle_count(self, storage):
         """Test getting candle count."""
         assert storage.get_candle_count() == 0
-
         for i in range(3):
             storage.add_candle(create_test_candle(symbol='BTCUSDT', timeframe=TimeFrame.M1, timestamp=1704067200000 + i * 60000))
-
         for i in range(2):
             storage.add_candle(create_test_candle(symbol='ETHUSDT', timeframe=TimeFrame.M1, timestamp=1704067200000 + i * 60000))
-
         assert storage.get_candle_count() == 5
         assert storage.get_candle_count('BTCUSDT') == 3
         assert storage.get_candle_count('ETHUSDT') == 2
@@ -500,11 +434,9 @@ class TestUtilityMethods:
     def test_repr_and_str(self, storage):
         """Test string representations."""
         storage.add_candle(create_test_candle())
-
         repr_str = repr(storage)
         assert 'CandleStorage' in repr_str
         assert 'max_candles=10' in repr_str
-
         str_str = str(storage)
         assert 'candles' in str_str.lower()
 
@@ -515,11 +447,9 @@ class TestEdgeCases:
     def test_case_insensitive_symbols(self, storage):
         """Test that symbol lookups are case-insensitive."""
         storage.add_candle(create_test_candle(symbol='btcusdt'))
-
         candles_lower = storage.get_candles('btcusdt', TimeFrame.M1)
         candles_upper = storage.get_candles('BTCUSDT', TimeFrame.M1)
         candles_mixed = storage.get_candles('BtcUsDt', TimeFrame.M1)
-
         assert len(candles_lower) == 1
         assert len(candles_upper) == 1
         assert len(candles_mixed) == 1
@@ -537,7 +467,6 @@ class TestEdgeCases:
         """Test limit exceeding available candles returns all available."""
         for i in range(3):
             storage.add_candle(create_test_candle(timestamp=1704067200000 + i * 60000))
-
         candles = storage.get_candles('BTCUSDT', TimeFrame.M1, limit=100)
         assert len(candles) == 3
 
@@ -550,12 +479,10 @@ class TestEdgeCases:
     def test_time_range_no_matches(self, storage):
         """Test time range with no matches returns empty list."""
         storage.add_candle(create_test_candle(timestamp=1704067200000))
-
         candles = storage.get_candles(
             'BTCUSDT',
             TimeFrame.M1,
             start_time=1704153600000,  # Much later time
             end_time=1704240000000
         )
-
         assert len(candles) == 0

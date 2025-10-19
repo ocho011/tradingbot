@@ -1,15 +1,11 @@
+from unittest.mock import AsyncMock
 """
 Tests for Binance REST API wrapper methods.
-
 Tests account balance, positions, orders, market data retrieval,
 error handling, and rate limiting functionality.
 """
-
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
-
 from src.services.exchange.binance_manager import BinanceManager, BinanceConnectionError
 from src.core.config import BinanceConfig
 from src.core.events import EventBus
@@ -35,14 +31,11 @@ def binance_config():
 async def binance_manager(binance_config, event_bus):
     """Create BinanceManager instance for testing."""
     manager = BinanceManager(config=binance_config, event_bus=event_bus)
-
     # Mock the exchange
     manager.exchange = AsyncMock()
     manager._connected = True
     manager._connection_tested = True
-
     yield manager
-
     # Cleanup
     if manager.exchange:
         await manager.close()
@@ -50,7 +43,6 @@ async def binance_manager(binance_config, event_bus):
 
 class TestAccountBalance:
     """Tests for account balance retrieval."""
-
     @pytest.mark.asyncio
     async def test_fetch_balance_success(self, binance_manager):
         """Test successful balance retrieval."""
@@ -62,10 +54,8 @@ class TestAccountBalance:
             'info': {'assets': []}
         }
         binance_manager.exchange.fetch_balance.return_value = mock_balance
-
         # Fetch balance
         result = await binance_manager.fetch_balance()
-
         # Verify
         assert result == mock_balance
         assert result['total']['USDT'] == 1200.0
@@ -76,7 +66,6 @@ class TestAccountBalance:
     async def test_fetch_balance_without_initialization(self, binance_config):
         """Test fetch_balance fails without initialization."""
         manager = BinanceManager(config=binance_config)
-
         with pytest.raises(BinanceConnectionError, match="not initialized"):
             await manager.fetch_balance()
 
@@ -84,14 +73,12 @@ class TestAccountBalance:
     async def test_fetch_balance_api_error(self, binance_manager):
         """Test fetch_balance handles API errors."""
         binance_manager.exchange.fetch_balance.side_effect = Exception("API error")
-
         with pytest.raises(BinanceConnectionError, match="Failed to fetch balance"):
             await binance_manager.fetch_balance()
 
 
 class TestPositions:
     """Tests for position information retrieval."""
-
     @pytest.mark.asyncio
     async def test_fetch_positions_all_symbols(self, binance_manager):
         """Test fetching positions for all symbols."""
@@ -102,10 +89,8 @@ class TestPositions:
             {'symbol': 'SOL/USDT', 'contracts': 10.0, 'side': 'short', 'unrealizedPnl': -50.0},
         ]
         binance_manager.exchange.fetch_positions.return_value = mock_positions
-
         # Fetch positions
         result = await binance_manager.fetch_positions()
-
         # Verify - should filter out zero positions
         assert len(result) == 2
         assert result[0]['symbol'] == 'BTC/USDT'
@@ -121,9 +106,7 @@ class TestPositions:
             {'symbol': 'ETH/USDT', 'contracts': 2.0, 'side': 'short'},
         ]
         binance_manager.exchange.fetch_positions.return_value = mock_positions
-
         result = await binance_manager.fetch_positions(symbols)
-
         assert len(result) == 2
         binance_manager.exchange.fetch_positions.assert_called_once_with(symbols)
 
@@ -131,14 +114,12 @@ class TestPositions:
     async def test_fetch_positions_api_error(self, binance_manager):
         """Test fetch_positions handles API errors."""
         binance_manager.exchange.fetch_positions.side_effect = Exception("API error")
-
         with pytest.raises(BinanceConnectionError, match="Failed to fetch positions"):
             await binance_manager.fetch_positions()
 
 
 class TestOrders:
     """Tests for order history retrieval."""
-
     @pytest.mark.asyncio
     async def test_fetch_orders_all_symbols(self, binance_manager):
         """Test fetching all orders."""
@@ -164,9 +145,7 @@ class TestOrders:
             }
         ]
         binance_manager.exchange.fetch_orders.return_value = mock_orders
-
         result = await binance_manager.fetch_orders()
-
         assert len(result) == 2
         assert result[0]['id'] == '12345'
         assert result[1]['id'] == '12346'
@@ -180,9 +159,7 @@ class TestOrders:
             {'id': '12345', 'symbol': 'BTC/USDT', 'status': 'closed'}
         ]
         binance_manager.exchange.fetch_orders.return_value = mock_orders
-
         result = await binance_manager.fetch_orders(symbol)
-
         assert len(result) == 1
         binance_manager.exchange.fetch_orders.assert_called_once_with(symbol, None, None)
 
@@ -192,11 +169,8 @@ class TestOrders:
         symbol = 'BTC/USDT'
         since = 1609459200000  # 2021-01-01
         limit = 100
-
         binance_manager.exchange.fetch_orders.return_value = []
-
         await binance_manager.fetch_orders(symbol, since, limit)
-
         binance_manager.exchange.fetch_orders.assert_called_once_with(symbol, since, limit)
 
     @pytest.mark.asyncio
@@ -206,9 +180,7 @@ class TestOrders:
             {'id': '12346', 'symbol': 'ETH/USDT', 'status': 'open'}
         ]
         binance_manager.exchange.fetch_open_orders.return_value = mock_orders
-
         result = await binance_manager.fetch_open_orders()
-
         assert len(result) == 1
         assert result[0]['status'] == 'open'
         binance_manager.exchange.fetch_open_orders.assert_called_once_with(None, None, None)
@@ -220,9 +192,7 @@ class TestOrders:
             {'id': '12345', 'symbol': 'BTC/USDT', 'status': 'closed'}
         ]
         binance_manager.exchange.fetch_closed_orders.return_value = mock_orders
-
         result = await binance_manager.fetch_closed_orders()
-
         assert len(result) == 1
         assert result[0]['status'] == 'closed'
         binance_manager.exchange.fetch_closed_orders.assert_called_once_with(None, None, None)
@@ -230,7 +200,6 @@ class TestOrders:
 
 class TestMarketData:
     """Tests for market data retrieval."""
-
     @pytest.mark.asyncio
     async def test_fetch_ticker(self, binance_manager):
         """Test fetching ticker data."""
@@ -246,9 +215,7 @@ class TestMarketData:
             'timestamp': 1609459200000
         }
         binance_manager.exchange.fetch_ticker.return_value = mock_ticker
-
         result = await binance_manager.fetch_ticker(symbol)
-
         assert result['symbol'] == symbol
         assert result['last'] == 50000.0
         assert result['bid'] == 49990.0
@@ -264,9 +231,7 @@ class TestMarketData:
             [1609462800000, 50500.0, 51500.0, 50000.0, 51000.0, 150.0],
         ]
         binance_manager.exchange.fetch_ohlcv.return_value = mock_ohlcv
-
         result = await binance_manager.fetch_ohlcv(symbol, timeframe)
-
         assert len(result) == 2
         assert result[0][1] == 50000.0  # Open price of first candle
         assert result[1][4] == 51000.0  # Close price of second candle
@@ -279,11 +244,8 @@ class TestMarketData:
         timeframe = '1m'
         since = 1609459200000
         limit = 100
-
         binance_manager.exchange.fetch_ohlcv.return_value = []
-
         await binance_manager.fetch_ohlcv(symbol, timeframe, since, limit)
-
         binance_manager.exchange.fetch_ohlcv.assert_called_once_with(symbol, timeframe, since, limit)
 
     @pytest.mark.asyncio
@@ -297,9 +259,7 @@ class TestMarketData:
             'timestamp': 1609459200000
         }
         binance_manager.exchange.fetch_order_book.return_value = mock_order_book
-
         result = await binance_manager.fetch_order_book(symbol)
-
         assert result['symbol'] == symbol
         assert len(result['bids']) == 2
         assert len(result['asks']) == 2
@@ -311,15 +271,12 @@ class TestMarketData:
         """Test fetching order book with depth limit."""
         symbol = 'BTC/USDT'
         limit = 10
-
         binance_manager.exchange.fetch_order_book.return_value = {
             'symbol': symbol,
             'bids': [],
             'asks': []
         }
-
         await binance_manager.fetch_order_book(symbol, limit)
-
         binance_manager.exchange.fetch_order_book.assert_called_once_with(symbol, limit)
 
     @pytest.mark.asyncio
@@ -330,9 +287,7 @@ class TestMarketData:
             'ETH/USDT': {'maker': 0.0002, 'taker': 0.0004}
         }
         binance_manager.exchange.fetch_trading_fees.return_value = mock_fees
-
         result = await binance_manager.fetch_trading_fees()
-
         assert 'BTC/USDT' in result
         assert result['BTC/USDT']['maker'] == 0.0002
         binance_manager.exchange.fetch_trading_fees.assert_called_once()
@@ -346,9 +301,7 @@ class TestMarketData:
             'ETH/USDT': {'maker': 0.0002, 'taker': 0.0004}
         }
         binance_manager.exchange.fetch_trading_fees.return_value = mock_fees
-
         result = await binance_manager.fetch_trading_fees(symbol)
-
         # Should only return fees for requested symbol
         assert symbol in result
         assert 'ETH/USDT' not in result
@@ -357,12 +310,10 @@ class TestMarketData:
 
 class TestErrorHandling:
     """Tests for error handling across all REST API methods."""
-
     @pytest.mark.asyncio
     async def test_fetch_ticker_api_error(self, binance_manager):
         """Test ticker API error handling."""
         binance_manager.exchange.fetch_ticker.side_effect = Exception("API error")
-
         with pytest.raises(BinanceConnectionError, match="Failed to fetch ticker"):
             await binance_manager.fetch_ticker('BTC/USDT')
 
@@ -370,7 +321,6 @@ class TestErrorHandling:
     async def test_fetch_ohlcv_api_error(self, binance_manager):
         """Test OHLCV API error handling."""
         binance_manager.exchange.fetch_ohlcv.side_effect = Exception("API error")
-
         with pytest.raises(BinanceConnectionError, match="Failed to fetch OHLCV"):
             await binance_manager.fetch_ohlcv('BTC/USDT', '1h')
 
@@ -378,7 +328,6 @@ class TestErrorHandling:
     async def test_fetch_order_book_api_error(self, binance_manager):
         """Test order book API error handling."""
         binance_manager.exchange.fetch_order_book.side_effect = Exception("API error")
-
         with pytest.raises(BinanceConnectionError, match="Failed to fetch order book"):
             await binance_manager.fetch_order_book('BTC/USDT')
 
@@ -386,7 +335,6 @@ class TestErrorHandling:
     async def test_fetch_open_orders_api_error(self, binance_manager):
         """Test open orders API error handling."""
         binance_manager.exchange.fetch_open_orders.side_effect = Exception("API error")
-
         with pytest.raises(BinanceConnectionError, match="Failed to fetch open orders"):
             await binance_manager.fetch_open_orders()
 
@@ -394,14 +342,12 @@ class TestErrorHandling:
     async def test_fetch_trading_fees_api_error(self, binance_manager):
         """Test trading fees API error handling."""
         binance_manager.exchange.fetch_trading_fees.side_effect = Exception("API error")
-
         with pytest.raises(BinanceConnectionError, match="Failed to fetch trading fees"):
             await binance_manager.fetch_trading_fees()
 
 
 class TestRateLimiting:
     """Tests for rate limiting management."""
-
     @pytest.mark.asyncio
     async def test_rate_limiting_enabled(self, binance_manager):
         """Test that rate limiting is enabled in exchange config."""
@@ -418,13 +364,10 @@ class TestRateLimiting:
             'symbol': 'BTC/USDT',
             'last': 50000.0
         }
-
         # Make multiple rapid requests
         symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT']
         tasks = [binance_manager.fetch_ticker(symbol) for symbol in symbols]
-
         results = await asyncio.gather(*tasks)
-
         # All requests should complete successfully
         assert len(results) == 3
         assert all(r['symbol'] for r in results)

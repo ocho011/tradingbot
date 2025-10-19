@@ -8,8 +8,7 @@ data validation, and integration with CandleStorage.
 import asyncio
 import logging
 import time
-from typing import List, Optional, Dict, Any, Set
-from datetime import datetime, timezone
+from typing import List, Optional, Dict, Any
 
 from src.core.constants import TimeFrame
 from src.models.candle import Candle

@@ -5,10 +5,8 @@ This module provides the RealtimeCandleProcessor class that handles incoming
 WebSocket candle data, detects candle completion, and publishes events.
 """
 
-import asyncio
 import logging
-from typing import Dict, Optional, Set
-from datetime import datetime
+from typing import Dict, Optional
 
 from src.core.constants import EventType, TimeFrame
 from src.core.events import Event, EventBus, EventHandler

@@ -10,7 +10,7 @@ import sys
 from collections import deque
 from threading import RLock
 from typing import Dict, List, Optional, Tuple, Deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from src.core.constants import TimeFrame
 from src.models.candle import Candle

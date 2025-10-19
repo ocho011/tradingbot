@@ -14,7 +14,12 @@
       "mcp__serena__get_current_config",
       "mcp__serena__list_dir",
       "mcp__serena__get_symbols_overview",
-      "mcp__serena__activate_project"
+      "mcp__serena__activate_project",
+      "Bash(python3 -m pip install --quiet flake8)",
+      "Bash(python3 -m flake8 src/ tests/ --exclude=venv,env,.venv,serena --max-line-length=100 --extend-ignore=E501,W503 --count --statistics)",
+      "Bash(python3 -m flake8 src/ tests/ --exclude=venv,env,.venv,serena --max-line-length=100 --extend-ignore=E501,W503 --statistics)",
+      "Bash(sed -n '208,213p' tests/services/exchange/test_binance_manager.py)",
+      "Bash(python3 -m flake8 src/ tests/ --exclude=venv,env,.venv,serena --max-line-length=100 --extend-ignore=E501,W503)"
     ]
   },
   "enableAllProjectMcpServers": true,

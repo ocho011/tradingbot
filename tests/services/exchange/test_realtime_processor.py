@@ -1,6 +1,5 @@
 """
 Tests for real-time candle data processor.
-
 Test Coverage:
 - Candle reception and processing
 - Candle completion detection based on timestamp changes
@@ -10,17 +9,12 @@ Test Coverage:
 - Duplicate detection
 - Statistics tracking
 """
-
 import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime
-
 from src.services.exchange.realtime_processor import RealtimeCandleProcessor
 from src.services.candle_storage import CandleStorage
 from src.core.events import Event, EventBus, EventType, EventHandler
 from src.core.constants import TimeFrame
-from src.models.candle import Candle
 
 
 class CaptureHandler(EventHandler):
@@ -93,7 +87,6 @@ def sample_candle_data():
 
 class TestCandleReception:
     """Test candle reception and basic processing."""
-
     @pytest.mark.asyncio
     async def test_process_valid_candle(self, processor, sample_candle_data):
         """Test processing a valid candle event."""
@@ -103,9 +96,7 @@ class TestCandleReception:
             data=sample_candle_data,
             source='BinanceManager'
         )
-
         await processor.handle(event)
-
         # Check statistics
         stats = processor.get_statistics()
         assert stats['candles_processed'] == 1
@@ -119,15 +110,12 @@ class TestCandleReception:
             'timeframe': '1m'
             # Missing required fields
         }
-
         event = Event(
             event_type=EventType.CANDLE_RECEIVED,
             priority=6,
             data=incomplete_data
         )
-
         await processor.handle(event)
-
         # Should not process incomplete data
         stats = processor.get_statistics()
         assert stats['candles_processed'] == 0
@@ -136,15 +124,12 @@ class TestCandleReception:
     async def test_process_invalid_timeframe(self, processor, sample_candle_data):
         """Test processing candle with invalid timeframe."""
         sample_candle_data['timeframe'] = 'INVALID'
-
         event = Event(
             event_type=EventType.CANDLE_RECEIVED,
             priority=6,
             data=sample_candle_data
         )
-
         await processor.handle(event)
-
         # Should not process invalid timeframe
         stats = processor.get_statistics()
         assert stats['candles_processed'] == 0
@@ -152,25 +137,20 @@ class TestCandleReception:
 
 class TestCandleCompletion:
     """Test candle completion detection."""
-
     @pytest.mark.asyncio
     async def test_first_candle_not_completed(self, processor, sample_candle_data, event_bus):
         """Test that first candle is not marked as completed."""
         test_handler = CaptureHandler()
         event_bus.subscribe(EventType.CANDLE_CLOSED, test_handler)
-
         event = Event(
             event_type=EventType.CANDLE_RECEIVED,
             priority=6,
             data=sample_candle_data
         )
-
         await event_bus.publish(event)
         await asyncio.sleep(0.1)  # Allow event processing
-
         # First candle should not trigger CANDLE_CLOSED
         assert len(test_handler.captured_events) == 0
-
         stats = processor.get_statistics()
         assert stats['candles_closed'] == 0
 
@@ -181,7 +161,6 @@ class TestCandleCompletion:
         """Test candle completion when timestamp changes."""
         test_handler = CaptureHandler()
         event_bus.subscribe(EventType.CANDLE_CLOSED, test_handler)
-
         # First candle
         event1 = Event(
             event_type=EventType.CANDLE_RECEIVED,
@@ -190,12 +169,10 @@ class TestCandleCompletion:
         )
         await event_bus.publish(event1)
         await asyncio.sleep(0.1)
-
         # Second candle with new timestamp (1 minute later)
         candle_data_2 = sample_candle_data.copy()
         candle_data_2['timestamp'] = 1640000060000  # +60 seconds
         candle_data_2['close'] = 50100.0
-
         event2 = Event(
             event_type=EventType.CANDLE_RECEIVED,
             priority=6,
@@ -203,11 +180,9 @@ class TestCandleCompletion:
         )
         await event_bus.publish(event2)
         await asyncio.sleep(0.1)
-
         # Should have one CANDLE_CLOSED event
         assert len(test_handler.captured_events) == 1
         assert test_handler.captured_events[0].event_type == EventType.CANDLE_CLOSED
-
         stats = processor.get_statistics()
         assert stats['candles_closed'] == 1
         assert stats['candles_processed'] == 2
@@ -219,7 +194,6 @@ class TestCandleCompletion:
         """Test that different symbols track completion independently."""
         test_handler = CaptureHandler()
         event_bus.subscribe(EventType.CANDLE_CLOSED, test_handler)
-
         # BTC candle 1
         btc_data_1 = {
             'symbol': 'BTCUSDT',
@@ -231,7 +205,6 @@ class TestCandleCompletion:
             'close': 50050.0,
             'volume': 10.5
         }
-
         # ETH candle 1
         eth_data_1 = {
             'symbol': 'ETHUSDT',
@@ -243,42 +216,33 @@ class TestCandleCompletion:
             'close': 4025.0,
             'volume': 50.0
         }
-
         await processor.handle(Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=btc_data_1))
         await processor.handle(Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=eth_data_1))
         await asyncio.sleep(0.1)
-
         # No completions yet
         assert len(test_handler.captured_events) == 0
-
         # BTC candle 2 (new timestamp)
         btc_data_2 = btc_data_1.copy()
         btc_data_2['timestamp'] = 1640000060000
         btc_data_2['close'] = 50100.0
-
         await processor.handle(Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=btc_data_2))
         await asyncio.sleep(0.1)
-
         # BTC candle completed, but not ETH
         assert len(test_handler.captured_events) == 1
         assert test_handler.captured_events[0].data['symbol'] == 'BTCUSDT'
-
         stats = processor.get_statistics()
         assert stats['active_streams'] == 2
 
 
 class TestDataValidation:
     """Test data validation and outlier filtering."""
-
     @pytest.mark.asyncio
     async def test_duplicate_filtering(self, processor, sample_candle_data):
         """Test that exact duplicates are filtered."""
         event1 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=sample_candle_data.copy())
         event2 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=sample_candle_data.copy())
-
         await processor.handle(event1)
         await processor.handle(event2)
-
         stats = processor.get_statistics()
         assert stats['candles_processed'] == 1
         assert stats['duplicates_filtered'] == 1
@@ -296,10 +260,8 @@ class TestDataValidation:
         outlier_data['high'] = 60100.0
         outlier_data['open'] = 50000.0
         outlier_data['low'] = 50000.0
-
         event2 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=outlier_data)
         await processor.handle(event2)
-
         stats = processor.get_statistics()
         assert stats['outliers_filtered'] == 1
 
@@ -315,10 +277,8 @@ class TestDataValidation:
         valid_data['close'] = 51000.0  # 2% increase
         valid_data['high'] = 51100.0
         valid_data['low'] = 50000.0
-
         event2 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=valid_data)
         await processor.handle(event2)
-
         stats = processor.get_statistics()
         assert stats['candles_processed'] == 2
         assert stats['outliers_filtered'] == 0
@@ -326,7 +286,6 @@ class TestDataValidation:
 
 class TestStorageIntegration:
     """Test CandleStorage integration."""
-
     @pytest.mark.asyncio
     async def test_storage_integration(self, processor, sample_candle_data, storage):
         """Test that completed candles are stored."""
@@ -337,10 +296,8 @@ class TestStorageIntegration:
         candle_data_2 = sample_candle_data.copy()
         candle_data_2['timestamp'] = 1640000060000
         candle_data_2['close'] = 50100.0
-
         event2 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=candle_data_2)
         await processor.handle(event2)
-
         # Check storage
         candles = storage.get_candles('BTCUSDT', TimeFrame.M1)
         assert len(candles) == 1
@@ -355,19 +312,15 @@ class TestStorageIntegration:
         """Test processor operates correctly without storage."""
         test_handler = CaptureHandler()
         event_bus.subscribe(EventType.CANDLE_CLOSED, test_handler)
-
         # First candle
         event1 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=sample_candle_data.copy())
         await event_bus.publish(event1)
-
         # Second candle
         candle_data_2 = sample_candle_data.copy()
         candle_data_2['timestamp'] = 1640000060000
-
         event2 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=candle_data_2)
         await event_bus.publish(event2)
         await asyncio.sleep(0.1)
-
         # Should still publish CANDLE_CLOSED event
         assert len(test_handler.captured_events) == 1
         assert test_handler.captured_events[0].event_type == EventType.CANDLE_CLOSED
@@ -375,24 +328,19 @@ class TestStorageIntegration:
 
 class TestEventTiming:
     """Test event timing and order."""
-
     @pytest.mark.asyncio
     async def test_candle_closed_priority(self, processor, sample_candle_data, event_bus):
         """Test that CANDLE_CLOSED events have higher priority."""
         test_handler = CaptureHandler()
         event_bus.subscribe(EventType.CANDLE_CLOSED, test_handler)
-
         # Process two candles
         event1 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=sample_candle_data.copy())
         await event_bus.publish(event1)
-
         candle_data_2 = sample_candle_data.copy()
         candle_data_2['timestamp'] = 1640000060000
-
         event2 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=candle_data_2)
         await event_bus.publish(event2)
         await asyncio.sleep(0.1)
-
         # Check CANDLE_CLOSED event priority
         assert len(test_handler.captured_events) == 1
         assert test_handler.captured_events[0].priority == 7  # Higher than CANDLE_RECEIVED (6)
@@ -402,7 +350,6 @@ class TestEventTiming:
         """Test processing multiple timeframes for same symbol."""
         test_handler = CaptureHandler()
         event_bus.subscribe(EventType.CANDLE_CLOSED, test_handler)
-
         # 1m candles
         m1_data_1 = {
             'symbol': 'BTCUSDT',
@@ -411,11 +358,9 @@ class TestEventTiming:
             'open': 50000.0, 'high': 50100.0, 'low': 49900.0,
             'close': 50050.0, 'volume': 10.5
         }
-
         m1_data_2 = m1_data_1.copy()
         m1_data_2['timestamp'] = 1640000060000
         m1_data_2['close'] = 50100.0
-
         # 5m candles
         m5_data_1 = {
             'symbol': 'BTCUSDT',
@@ -424,28 +369,23 @@ class TestEventTiming:
             'open': 50000.0, 'high': 50200.0, 'low': 49800.0,
             'close': 50150.0, 'volume': 50.0
         }
-
         m5_data_2 = m5_data_1.copy()
         m5_data_2['timestamp'] = 1640000300000  # +5 minutes
         m5_data_2['close'] = 50200.0
-
         # Process candles
         await processor.handle(Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=m1_data_1))
         await processor.handle(Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=m5_data_1))
         await processor.handle(Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=m1_data_2))
         await processor.handle(Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=m5_data_2))
         await asyncio.sleep(0.1)
-
         # Should have 2 completions (1m and 5m)
         assert len(test_handler.captured_events) == 2
-
         stats = processor.get_statistics()
         assert stats['active_streams'] == 2  # 1m and 5m for BTCUSDT
 
 
 class TestStatistics:
     """Test statistics tracking."""
-
     @pytest.mark.asyncio
     async def test_statistics_tracking(self, processor, sample_candle_data):
         """Test that statistics are correctly tracked."""
@@ -460,7 +400,6 @@ class TestStatistics:
         candle_data_3['timestamp'] = 1640000060000
         event3 = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=candle_data_3)
         await processor.handle(event3)
-
         stats = processor.get_statistics()
         assert stats['candles_processed'] == 2  # event1 and event3
         assert stats['candles_closed'] == 1    # event3 completed event1
@@ -472,9 +411,7 @@ class TestStatistics:
         """Test clearing statistics."""
         event = Event(event_type=EventType.CANDLE_RECEIVED, priority=6, data=sample_candle_data)
         await processor.handle(event)
-
         processor.clear_statistics()
-
         stats = processor.get_statistics()
         assert stats['candles_processed'] == 0
         assert stats['candles_closed'] == 0
