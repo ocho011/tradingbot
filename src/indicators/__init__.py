@@ -15,6 +15,11 @@ from src.indicators.fair_value_gap import (
     FVGState,
     FVGDetector
 )
+from src.indicators.breaker_block import (
+    BreakerBlock,
+    BreakerBlockType,
+    BreakerBlockDetector
+)
 
 __all__ = [
     'OrderBlock',
@@ -25,5 +30,8 @@ __all__ = [
     'FairValueGap',
     'FVGType',
     'FVGState',
-    'FVGDetector'
+    'FVGDetector',
+    'BreakerBlock',
+    'BreakerBlockType',
+    'BreakerBlockDetector'
 ]
