@@ -9,7 +9,7 @@ cross-timeframe analysis capabilities.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Optional, Set, Callable, Any
+from typing import List, Dict, Optional, Callable, Any
 import logging
 import asyncio
 from collections import defaultdict
@@ -31,8 +31,20 @@ from src.indicators.fair_value_gap import (
 )
 from src.indicators.breaker_block import (
     BreakerBlock,
-    BreakerBlockDetector,
-    BreakerBlockType
+    BreakerBlockDetector
+)
+from src.indicators.liquidity_zone import (
+    LiquidityLevel,
+    LiquidityZoneDetector
+)
+from src.indicators.liquidity_sweep import (
+    LiquiditySweep,
+    LiquiditySweepDetector
+)
+from src.indicators.trend_recognition import (
+    TrendRecognitionEngine,
+    TrendState,
+    TrendStructure
 )
 from src.indicators.expiration_manager import (
     IndicatorExpirationManager,
@@ -51,6 +63,10 @@ class IndicatorType(str, Enum):
     FAIR_VALUE_GAP = "fair_value_gap"
     BREAKER_BLOCK = "breaker_block"
 
+    LIQUIDITY_ZONE = "liquidity_zone"
+    LIQUIDITY_SWEEP = "liquidity_sweep"
+    TREND_RECOGNITION = "trend_recognition"
+
 
 @dataclass
 class TimeframeIndicators:
@@ -62,6 +78,10 @@ class TimeframeIndicators:
         order_blocks: List of detected Order Blocks
         fair_value_gaps: List of detected Fair Value Gaps
         breaker_blocks: List of detected Breaker Blocks
+        liquidity_levels: List of detected Liquidity Levels
+        liquidity_sweeps: List of detected Liquidity Sweeps
+        trend_structures: List of detected Trend Structures (HH/HL/LH/LL)
+        trend_state: Current trend state (direction, strength, etc.)
         last_update_timestamp: Last time indicators were calculated
         candle_count: Number of candles processed
     """
@@ -69,6 +89,10 @@ class TimeframeIndicators:
     order_blocks: List[OrderBlock] = field(default_factory=list)
     fair_value_gaps: List[FairValueGap] = field(default_factory=list)
     breaker_blocks: List[BreakerBlock] = field(default_factory=list)
+    liquidity_levels: List[LiquidityLevel] = field(default_factory=list)
+    liquidity_sweeps: List[LiquiditySweep] = field(default_factory=list)
+    trend_structures: List[TrendStructure] = field(default_factory=list)
+    trend_state: Optional[TrendState] = None
     last_update_timestamp: Optional[int] = None
     candle_count: int = 0
 
@@ -89,6 +113,10 @@ class TimeframeIndicators:
         self.order_blocks.clear()
         self.fair_value_gaps.clear()
         self.breaker_blocks.clear()
+        self.liquidity_levels.clear()
+        self.liquidity_sweeps.clear()
+        self.trend_structures.clear()
+        self.trend_state = None
         self.last_update_timestamp = None
         self.candle_count = 0
 
@@ -171,6 +199,9 @@ class MultiTimeframeIndicatorEngine:
         ob_detector_config: Optional[Dict[str, Any]] = None,
         fvg_detector_config: Optional[Dict[str, Any]] = None,
         bb_detector_config: Optional[Dict[str, Any]] = None,
+        liquidity_zone_config: Optional[Dict[str, Any]] = None,
+        liquidity_sweep_config: Optional[Dict[str, Any]] = None,
+        trend_recognition_config: Optional[Dict[str, Any]] = None,
         expiration_rules: Optional[ExpirationRules] = None,
         auto_remove_expired: bool = True,
         event_bus: Optional[EventBus] = None,
@@ -184,6 +215,9 @@ class MultiTimeframeIndicatorEngine:
             ob_detector_config: Configuration for Order Block detector
             fvg_detector_config: Configuration for FVG detector
             bb_detector_config: Configuration for Breaker Block detector
+            liquidity_zone_config: Configuration for Liquidity Zone detector
+            liquidity_sweep_config: Configuration for Liquidity Sweep detector
+            trend_recognition_config: Configuration for Trend Recognition engine
             expiration_rules: Custom expiration rules, or None for defaults
             auto_remove_expired: If True, automatically remove expired indicators
             event_bus: Optional event bus for publishing indicator events
@@ -207,6 +241,15 @@ class MultiTimeframeIndicatorEngine:
         self.ob_detector = OrderBlockDetector(**(ob_detector_config or {}))
         self.fvg_detector = FVGDetector(**(fvg_detector_config or {}))
         self.bb_detector = BreakerBlockDetector(**(bb_detector_config or {}))
+        self.liquidity_zone_detector = LiquidityZoneDetector(**(liquidity_zone_config or {}))
+        self.liquidity_sweep_detector = LiquiditySweepDetector(
+            **(liquidity_sweep_config or {}),
+            event_bus=event_bus
+        )
+        self.trend_recognition_engine = TrendRecognitionEngine(
+            **(trend_recognition_config or {}),
+            event_bus=event_bus
+        )
 
         # Initialize expiration manager
         self.expiration_manager = IndicatorExpirationManager(
@@ -545,6 +588,96 @@ class MultiTimeframeIndicatorEngine:
                     priority=7
                 )
 
+            # Detect Liquidity Zones (levels)
+            buy_side_levels, sell_side_levels = self.liquidity_zone_detector.detect_liquidity_levels(
+                tf_data.candles
+            )
+
+            # Combine buy and sell side levels for storage
+            all_liquidity_levels = buy_side_levels + sell_side_levels
+
+            # Replace existing liquidity levels (full recalculation approach)
+            tf_data.indicators.liquidity_levels = all_liquidity_levels
+
+            # Detect Liquidity Sweeps
+            if all_liquidity_levels:
+                # Detect sweeps across all candles
+                # Look back 50 candles max to detect sweeps
+                start_index = max(0, len(tf_data.candles) - 50)
+
+                detected_sweeps = self.liquidity_sweep_detector.detect_sweeps(
+                    tf_data.candles,
+                    all_liquidity_levels,
+                    start_index=start_index
+                )
+
+                # Add new sweeps that weren't detected before
+                if detected_sweeps:
+                    existing_sweep_timestamps = {
+                        s.sweep_timestamp for s in tf_data.indicators.liquidity_sweeps
+                    }
+                    new_sweeps = [
+                        sweep for sweep in detected_sweeps
+                        if sweep.sweep_timestamp not in existing_sweep_timestamps
+                    ]
+
+                    if new_sweeps:
+                        tf_data.indicators.liquidity_sweeps.extend(new_sweeps)
+                        self._trigger_callbacks(IndicatorType.LIQUIDITY_SWEEP, timeframe, new_sweeps)
+
+            # Detect Trend Patterns (HH/HL/LH/LL)
+            trend_structures, trend_direction = self.trend_recognition_engine.analyze_trend_patterns(
+                tf_data.candles
+            )
+
+            # Update trend structures
+            tf_data.indicators.trend_structures = trend_structures
+
+            # Calculate trend strength and update trend state
+            if trend_structures:
+                strength_score, strength_level = self.trend_recognition_engine.calculate_trend_strength(
+                    trend_structures,
+                    trend_direction
+                )
+
+                latest_candle = tf_data.get_latest_candle()
+                if latest_candle:
+                    # Update trend state
+                    previous_trend = tf_data.indicators.trend_state
+
+                    # Check if we need to create new trend state or update existing
+                    if previous_trend is None or previous_trend.direction != trend_direction:
+                        # New trend state
+                        tf_data.indicators.trend_state = TrendState(
+                            direction=trend_direction,
+                            strength=strength_score,
+                            strength_level=strength_level,
+                            symbol=tf_data.candles[0].symbol if tf_data.candles else "UNKNOWN",
+                            timeframe=timeframe,
+                            start_timestamp=latest_candle.timestamp,
+                            start_candle_index=len(tf_data.candles) - 1,
+                            last_update_timestamp=latest_candle.timestamp,
+                            pattern_count=len(trend_structures),
+                            is_confirmed=len(trend_structures) >= self.trend_recognition_engine.min_patterns_for_confirmation
+                        )
+                    else:
+                        # Update existing trend state
+                        tf_data.indicators.trend_state.strength = strength_score
+                        tf_data.indicators.trend_state.strength_level = strength_level
+                        tf_data.indicators.trend_state.last_update_timestamp = latest_candle.timestamp
+                        tf_data.indicators.trend_state.pattern_count = len(trend_structures)
+                        tf_data.indicators.trend_state.is_confirmed = (
+                            len(trend_structures) >= self.trend_recognition_engine.min_patterns_for_confirmation
+                        )
+
+                    # Detect trend change (will publish event if changed)
+                    if previous_trend:
+                        self.trend_recognition_engine.detect_trend_change(
+                            previous_trend,
+                            tf_data.indicators.trend_state,
+                            trend_structures
+                        )
+
             # Apply expiration logic
             latest = tf_data.get_latest_candle()
             if latest:
@@ -624,10 +757,18 @@ class MultiTimeframeIndicatorEngine:
                         'order_blocks_count': len(tf_data.indicators.order_blocks),
                         'fair_value_gaps_count': len(tf_data.indicators.fair_value_gaps),
                         'breaker_blocks_count': len(tf_data.indicators.breaker_blocks),
+                        'liquidity_levels_count': len(tf_data.indicators.liquidity_levels),
+                        'liquidity_sweeps_count': len(tf_data.indicators.liquidity_sweeps),
+                        'trend_structures_count': len(tf_data.indicators.trend_structures),
+                        'trend_direction': tf_data.indicators.trend_state.direction.value if tf_data.indicators.trend_state else None,
+                        'trend_strength': tf_data.indicators.trend_state.strength if tf_data.indicators.trend_state else None,
                         'total_indicators': (
                             len(tf_data.indicators.order_blocks) +
                             len(tf_data.indicators.fair_value_gaps) +
-                            len(tf_data.indicators.breaker_blocks)
+                            len(tf_data.indicators.breaker_blocks) +
+                            len(tf_data.indicators.liquidity_levels) +
+                            len(tf_data.indicators.liquidity_sweeps) +
+                            len(tf_data.indicators.trend_structures)
                         ),
                         'timestamp': latest.timestamp
                     },
@@ -638,7 +779,11 @@ class MultiTimeframeIndicatorEngine:
                 f"Updated {timeframe.value} indicators: "
                 f"OBs={len(tf_data.indicators.order_blocks)}, "
                 f"FVGs={len(tf_data.indicators.fair_value_gaps)}, "
-                f"BBs={len(tf_data.indicators.breaker_blocks)}"
+                f"BBs={len(tf_data.indicators.breaker_blocks)}, "
+                f"Liquidity={len(tf_data.indicators.liquidity_levels)}, "
+                f"Sweeps={len(tf_data.indicators.liquidity_sweeps)}, "
+                f"Trends={len(tf_data.indicators.trend_structures)}, "
+                f"Direction={tf_data.indicators.trend_state.direction.value if tf_data.indicators.trend_state else 'N/A'}"
             )
 
         except Exception as e:
@@ -680,7 +825,7 @@ class MultiTimeframeIndicatorEngine:
 
                 # Try to get the running event loop
                 try:
-                    loop = asyncio.get_running_loop()
+                    asyncio.get_running_loop()
                     # Schedule event publishing in the loop
                     asyncio.create_task(self.event_bus.publish(event))
                     logger.debug(
