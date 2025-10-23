@@ -11,6 +11,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Dict, Optional, Set, Callable, Any
 import logging
+import asyncio
 from collections import defaultdict
 from threading import Lock
 
@@ -37,6 +38,8 @@ from src.indicators.expiration_manager import (
     IndicatorExpirationManager,
     ExpirationRules
 )
+from src.core.events import EventBus, Event
+from src.core.constants import EventType
 
 
 logger = logging.getLogger(__name__)
@@ -170,6 +173,7 @@ class MultiTimeframeIndicatorEngine:
         bb_detector_config: Optional[Dict[str, Any]] = None,
         expiration_rules: Optional[ExpirationRules] = None,
         auto_remove_expired: bool = True,
+        event_bus: Optional[EventBus] = None,
     ):
         """
         Initialize multi-timeframe indicator engine.
@@ -182,6 +186,7 @@ class MultiTimeframeIndicatorEngine:
             bb_detector_config: Configuration for Breaker Block detector
             expiration_rules: Custom expiration rules, or None for defaults
             auto_remove_expired: If True, automatically remove expired indicators
+            event_bus: Optional event bus for publishing indicator events
         """
         # Default timeframes: 1m, 15m, 1h
         self.timeframes = timeframes or [TimeFrame.M1, TimeFrame.M15, TimeFrame.H1]
@@ -208,6 +213,9 @@ class MultiTimeframeIndicatorEngine:
             expiration_rules=expiration_rules,
             auto_remove_expired=auto_remove_expired
         )
+
+        # Event bus for publishing indicator events
+        self.event_bus = event_bus
 
         # Thread safety
         self._lock = Lock()
@@ -456,10 +464,24 @@ class MultiTimeframeIndicatorEngine:
 
             # Add new OBs (avoid duplicates by timestamp)
             existing_timestamps = {ob.origin_timestamp for ob in existing_obs}
+            newly_detected_obs = []
             for ob in new_obs:
                 if ob.origin_timestamp not in existing_timestamps:
                     tf_data.indicators.order_blocks.append(ob)
+                    newly_detected_obs.append(ob)
                     self._trigger_callbacks(IndicatorType.ORDER_BLOCK, timeframe, [ob])
+
+            # Publish ORDER_BLOCK_DETECTED event for new OBs
+            if newly_detected_obs:
+                self._publish_event_sync(
+                    EventType.ORDER_BLOCK_DETECTED,
+                    timeframe,
+                    {
+                        'count': len(newly_detected_obs),
+                        'order_blocks': [ob.to_dict() for ob in newly_detected_obs]
+                    },
+                    priority=7
+                )
 
             # Detect Fair Value Gaps
             new_fvgs = self.fvg_detector.detect_fair_value_gaps(tf_data.candles)
@@ -474,10 +496,24 @@ class MultiTimeframeIndicatorEngine:
             existing_fvg_timestamps = {
                 fvg.origin_timestamp for fvg in tf_data.indicators.fair_value_gaps
             }
+            newly_detected_fvgs = []
             for fvg in new_fvgs:
                 if fvg.origin_timestamp not in existing_fvg_timestamps:
                     tf_data.indicators.fair_value_gaps.append(fvg)
+                    newly_detected_fvgs.append(fvg)
                     self._trigger_callbacks(IndicatorType.FAIR_VALUE_GAP, timeframe, [fvg])
+
+            # Publish FVG_DETECTED event for new FVGs
+            if newly_detected_fvgs:
+                self._publish_event_sync(
+                    EventType.FVG_DETECTED,
+                    timeframe,
+                    {
+                        'count': len(newly_detected_fvgs),
+                        'fair_value_gaps': [fvg.to_dict() for fvg in newly_detected_fvgs]
+                    },
+                    priority=7
+                )
 
             # Detect Breaker Blocks
             new_bbs = self.bb_detector.detect_breaker_blocks(
@@ -490,15 +526,34 @@ class MultiTimeframeIndicatorEngine:
             existing_bb_timestamps = {
                 bb.transition_timestamp for bb in tf_data.indicators.breaker_blocks
             }
+            newly_detected_bbs = []
             for bb in new_bbs:
                 if bb.transition_timestamp not in existing_bb_timestamps:
                     tf_data.indicators.breaker_blocks.append(bb)
+                    newly_detected_bbs.append(bb)
                     self._trigger_callbacks(IndicatorType.BREAKER_BLOCK, timeframe, [bb])
+
+            # Publish BREAKER_BLOCK_DETECTED event for new BBs
+            if newly_detected_bbs:
+                self._publish_event_sync(
+                    EventType.BREAKER_BLOCK_DETECTED,
+                    timeframe,
+                    {
+                        'count': len(newly_detected_bbs),
+                        'breaker_blocks': [bb.to_dict() for bb in newly_detected_bbs]
+                    },
+                    priority=7
+                )
 
             # Apply expiration logic
             latest = tf_data.get_latest_candle()
             if latest:
                 candle_count = len(tf_data.candles)
+
+                # Track original counts for expiration events
+                original_ob_count = len(tf_data.indicators.order_blocks)
+                original_fvg_count = len(tf_data.indicators.fair_value_gaps)
+                original_bb_count = len(tf_data.indicators.breaker_blocks)
 
                 # Expire Order Blocks
                 tf_data.indicators.order_blocks = self.expiration_manager.expire_order_blocks(
@@ -506,6 +561,18 @@ class MultiTimeframeIndicatorEngine:
                     latest,
                     candle_count
                 )
+                expired_ob_count = original_ob_count - len(tf_data.indicators.order_blocks)
+                if expired_ob_count > 0:
+                    self._publish_event_sync(
+                        EventType.INDICATOR_EXPIRED,
+                        timeframe,
+                        {
+                            'indicator_type': 'order_block',
+                            'expired_count': expired_ob_count,
+                            'remaining_count': len(tf_data.indicators.order_blocks)
+                        },
+                        priority=6
+                    )
 
                 # Expire Fair Value Gaps
                 tf_data.indicators.fair_value_gaps = self.expiration_manager.expire_fair_value_gaps(
@@ -513,6 +580,18 @@ class MultiTimeframeIndicatorEngine:
                     latest,
                     candle_count
                 )
+                expired_fvg_count = original_fvg_count - len(tf_data.indicators.fair_value_gaps)
+                if expired_fvg_count > 0:
+                    self._publish_event_sync(
+                        EventType.INDICATOR_EXPIRED,
+                        timeframe,
+                        {
+                            'indicator_type': 'fair_value_gap',
+                            'expired_count': expired_fvg_count,
+                            'remaining_count': len(tf_data.indicators.fair_value_gaps)
+                        },
+                        priority=6
+                    )
 
                 # Expire Breaker Blocks
                 tf_data.indicators.breaker_blocks = self.expiration_manager.expire_breaker_blocks(
@@ -520,10 +599,40 @@ class MultiTimeframeIndicatorEngine:
                     latest,
                     candle_count
                 )
+                expired_bb_count = original_bb_count - len(tf_data.indicators.breaker_blocks)
+                if expired_bb_count > 0:
+                    self._publish_event_sync(
+                        EventType.INDICATOR_EXPIRED,
+                        timeframe,
+                        {
+                            'indicator_type': 'breaker_block',
+                            'expired_count': expired_bb_count,
+                            'remaining_count': len(tf_data.indicators.breaker_blocks)
+                        },
+                        priority=6
+                    )
 
                 # Update timestamp
                 tf_data.indicators.last_update_timestamp = latest.timestamp
                 tf_data.indicators.candle_count = candle_count
+
+                # Publish INDICATORS_UPDATED event with summary
+                self._publish_event_sync(
+                    EventType.INDICATORS_UPDATED,
+                    timeframe,
+                    {
+                        'order_blocks_count': len(tf_data.indicators.order_blocks),
+                        'fair_value_gaps_count': len(tf_data.indicators.fair_value_gaps),
+                        'breaker_blocks_count': len(tf_data.indicators.breaker_blocks),
+                        'total_indicators': (
+                            len(tf_data.indicators.order_blocks) +
+                            len(tf_data.indicators.fair_value_gaps) +
+                            len(tf_data.indicators.breaker_blocks)
+                        ),
+                        'timestamp': latest.timestamp
+                    },
+                    priority=5
+                )
 
             logger.info(
                 f"Updated {timeframe.value} indicators: "
@@ -537,6 +646,56 @@ class MultiTimeframeIndicatorEngine:
                 f"Error updating indicators for {timeframe.value}: {e}",
                 exc_info=True
             )
+
+    def _publish_event_sync(
+        self,
+        event_type: EventType,
+        timeframe: TimeFrame,
+        data: Dict[str, Any],
+        priority: int = 5
+    ) -> None:
+        """
+        Publish an event to the event bus if available (synchronous wrapper).
+
+        This method creates a task in the event loop if one is running.
+        If no event loop is running, the event is logged but not published.
+
+        Args:
+            event_type: Type of event to publish
+            timeframe: Timeframe the event relates to
+            data: Event payload data
+            priority: Event priority (0-10, higher = more important)
+        """
+        if self.event_bus:
+            try:
+                event = Event(
+                    priority=priority,
+                    event_type=event_type,
+                    data={
+                        'timeframe': timeframe.value,
+                        **data
+                    },
+                    source='MultiTimeframeIndicatorEngine'
+                )
+
+                # Try to get the running event loop
+                try:
+                    loop = asyncio.get_running_loop()
+                    # Schedule event publishing in the loop
+                    asyncio.create_task(self.event_bus.publish(event))
+                    logger.debug(
+                        f"Scheduled {event_type.value} event for {timeframe.value}"
+                    )
+                except RuntimeError:
+                    # No event loop running, log instead
+                    logger.warning(
+                        f"No event loop running, cannot publish {event_type.value} event"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Error publishing {event_type.value} event: {e}",
+                    exc_info=True
+                )
 
     def get_indicators(
         self,

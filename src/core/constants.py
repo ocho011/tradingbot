@@ -78,8 +78,11 @@ class EventType(str, Enum):
     # ICT indicator events
     FVG_DETECTED = "fvg_detected"
     ORDER_BLOCK_DETECTED = "order_block_detected"
+    BREAKER_BLOCK_DETECTED = "breaker_block_detected"
     LIQUIDITY_SWEEP_DETECTED = "liquidity_sweep_detected"
     MARKET_STRUCTURE_CHANGE = "market_structure_change"
+    INDICATORS_UPDATED = "indicators_updated"
+    INDICATOR_EXPIRED = "indicator_expired"
 
     # Trading events
     SIGNAL_GENERATED = "signal_generated"

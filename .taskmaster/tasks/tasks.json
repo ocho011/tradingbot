@@ -401,7 +401,7 @@
         "dependencies": [
           "4"
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -472,15 +472,16 @@
               5
             ],
             "details": "Order Block, FVG, Breaker Block 데이터를 담는 표준화된 클래스 구조를 설계하고, 좌표(가격/시간), 강도 지수, 상태 정보를 관리합니다. 지표 업데이트 시 indicators_updated 이벤트를 발행하여 다른 시스템과의 연동을 지원합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "데이터 클래스 구조 검증, 이벤트 발행 확인, 시스템 간 연동 테스트",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-23T14:56:04.615Z"
           }
         ],
         "complexity": 8,
         "recommendedSubtasks": 6,
         "expansionPrompt": "복잡한 기술적 지표를 단계별로 구현하여 Order Blocks 감지 알고리즘, FVG 계산 로직, Breaker Blocks 인식, 멀티 타임프레임 처리, 지표 만료 관리, 성능 최적화로 세분화",
-        "updatedAt": "2025-10-23T14:40:41.037Z"
+        "updatedAt": "2025-10-23T14:56:04.615Z"
       },
       {
         "id": "7",
@@ -835,9 +836,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-23T14:40:41.038Z",
+      "lastModified": "2025-10-23T14:56:04.615Z",
       "taskCount": 10,
-      "completedCount": 5,
+      "completedCount": 6,
       "tags": [
         "master"
       ]
