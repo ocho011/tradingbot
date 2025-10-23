@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "프로젝트 환경 설정 및 기본 구조 구축",
         "description": "Python 프로젝트 초기 설정, 의존성 관리, 환경 변수 구성 및 기본 폴더 구조 생성",
         "details": "Python 3.10+ 가상환경 생성, pyproject.toml로 의존성 관리 (asyncio, aiohttp, ccxt.pro, fastapi, sqlite3, discord-webhook), .env 파일 템플릿 생성 (BINANCE_API_KEY, BINANCE_SECRET_KEY, DISCORD_WEBHOOK_URL), 폴더 구조 설정 (/src, /tests, /logs, /config, /data), .gitignore 설정 (.env, logs/, __pycache__/), README.md 기본 구조 작성",
@@ -69,7 +69,7 @@
         "updatedAt": "2025-10-18T10:28:22.391Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "이벤트 시스템 핵심 구현",
         "description": "Event 클래스, EventBus, 핸들러 인터페이스 및 우선순위 큐 기반 이벤트 처리 시스템 구현",
         "details": "Event 데이터 클래스 (event_type, data, timestamp, priority), EventBus 클래스 (asyncio.Queue 기반, pub/sub 패턴), EventHandler 추상 베이스 클래스 (handle, on_error 메서드), 우선순위 큐 구현 (heapq 또는 asyncio.PriorityQueue), 이벤트 디스패처 (비동기 처리, 에러 격리), 이벤트 타입 상수 정의 (CANDLE_CLOSED, SIGNAL_GENERATED 등)",
@@ -151,7 +151,7 @@
         "updatedAt": "2025-10-18T14:25:44.766Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "바이낸스 API 연동 및 WebSocket 관리자 구현",
         "description": "ccxt.pro를 이용한 바이낸스 연결, WebSocket 실시간 데이터 수신, 자동 재연결 기능 구현",
         "details": "ccxt.pro Binance 클래스 초기화 (testnet/mainnet 분리), WebSocket 캔들 스트림 구독 (1m, 15m, 1h), 하트비트 기반 연결 상태 모니터링, 지수 백오프 재연결 로직, REST API 래퍼 (잔고, 포지션, 주문), API 키 권한 검증 (읽기, 거래 권한 확인), ws_connected, ws_disconnected, ws_error 이벤트 발행",
@@ -245,7 +245,7 @@
         "updatedAt": "2025-10-19T02:36:26.895Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "실시간 캔들 데이터 수신 및 관리 시스템 구현",
         "description": "WebSocket으로부터 실시간 캔들 데이터 수신, 메모리 기반 데이터 저장, 과거 데이터 로드 기능 구현",
         "details": "캔들 데이터 클래스 (OHLCV, timestamp, symbol, timeframe), 메모리 기반 캔들 스토리지 (deque 최대 500개), 과거 캔들 로드 (REST API, 초기화 시), 캔들 완성 감지 및 candle_closed 이벤트 발행, 멀티 심볼/타임프레임 지원 (BTCUSDT, ETHUSDT), 데이터 검증 (결측치, 이상치 처리)",
@@ -324,7 +324,7 @@
         "updatedAt": "2025-10-19T11:18:05.686Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "SQLite 데이터베이스 설계 및 데이터 저장 레이어 구현",
         "description": "거래 이력, 통계, 백테스팅 결과를 위한 SQLite 스키마 설계 및 ORM 구현",
         "details": "SQLite 스키마 설계 (trades, positions, statistics, backtest_results 테이블), SQLAlchemy 또는 aiosqlite 사용, 거래 이력 테이블 (id, symbol, strategy, entry_time, exit_time, entry_price, exit_price, quantity, pnl, leverage), 포지션 테이블 (current positions, unrealized_pnl), 통계 테이블 (daily, monthly stats by strategy), DB 연결 풀 관리, 마이그레이션 스크립트",
@@ -392,7 +392,7 @@
         "updatedAt": "2025-10-19T16:25:35.859Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "ICT 지표 엔진 구현 - Order Blocks 및 Fair Value Gaps",
         "description": "Order Blocks 감지, Fair Value Gaps 계산, Breaker Blocks 인식 알고리즘 구현",
         "details": "Order Blocks 식별 (swing high/low 기반, 최소 3-5개 캔들), FVG 감지 (3개 캔들 패턴, gap > 최소 임계값), Breaker Blocks 로직 (OB 깨진 후 역할 전환), 멀티 타임프레임 지표 계산 (1m, 15m, 1h), 지표 만료 로직 (시간 또는 가격 기반), 지표 데이터 클래스 (좌표, 강도, 상태), indicators_updated 이벤트 발행",
@@ -484,7 +484,7 @@
         "updatedAt": "2025-10-23T14:56:04.615Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "ICT 지표 엔진 구현 - Liquidity 및 Market Structure",
         "description": "유동성 존 매핑, Liquidity Sweep 감지, Market Structure 분석 알고리즘 구현",
         "details": "Buy/Sell side Liquidity 레벨 식별 (고점/저점 상단/하단), Liquidity Sweep 패턴 감지 (레벨 돌파 후 반전), Higher High/Lower Low 추세 인식, BMS (Break of Market Structure) 확인 로직, 멀티 타임프레임 구조 분석, 유동성 강도 계산 (터치 횟수, 거래량), Market Structure 상태 추적 (Bullish/Bearish/Ranging)",
@@ -514,7 +514,7 @@
               1
             ],
             "details": "레벨 돌파 확인 → 캔들 클로즈 검증 → 반전 패턴 확인까지의 전체 Sweep 감지 로직 구현. 가짜 돌파 필터링, 최소 돌파 거리 검증, 반전 강도 측정 포함. 실시간 모니터링이 가능하도록 효율적인 알고리즘 설계.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "히스토리컬 데이터에서 실제 Sweep 패턴과 비교 검증, 가짜 신호 필터링 성능 테스트, 실시간 감지 속도 벤치마크",
             "parentId": "undefined"
           },
@@ -576,7 +576,7 @@
         "updatedAt": "2025-10-23T15:29:11.723Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "매매 전략 엔진 구현 - 3가지 전략 로직",
         "description": "전략 A(보수적), B(공격적), C(혼합) 매매 로직 구현 및 신호 생성 시스템",
         "details": "전략 A: 1h BMS → 15m FVG/OB → 1m 진입 타이밍, 전략 B: 15m Liquidity Sweep + FVG 즉시 진입, 전략 C: 1h 추세 + 15m OB/FVG + Liquidity 조건, 각 전략별 신호 클래스 (entry_price, direction, confidence, stop_loss, take_profit), 중복 신호 필터링, 전략별 활성화/비활성화 설정, signal_generated 이벤트 발행, 신호 우선순위 관리",
@@ -673,7 +673,7 @@
         "expansionPrompt": "복합적인 매매 전략을 체계적으로 구현하여 전략 A 로직, 전략 B 로직, 전략 C 로직, 신호 생성 시스템, 중복 필터링, 우선순위 관리, 전략 제어로 세분화"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "리스크 관리 시스템 구현",
         "description": "포지션 사이징, 손절/익절 레벨 계산, 일일 손실 한도 관리 시스템 구현",
         "details": "계좌 잔고 기반 2% 리스크 계산, 레버리지 5배 적용 포지션 사이징, 구조적 레벨 기반 손절가 계산 + 톨러런스 (0.1-0.3%), Liquidity 레벨 기반 익절가 설정, 일일 손실 6% 한도 모니터링, 실시간 손익 추적, daily_loss_limit_reached 이벤트 발행, 신규 진입 차단 로직, 리스크 검증 통과 시 주문 승인",
@@ -748,7 +748,7 @@
         "expansionPrompt": "리스크 관리를 체계적으로 구현하여 포지션 사이징 계산, 손절/익절 레벨 설정, 일일 한도 모니터링, 실시간 손익 추적, 진입 제어 로직으로 세분화"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "주문 실행 및 포지션 관리 시스템 구현",
         "description": "비동기 주문 실행, 실패 재시도 로직, 포지션 추적 및 상태 관리 시스템 구현",
         "details": "비동기 주문 실행 (시장가, 손절, 익절), 최대 3회 재시도 로직 (1초, 2초, 5초 간격), 주문 상태 추적 및 이벤트 발행 (order_placed, order_filled, order_failed), 포지션 상태 관리 (opened, closed, updated), 미청산 포지션 실시간 모니터링, 시스템 재시작 시 포지션 복구 (바이낸스 API 조회), position_opened/closed/updated 이벤트 발행, 강제 청산 기능 (긴급 중지)",
@@ -843,7 +843,10 @@
       "completedCount": 6,
       "tags": [
         "master"
-      ]
+      ],
+      "created": "2025-10-23T21:41:21.660Z",
+      "description": "Tasks for master context",
+      "updated": "2025-10-23T21:41:21.661Z"
     }
   }
 }
