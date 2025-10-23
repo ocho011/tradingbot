@@ -26,6 +26,12 @@ from src.indicators.multi_timeframe_engine import (
     TimeframeData,
     IndicatorType
 )
+from src.indicators.expiration_manager import (
+    IndicatorExpirationManager,
+    ExpirationRules,
+    ExpirationConfig,
+    ExpirationType
+)
 
 __all__ = [
     'OrderBlock',
@@ -43,5 +49,9 @@ __all__ = [
     'MultiTimeframeIndicatorEngine',
     'TimeframeIndicators',
     'TimeframeData',
-    'IndicatorType'
+    'IndicatorType',
+    'IndicatorExpirationManager',
+    'ExpirationRules',
+    'ExpirationConfig',
+    'ExpirationType'
 ]
