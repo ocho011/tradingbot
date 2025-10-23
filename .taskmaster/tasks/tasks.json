@@ -493,7 +493,7 @@
         "dependencies": [
           "6"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -501,9 +501,10 @@
             "description": "고점/저점 상단/하단 구조에서 Buy side와 Sell side Liquidity 레벨을 자동으로 식별하는 알고리즘 구현",
             "dependencies": [],
             "details": "고점 기준 Sell side Liquidity와 저점 기준 Buy side Liquidity 레벨을 식별하는 로직 구현. 피봇 포인트 분석, 지지/저항 레벨 매핑, 히스토리컬 터치 포인트 분석 포함. 멀티 타임프레임에서 일관된 레벨 식별이 가능하도록 구현.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "다양한 시장 조건의 차트 데이터로 레벨 식별 정확도 테스트, 실제 시장 데이터와 식별된 레벨 비교 검증",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-23T15:29:11.723Z"
           },
           {
             "id": 2,
@@ -571,7 +572,8 @@
         ],
         "complexity": 8,
         "recommendedSubtasks": 6,
-        "expansionPrompt": "시장 구조 분석을 체계적으로 구현하여 유동성 레벨 식별, Liquidity Sweep 감지, 추세 분석, BMS 로직, 구조 상태 추적, 강도 계산으로 세분화"
+        "expansionPrompt": "시장 구조 분석을 체계적으로 구현하여 유동성 레벨 식별, Liquidity Sweep 감지, 추세 분석, BMS 로직, 구조 상태 추적, 강도 계산으로 세분화",
+        "updatedAt": "2025-10-23T15:29:11.723Z"
       },
       {
         "id": "8",
@@ -836,7 +838,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-23T14:56:04.615Z",
+      "lastModified": "2025-10-23T15:29:11.724Z",
       "taskCount": 10,
       "completedCount": 6,
       "tags": [
