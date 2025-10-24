@@ -81,6 +81,7 @@ class EventType(str, Enum):
     BREAKER_BLOCK_DETECTED = "breaker_block_detected"
     LIQUIDITY_SWEEP_DETECTED = "liquidity_sweep_detected"
     MARKET_STRUCTURE_CHANGE = "market_structure_change"
+    MARKET_STRUCTURE_BREAK = "market_structure_break"
     INDICATORS_UPDATED = "indicators_updated"
     INDICATOR_EXPIRED = "indicator_expired"
 
