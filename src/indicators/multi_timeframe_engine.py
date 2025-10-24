@@ -1008,3 +1008,859 @@ class MultiTimeframeIndicatorEngine:
             stats['expiration'] = self.expiration_manager.get_statistics()
 
         return stats
+
+
+class MarketStructure(str, Enum):
+    """Overall market structure classification."""
+    STRONG_BULLISH = "STRONG_BULLISH"
+    BULLISH = "BULLISH"
+    RANGING = "RANGING"
+    BEARISH = "BEARISH"
+    STRONG_BEARISH = "STRONG_BEARISH"
+
+
+class ConsistencyLevel(str, Enum):
+    """Level of consistency across multiple timeframes."""
+    PERFECT = "PERFECT"        # All 3 timeframes perfectly aligned
+    HIGH = "HIGH"              # 2 of 3 timeframes aligned
+    MODERATE = "MODERATE"      # Partial alignment with minor conflicts
+    LOW = "LOW"                # Significant conflicts
+    CONFLICT = "CONFLICT"      # Direct contradictions
+
+
+class StructureBias(str, Enum):
+    """Overall market bias considering all timeframes."""
+    STRONGLY_BULLISH = "STRONGLY_BULLISH"
+    BULLISH = "BULLISH"
+    NEUTRAL = "NEUTRAL"
+    BEARISH = "BEARISH"
+    STRONGLY_BEARISH = "STRONGLY_BEARISH"
+
+
+@dataclass
+class TimeframeMarketStructure:
+    """
+    Complete market structure analysis for a single timeframe.
+    
+    Integrates all ICT pattern analysis (liquidity, sweeps, BMS, trend)
+    to provide comprehensive market state view.
+    
+    Attributes:
+        timeframe: The timeframe this analysis belongs to
+        timestamp: Analysis timestamp (milliseconds)
+        
+        # Trend Analysis
+        trend_state: Current trend state (direction, strength)
+        trend_structures: HH/HL/LH/LL patterns
+        
+        # Liquidity Analysis
+        buy_side_levels: Buy-side liquidity levels (above price)
+        sell_side_levels: Sell-side liquidity levels (below price)
+        recent_sweeps: Recent liquidity sweep patterns
+        
+        # Structure Analysis
+        recent_bms: Recent Break of Market Structure events
+        swing_highs: Detected swing high points
+        swing_lows: Detected swing low points
+        
+        # Overall Assessment
+        market_structure: Overall structure classification
+        structure_strength: Strength of current structure (0-10)
+        dominant_liquidity_side: Which side has more liquidity ("BUY" or "SELL")
+    """
+    timeframe: TimeFrame
+    timestamp: int
+    
+    # Trend
+    trend_state: Optional[TrendState] = None
+    trend_structures: List[TrendStructure] = field(default_factory=list)
+    
+    # Liquidity
+    buy_side_levels: List[LiquidityLevel] = field(default_factory=list)
+    sell_side_levels: List[LiquidityLevel] = field(default_factory=list)
+    recent_sweeps: List[LiquiditySweep] = field(default_factory=list)
+    
+    # Structure
+    recent_bms: List['BreakOfMarketStructure'] = field(default_factory=list)
+    swing_highs: List['SwingPoint'] = field(default_factory=list)
+    swing_lows: List['SwingPoint'] = field(default_factory=list)
+    
+    # Assessment
+    market_structure: MarketStructure = MarketStructure.RANGING
+    structure_strength: float = 0.0
+    dominant_liquidity_side: str = "NEUTRAL"
+    
+    def get_liquidity_balance(self) -> float:
+        """
+        Calculate liquidity balance between buy and sell sides.
+        
+        Returns:
+            Balance score: > 0 means buy-side dominant, < 0 means sell-side dominant
+        """
+        buy_count = len(self.buy_side_levels)
+        sell_count = len(self.sell_side_levels)
+        
+        if buy_count + sell_count == 0:
+            return 0.0
+        
+        return (buy_count - sell_count) / (buy_count + sell_count)
+    
+    def has_recent_sweep(self, side: str, within_candles: int = 10) -> bool:
+        """
+        Check if there was a recent liquidity sweep.
+        
+        Args:
+            side: "BUY" or "SELL"
+            within_candles: Look back this many candles
+            
+        Returns:
+            True if recent sweep detected
+        """
+        if not self.recent_sweeps:
+            return False
+        
+        # Check sweeps on specified side
+        for sweep in self.recent_sweeps[-within_candles:]:
+            if side == "BUY" and sweep.liquidity_level.side == "SELL":
+                # Buy-side sweep takes sell-side liquidity
+                return True
+            elif side == "SELL" and sweep.liquidity_level.side == "BUY":
+                # Sell-side sweep takes buy-side liquidity
+                return True
+        
+        return False
+
+
+@dataclass
+class MultiTimeframeMarketStructure:
+    """
+    Integrated market structure analysis across multiple timeframes.
+    
+    Provides unified view of market state by analyzing and reconciling
+    structure across H1, M15, and M1 timeframes with intelligent
+    conflict resolution.
+    
+    Attributes:
+        symbol: Trading pair symbol
+        timestamp: Analysis timestamp (milliseconds)
+        
+        # Timeframe Analysis
+        h1_structure: 1-hour timeframe analysis
+        m15_structure: 15-minute timeframe analysis
+        m1_structure: 1-minute timeframe analysis
+        
+        # Integration Results
+        consistency_level: How well timeframes align
+        overall_bias: Integrated directional bias
+        bias_strength: Strength of overall bias (0-10)
+        primary_timeframe: Which timeframe dominates (usually H1)
+        
+        # Conflict Management
+        conflicts: List of detected conflicts between timeframes
+        recommendations: Trading recommendations based on analysis
+    """
+    symbol: str
+    timestamp: int
+    
+    # Timeframe Structures
+    h1_structure: Optional[TimeframeMarketStructure] = None
+    m15_structure: Optional[TimeframeMarketStructure] = None
+    m1_structure: Optional[TimeframeMarketStructure] = None
+    
+    # Integration
+    consistency_level: ConsistencyLevel = ConsistencyLevel.MODERATE
+    overall_bias: StructureBias = StructureBias.NEUTRAL
+    bias_strength: float = 0.0
+    primary_timeframe: TimeFrame = TimeFrame.H1
+    
+    # Guidance
+    conflicts: List[str] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+    
+    def get_timeframe_alignment_score(self) -> float:
+        """
+        Calculate alignment score across timeframes.
+        
+        Returns:
+            Score 0-10 where 10 = perfect alignment
+        """
+        if not all([self.h1_structure, self.m15_structure, self.m1_structure]):
+            return 0.0
+        
+        # Compare trend directions
+        directions = []
+        if self.h1_structure and self.h1_structure.trend_state:
+            directions.append(self.h1_structure.trend_state.direction.value)
+        if self.m15_structure and self.m15_structure.trend_state:
+            directions.append(self.m15_structure.trend_state.direction.value)
+        if self.m1_structure and self.m1_structure.trend_state:
+            directions.append(self.m1_structure.trend_state.direction.value)
+        
+        if len(directions) < 2:
+            return 5.0  # Neutral if insufficient data
+        
+        # Count matching directions
+        from collections import Counter
+        direction_counts = Counter(directions)
+        most_common_count = direction_counts.most_common(1)[0][1]
+        
+        # Perfect alignment = 10, 2/3 = 7, none = 0
+        if most_common_count == 3:
+            return 10.0
+        elif most_common_count == 2:
+            return 7.0
+        else:
+            return 3.0
+    
+    def is_strong_trend(self) -> bool:
+        """Check if we're in a strong trending market."""
+        return (
+            self.consistency_level in [ConsistencyLevel.PERFECT, ConsistencyLevel.HIGH] and
+            self.overall_bias in [StructureBias.STRONGLY_BULLISH, StructureBias.STRONGLY_BEARISH] and
+            self.bias_strength >= 7.0
+        )
+    
+    def is_ranging_market(self) -> bool:
+        """Check if we're in a ranging market."""
+        return (
+            self.overall_bias == StructureBias.NEUTRAL or
+            self.consistency_level == ConsistencyLevel.CONFLICT or
+            self.bias_strength < 4.0
+        )
+    
+    def get_entry_timeframe_recommendation(self) -> Optional[TimeFrame]:
+        """
+        Recommend which timeframe to use for entry timing.
+        
+        Returns:
+            Recommended timeframe for precise entries
+        """
+        if self.is_strong_trend():
+            # In strong trend, use M15 for entries
+            return TimeFrame.M15
+        elif self.is_ranging_market():
+            # In ranging, wait for clearer structure
+            return None
+        else:
+            # Moderate conditions, use M1 for precision
+            return TimeFrame.M1
+
+
+class MultiTimeframeMarketStructureAnalyzer:
+    """
+    Orchestrates market structure analysis across multiple timeframes.
+    
+    Integrates liquidity zones, sweeps, BMS, and trend recognition
+    to provide comprehensive multi-timeframe market view with
+    intelligent conflict resolution.
+    
+    Key Features:
+    - Independent analysis per timeframe
+    - Consistency verification across timeframes
+    - Higher timeframe priority (H1 > M15 > M1)
+    - Conflict detection and resolution
+    - Trading recommendations based on alignment
+    """
+    
+    def __init__(
+        self,
+        liquidity_zone_detector: Optional[LiquidityZoneDetector] = None,
+        liquidity_sweep_detector: Optional[LiquiditySweepDetector] = None,
+        trend_recognition_engine: Optional[TrendRecognitionEngine] = None,
+        bms_detector: Optional['MarketStructureBreakDetector'] = None,
+        event_bus: Optional[EventBus] = None,
+    ):
+        """
+        Initialize multi-timeframe market structure analyzer.
+        
+        Args:
+            liquidity_zone_detector: Detector for liquidity levels
+            liquidity_sweep_detector: Detector for liquidity sweeps
+            trend_recognition_engine: Engine for trend pattern recognition
+            bms_detector: Detector for Break of Market Structure
+            event_bus: Optional event bus for publishing analysis events
+        """
+        # Initialize detectors (create new instances if not provided)
+        self.liquidity_zone_detector = liquidity_zone_detector or LiquidityZoneDetector()
+        self.liquidity_sweep_detector = liquidity_sweep_detector or LiquiditySweepDetector(
+            event_bus=event_bus
+        )
+        self.trend_recognition_engine = trend_recognition_engine or TrendRecognitionEngine(
+            event_bus=event_bus
+        )
+        
+        # BMS detector needs to be imported at runtime to avoid circular dependency
+        if bms_detector is None:
+            from src.indicators.market_structure_break import MarketStructureBreakDetector
+            self.bms_detector = MarketStructureBreakDetector(event_bus=event_bus)
+        else:
+            self.bms_detector = bms_detector
+        
+        self.event_bus = event_bus
+        
+        logger.info("Initialized MultiTimeframeMarketStructureAnalyzer")
+    
+    def analyze_timeframe(
+        self,
+        candles: List[Candle],
+        timeframe: TimeFrame
+    ) -> TimeframeMarketStructure:
+        """
+        Perform complete market structure analysis for a single timeframe.
+        
+        Steps:
+        1. Detect liquidity levels (buy-side and sell-side)
+        2. Analyze trend patterns (HH/HL/LH/LL)
+        3. Detect BMS (Break of Market Structure) events
+        4. Detect liquidity sweeps
+        5. Determine overall market structure and strength
+        
+        Args:
+            candles: Candle data for this timeframe
+            timeframe: The timeframe being analyzed
+            
+        Returns:
+            Complete market structure analysis
+        """
+        if not candles or len(candles) < 10:
+            logger.warning(f"Insufficient candles for {timeframe.value} analysis")
+            return TimeframeMarketStructure(
+                timeframe=timeframe,
+                timestamp=candles[-1].timestamp if candles else 0
+            )
+        
+        latest_candle = candles[-1]
+        timestamp = latest_candle.timestamp
+        
+        # 1. Detect Liquidity Levels
+        buy_side_levels, sell_side_levels = self.liquidity_zone_detector.detect_liquidity_levels(
+            candles
+        )
+        
+        # Get swing points for structure analysis
+        swing_highs = self.liquidity_zone_detector.detect_swing_highs(candles)
+        swing_lows = self.liquidity_zone_detector.detect_swing_lows(candles)
+        
+        logger.debug(
+            f"{timeframe.value}: Detected {len(buy_side_levels)} buy-side and "
+            f"{len(sell_side_levels)} sell-side liquidity levels"
+        )
+        
+        # 2. Analyze Trend Patterns
+        trend_structures, trend_direction = self.trend_recognition_engine.analyze_trend_patterns(
+            candles
+        )
+        
+        # Calculate trend strength
+        strength_score = 0.0
+        trend_state = None
+        
+        if trend_structures:
+            strength_score, strength_level = self.trend_recognition_engine.calculate_trend_strength(
+                trend_structures,
+                trend_direction
+            )
+            
+            from src.indicators.trend_recognition import TrendState
+            trend_state = TrendState(
+                direction=trend_direction,
+                strength=strength_score,
+                strength_level=strength_level,
+                symbol=candles[0].symbol,
+                timeframe=timeframe,
+                start_timestamp=timestamp,
+                start_candle_index=len(candles) - 1,
+                last_update_timestamp=timestamp,
+                pattern_count=len(trend_structures),
+                is_confirmed=len(trend_structures) >= 2
+            )
+        
+        logger.debug(
+            f"{timeframe.value}: Trend={trend_direction.value if trend_state else 'N/A'}, "
+            f"Strength={strength_score:.1f}, Patterns={len(trend_structures)}"
+        )
+        
+        # 3. Detect Break of Market Structure (BMS)
+        recent_bms = self.bms_detector.detect_bms(
+            candles,
+            swing_highs,
+            swing_lows,
+            start_index=max(0, len(candles) - 50)
+        )
+        
+        logger.debug(f"{timeframe.value}: Detected {len(recent_bms)} BMS events")
+        
+        # 4. Detect Liquidity Sweeps
+        all_liquidity_levels = buy_side_levels + sell_side_levels
+        recent_sweeps = []
+        
+        if all_liquidity_levels:
+            recent_sweeps = self.liquidity_sweep_detector.detect_sweeps(
+                candles,
+                all_liquidity_levels,
+                start_index=max(0, len(candles) - 50)
+            )
+        
+        logger.debug(f"{timeframe.value}: Detected {len(recent_sweeps)} liquidity sweeps")
+        
+        # 5. Determine Overall Market Structure
+        market_structure, structure_strength = self._determine_market_structure(
+            trend_state,
+            trend_direction,
+            strength_score,
+            recent_bms,
+            recent_sweeps
+        )
+        
+        # Determine dominant liquidity side
+        dominant_side = self._determine_dominant_liquidity(
+            buy_side_levels,
+            sell_side_levels,
+            recent_sweeps
+        )
+        
+        logger.info(
+            f"{timeframe.value} Analysis: Structure={market_structure.value}, "
+            f"Strength={structure_strength:.1f}, Liquidity={dominant_side}"
+        )
+        
+        return TimeframeMarketStructure(
+            timeframe=timeframe,
+            timestamp=timestamp,
+            trend_state=trend_state,
+            trend_structures=trend_structures,
+            buy_side_levels=buy_side_levels,
+            sell_side_levels=sell_side_levels,
+            recent_sweeps=recent_sweeps,
+            recent_bms=recent_bms,
+            swing_highs=swing_highs,
+            swing_lows=swing_lows,
+            market_structure=market_structure,
+            structure_strength=structure_strength,
+            dominant_liquidity_side=dominant_side
+        )
+    
+    def _determine_market_structure(
+        self,
+        trend_state: Optional[TrendState],
+        trend_direction: 'TrendDirection',
+        strength_score: float,
+        recent_bms: List['BreakOfMarketStructure'],
+        recent_sweeps: List[LiquiditySweep]
+    ) -> tuple[MarketStructure, float]:
+        """
+        Determine overall market structure classification.
+        
+        Args:
+            trend_state: Current trend state
+            trend_direction: Trend direction
+            strength_score: Trend strength score
+            recent_bms: Recent BMS events
+            recent_sweeps: Recent liquidity sweeps
+            
+        Returns:
+            (market_structure, structure_strength)
+        """
+        from src.indicators.trend_recognition import TrendDirection
+        
+        # Base structure on trend
+        if not trend_state or trend_direction == TrendDirection.RANGING:
+            return MarketStructure.RANGING, strength_score
+
+        # Strong trending
+        if strength_score >= 7.0:
+            if trend_direction == TrendDirection.UPTREND:
+                return MarketStructure.STRONG_BULLISH, strength_score
+            else:
+                return MarketStructure.STRONG_BEARISH, strength_score
+        
+        # Moderate trending
+        elif strength_score >= 5.0:
+            if trend_direction == TrendDirection.UPTREND:
+                return MarketStructure.BULLISH, strength_score
+            else:
+                return MarketStructure.BEARISH, strength_score
+        
+        # Weak trend = ranging
+        else:
+            return MarketStructure.RANGING, strength_score
+    
+    def _determine_dominant_liquidity(
+        self,
+        buy_side_levels: List[LiquidityLevel],
+        sell_side_levels: List[LiquidityLevel],
+        recent_sweeps: List[LiquiditySweep]
+    ) -> str:
+        """
+        Determine which side has dominant liquidity.
+        
+        Args:
+            buy_side_levels: Buy-side liquidity levels
+            sell_side_levels: Sell-side liquidity levels
+            recent_sweeps: Recent sweep activity
+            
+        Returns:
+            "BUY", "SELL", or "NEUTRAL"
+        """
+        buy_count = len(buy_side_levels)
+        sell_count = len(sell_side_levels)
+        
+        # Factor in recent sweep activity
+        recent_buy_sweeps = sum(
+            1 for sweep in recent_sweeps[-5:]
+            if sweep.liquidity_level.side == "BUY"
+        )
+        recent_sell_sweeps = sum(
+            1 for sweep in recent_sweeps[-5:]
+            if sweep.liquidity_level.side == "SELL"
+        )
+        
+        # Adjust counts based on sweep activity
+        # Swept liquidity reduces that side's dominance
+        effective_buy = max(0, buy_count - recent_buy_sweeps)
+        effective_sell = max(0, sell_count - recent_sell_sweeps)
+        
+        if effective_buy > effective_sell * 1.2:
+            return "BUY"
+        elif effective_sell > effective_buy * 1.2:
+            return "SELL"
+        else:
+            return "NEUTRAL"
+    
+    def analyze_multi_timeframe(
+        self,
+        h1_candles: List[Candle],
+        m15_candles: List[Candle],
+        m1_candles: List[Candle]
+    ) -> MultiTimeframeMarketStructure:
+        """
+        Integrate market structure analysis across all timeframes.
+        
+        Performs the following:
+        1. Analyze each timeframe independently
+        2. Verify consistency across timeframes
+        3. Resolve conflicts using higher timeframe priority
+        4. Generate trading recommendations
+        
+        Args:
+            h1_candles: 1-hour candles
+            m15_candles: 15-minute candles
+            m1_candles: 1-minute candles
+            
+        Returns:
+            Integrated multi-timeframe market structure
+        """
+        if not h1_candles or not m15_candles or not m1_candles:
+            logger.warning("Insufficient candle data for multi-timeframe analysis")
+            return MultiTimeframeMarketStructure(
+                symbol=h1_candles[0].symbol if h1_candles else "UNKNOWN",
+                timestamp=h1_candles[-1].timestamp if h1_candles else 0
+            )
+        
+        symbol = h1_candles[0].symbol
+        timestamp = h1_candles[-1].timestamp
+        
+        logger.info(f"Starting multi-timeframe analysis for {symbol}")
+        
+        # 1. Analyze each timeframe independently
+        h1_structure = self.analyze_timeframe(h1_candles, TimeFrame.H1)
+        m15_structure = self.analyze_timeframe(m15_candles, TimeFrame.M15)
+        m1_structure = self.analyze_timeframe(m1_candles, TimeFrame.M1)
+        
+        # 2. Verify consistency
+        consistency_level = self._verify_consistency(
+            h1_structure,
+            m15_structure,
+            m1_structure
+        )
+        
+        # 3. Resolve conflicts and determine overall bias
+        overall_bias, bias_strength, primary_tf, conflicts = self._resolve_conflicts(
+            h1_structure,
+            m15_structure,
+            m1_structure
+        )
+        
+        # 4. Generate recommendations
+        recommendations = self._generate_recommendations(
+            h1_structure,
+            m15_structure,
+            m1_structure,
+            overall_bias,
+            consistency_level
+        )
+        
+        result = MultiTimeframeMarketStructure(
+            symbol=symbol,
+            timestamp=timestamp,
+            h1_structure=h1_structure,
+            m15_structure=m15_structure,
+            m1_structure=m1_structure,
+            consistency_level=consistency_level,
+            overall_bias=overall_bias,
+            bias_strength=bias_strength,
+            primary_timeframe=primary_tf,
+            conflicts=conflicts,
+            recommendations=recommendations
+        )
+        
+        # Publish multi-timeframe analysis event
+        if self.event_bus:
+            try:
+                asyncio.get_running_loop()
+                event = Event(
+                    priority=8,
+                    event_type=EventType.MULTI_TIMEFRAME_ANALYSIS,
+                    data={
+                        'symbol': symbol,
+                        'consistency_level': consistency_level.value,
+                        'overall_bias': overall_bias.value,
+                        'bias_strength': bias_strength,
+                        'primary_timeframe': primary_tf.value,
+                        'conflict_count': len(conflicts),
+                        'recommendation_count': len(recommendations),
+                        'timestamp': timestamp
+                    },
+                    source='MultiTimeframeMarketStructureAnalyzer'
+                )
+                asyncio.create_task(self.event_bus.publish(event))
+            except RuntimeError:
+                pass  # No event loop running
+        
+        logger.info(
+            f"Multi-timeframe analysis complete: "
+            f"Consistency={consistency_level.value}, "
+            f"Bias={overall_bias.value}, "
+            f"Strength={bias_strength:.1f}"
+        )
+        
+        return result
+    
+    def _verify_consistency(
+        self,
+        h1: TimeframeMarketStructure,
+        m15: TimeframeMarketStructure,
+        m1: TimeframeMarketStructure
+    ) -> ConsistencyLevel:
+        """
+        Verify consistency across timeframes.
+        
+        Checks alignment of:
+        - Trend directions
+        - Market structure classifications
+        - Liquidity dominance
+        
+        Args:
+            h1: 1-hour structure
+            m15: 15-minute structure
+            m1: 1-minute structure
+            
+        Returns:
+            Consistency level classification
+        """
+        from src.indicators.trend_recognition import TrendDirection
+        
+        # Extract trend directions
+        h1_dir = h1.trend_state.direction if h1.trend_state else TrendDirection.RANGING
+        m15_dir = m15.trend_state.direction if m15.trend_state else TrendDirection.RANGING
+        m1_dir = m1.trend_state.direction if m1.trend_state else TrendDirection.RANGING
+        
+        # Count agreements
+        directions = [h1_dir, m15_dir, m1_dir]
+        from collections import Counter
+        direction_counts = Counter(directions)
+        most_common_count = direction_counts.most_common(1)[0][1]
+        
+        # Extract market structures
+        structures = [h1.market_structure, m15.market_structure, m1.market_structure]
+        structure_counts = Counter(structures)
+        structure_agreement = structure_counts.most_common(1)[0][1]
+        
+        # Extract liquidity dominance
+        liquidity_sides = [h1.dominant_liquidity_side, m15.dominant_liquidity_side, m1.dominant_liquidity_side]
+        liquidity_counts = Counter(liquidity_sides)
+        liquidity_agreement = liquidity_counts.most_common(1)[0][1]
+        
+        # Calculate overall consistency
+        total_agreement = most_common_count + structure_agreement + liquidity_agreement
+        
+        # Perfect: all 3 agree on all aspects
+        if total_agreement == 9:
+            return ConsistencyLevel.PERFECT
+        
+        # High: 2/3 agree on most aspects
+        elif total_agreement >= 7:
+            return ConsistencyLevel.HIGH
+        
+        # Moderate: some agreement
+        elif total_agreement >= 5:
+            return ConsistencyLevel.MODERATE
+        
+        # Low: minimal agreement
+        elif total_agreement >= 3:
+            return ConsistencyLevel.LOW
+        
+        # Conflict: no clear agreement
+        else:
+            return ConsistencyLevel.CONFLICT
+    
+    def _resolve_conflicts(
+        self,
+        h1: TimeframeMarketStructure,
+        m15: TimeframeMarketStructure,
+        m1: TimeframeMarketStructure
+    ) -> tuple[StructureBias, float, TimeFrame, List[str]]:
+        """
+        Resolve conflicts between timeframes using higher timeframe priority.
+        
+        Priority: H1 > M15 > M1
+        
+        Args:
+            h1: 1-hour structure
+            m15: 15-minute structure
+            m1: 1-minute structure
+            
+        Returns:
+            (overall_bias, bias_strength, primary_timeframe, conflicts)
+        """
+        from src.indicators.trend_recognition import TrendDirection
+        
+        conflicts = []
+        
+        # Primary decision comes from H1
+        primary_tf = TimeFrame.H1
+        
+        # Get H1 trend direction and strength
+        h1_dir = h1.trend_state.direction if h1.trend_state else TrendDirection.RANGING
+        h1_strength = h1.structure_strength
+        
+        # Get M15 and M1 directions for comparison
+        m15_dir = m15.trend_state.direction if m15.trend_state else TrendDirection.RANGING
+        m1_dir = m1.trend_state.direction if m1.trend_state else TrendDirection.RANGING
+        
+        # Check for conflicts
+        if h1_dir != m15_dir and m15_dir != TrendDirection.RANGING:
+            conflicts.append(f"H1 ({h1_dir.value}) conflicts with M15 ({m15_dir.value})")
+        
+        if h1_dir != m1_dir and m1_dir != TrendDirection.RANGING:
+            conflicts.append(f"H1 ({h1_dir.value}) conflicts with M1 ({m1_dir.value})")
+        
+        if m15_dir != m1_dir and m15_dir != TrendDirection.RANGING and m1_dir != TrendDirection.RANGING:
+            conflicts.append(f"M15 ({m15_dir.value}) conflicts with M1 ({m1_dir.value})")
+        
+        # Determine overall bias based on H1 (primary timeframe)
+        if h1_dir == TrendDirection.RANGING:
+            overall_bias = StructureBias.NEUTRAL
+            bias_strength = h1_strength
+
+        elif h1_dir == TrendDirection.UPTREND:
+            # Check if lower timeframes confirm
+            if m15_dir == TrendDirection.UPTREND and m1_dir == TrendDirection.UPTREND:
+                overall_bias = StructureBias.STRONGLY_BULLISH
+                bias_strength = min(10.0, h1_strength + 2.0)
+            elif m15_dir == TrendDirection.UPTREND or m1_dir == TrendDirection.UPTREND:
+                overall_bias = StructureBias.BULLISH
+                bias_strength = h1_strength
+            else:
+                overall_bias = StructureBias.BULLISH
+                bias_strength = max(0.0, h1_strength - 1.0)
+
+        else:  # DOWNTREND
+            # Check if lower timeframes confirm
+            if m15_dir == TrendDirection.DOWNTREND and m1_dir == TrendDirection.DOWNTREND:
+                overall_bias = StructureBias.STRONGLY_BEARISH
+                bias_strength = min(10.0, h1_strength + 2.0)
+            elif m15_dir == TrendDirection.DOWNTREND or m1_dir == TrendDirection.DOWNTREND:
+                overall_bias = StructureBias.BEARISH
+                bias_strength = h1_strength
+            else:
+                overall_bias = StructureBias.BEARISH
+                bias_strength = max(0.0, h1_strength - 1.0)
+        
+        return overall_bias, bias_strength, primary_tf, conflicts
+    
+    def _generate_recommendations(
+        self,
+        h1: TimeframeMarketStructure,
+        m15: TimeframeMarketStructure,
+        m1: TimeframeMarketStructure,
+        overall_bias: StructureBias,
+        consistency: ConsistencyLevel
+    ) -> List[str]:
+        """
+        Generate trading recommendations based on multi-timeframe analysis.
+        
+        Args:
+            h1: 1-hour structure
+            m15: 15-minute structure
+            m1: 1-minute structure
+            overall_bias: Overall directional bias
+            consistency: Consistency level across timeframes
+            
+        Returns:
+            List of actionable trading recommendations
+        """
+        recommendations = []
+        
+        # Consistency-based recommendations
+        if consistency == ConsistencyLevel.PERFECT:
+            recommendations.append(
+                f"✅ Perfect alignment across all timeframes - High confidence {overall_bias.value} bias"
+            )
+        elif consistency == ConsistencyLevel.HIGH:
+            recommendations.append(
+                f"✅ Strong alignment - Good trading conditions for {overall_bias.value} bias"
+            )
+        elif consistency == ConsistencyLevel.MODERATE:
+            recommendations.append(
+                "⚠️ Moderate alignment - Use caution, wait for clearer structure"
+            )
+        elif consistency == ConsistencyLevel.LOW:
+            recommendations.append(
+                "⚠️ Low alignment - Consider staying out until structure clarifies"
+            )
+        else:  # CONFLICT
+            recommendations.append(
+                "❌ Timeframe conflict detected - Avoid trading until alignment improves"
+            )
+        
+        # Bias-specific recommendations
+        if overall_bias in [StructureBias.STRONGLY_BULLISH, StructureBias.STRONGLY_BEARISH]:
+            direction = "long" if "BULLISH" in overall_bias.value else "short"
+            recommendations.append(
+                f"📈 Strong {direction} bias - Look for {direction} entry opportunities on pullbacks"
+            )
+            
+            # Entry timing
+            if m1.has_recent_sweep(side="SELL" if "BULLISH" in overall_bias.value else "BUY"):
+                recommendations.append(
+                    f"🎯 Recent liquidity sweep detected on M1 - Good {direction} entry setup"
+                )
+        
+        elif overall_bias != StructureBias.NEUTRAL:
+            direction = "long" if "BULLISH" in overall_bias.value else "short"
+            recommendations.append(
+                f"📊 Moderate {direction} bias - Wait for M15 confirmation before entering {direction}"
+            )
+        
+        # Liquidity-based recommendations
+        if h1.dominant_liquidity_side != "NEUTRAL":
+            side = h1.dominant_liquidity_side.lower()
+            recommendations.append(
+                f"💧 H1 liquidity dominated by {side}-side - Expect price to target these levels"
+            )
+        
+        # BMS-based recommendations
+        if h1.recent_bms and len(h1.recent_bms) > 0:
+            latest_bms = h1.recent_bms[-1]
+            recommendations.append(
+                f"🔨 Recent H1 BMS detected - Structure change confirmed, follow new direction"
+            )
+        
+        # Structure strength warnings
+        if h1.structure_strength < 4.0:
+            recommendations.append(
+                "⚠️ Weak H1 structure - Market may be consolidating, reduce position sizes"
+            )
+        
+        return recommendations

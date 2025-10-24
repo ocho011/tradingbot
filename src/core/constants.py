@@ -84,6 +84,7 @@ class EventType(str, Enum):
     MARKET_STRUCTURE_BREAK = "market_structure_break"
     INDICATORS_UPDATED = "indicators_updated"
     INDICATOR_EXPIRED = "indicator_expired"
+    MULTI_TIMEFRAME_ANALYSIS = "multi_timeframe_analysis"
 
     # Trading events
     SIGNAL_GENERATED = "signal_generated"
