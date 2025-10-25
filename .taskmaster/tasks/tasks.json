@@ -616,7 +616,7 @@
             "description": "1시간 추세 확인, 15분 OB/FVG, Liquidity 조건을 종합적으로 고려하는 혼합 매매 전략 구현",
             "dependencies": [],
             "details": "1시간 차트 추세 방향 분석, 15분 Order Block 및 Fair Value Gap 확인, Liquidity 레벨 조건 체크, 다중 조건 만족 시 신호 생성, 각 조건별 가중치 적용한 종합 신뢰도 계산",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "다중 조건 조합 시나리오 테스트, 가중치 기반 신뢰도 계산 검증",
             "parentId": "undefined"
           },
@@ -849,7 +849,7 @@
       ],
       "created": "2025-10-24T18:00:49.495Z",
       "description": "Tasks for master context",
-      "updated": "2025-10-25T00:03:19.098Z"
+      "updated": "2025-10-25T04:47:29.098Z"
     }
   }
 }

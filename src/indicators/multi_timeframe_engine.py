@@ -50,6 +50,12 @@ from src.indicators.expiration_manager import (
     IndicatorExpirationManager,
     ExpirationRules
 )
+from src.indicators.liquidity_strength import (
+    LiquidityStrengthCalculator,
+    MarketStateTracker,
+    LiquidityStrengthMetrics,
+    MarketStateData
+)
 from src.core.events import EventBus, Event
 from src.core.constants import EventType
 
@@ -82,6 +88,8 @@ class TimeframeIndicators:
         liquidity_sweeps: List of detected Liquidity Sweeps
         trend_structures: List of detected Trend Structures (HH/HL/LH/LL)
         trend_state: Current trend state (direction, strength, etc.)
+        liquidity_strength_metrics: Strength metrics for all liquidity levels
+        market_state: Current market structure state (Bullish/Bearish/Ranging)
         last_update_timestamp: Last time indicators were calculated
         candle_count: Number of candles processed
     """
@@ -93,6 +101,8 @@ class TimeframeIndicators:
     liquidity_sweeps: List[LiquiditySweep] = field(default_factory=list)
     trend_structures: List[TrendStructure] = field(default_factory=list)
     trend_state: Optional[TrendState] = None
+    liquidity_strength_metrics: List[LiquidityStrengthMetrics] = field(default_factory=list)
+    market_state: Optional[MarketStateData] = None
     last_update_timestamp: Optional[int] = None
     candle_count: int = 0
 
@@ -117,6 +127,8 @@ class TimeframeIndicators:
         self.liquidity_sweeps.clear()
         self.trend_structures.clear()
         self.trend_state = None
+        self.liquidity_strength_metrics.clear()
+        self.market_state = None
         self.last_update_timestamp = None
         self.candle_count = 0
 
@@ -250,6 +262,12 @@ class MultiTimeframeIndicatorEngine:
             **(trend_recognition_config or {}),
             event_bus=event_bus
         )
+
+        # Initialize liquidity strength calculator
+        self.liquidity_strength_calculator = LiquidityStrengthCalculator()
+
+        # Initialize market state tracker
+        self.market_state_tracker = MarketStateTracker(event_bus=event_bus)
 
         # Initialize expiration manager
         self.expiration_manager = IndicatorExpirationManager(
@@ -678,6 +696,79 @@ class MultiTimeframeIndicatorEngine:
                             trend_structures
                         )
 
+            # Calculate Liquidity Strength for all detected levels
+            if all_liquidity_levels:
+                strength_metrics = self.liquidity_strength_calculator.calculate_all_strengths(
+                    all_liquidity_levels,
+                    tf_data.candles,
+                    tf_data.indicators.trend_state
+                )
+
+                # Store strength metrics
+                tf_data.indicators.liquidity_strength_metrics = strength_metrics
+
+                # Publish event for liquidity strength calculation
+                if strength_metrics:
+                    avg_strength = sum(m.overall_strength for m in strength_metrics) / len(strength_metrics)
+                    self._publish_event_sync(
+                        EventType.LIQUIDITY_STRENGTH_CALCULATED,
+                        timeframe,
+                        {
+                            'total_levels': len(strength_metrics),
+                            'average_strength': round(avg_strength, 2),
+                            'strong_levels': len([m for m in strength_metrics if m.overall_strength >= 7.0]),
+                            'metrics': [m.to_dict() for m in strength_metrics]
+                        },
+                        priority=7
+                    )
+
+                logger.debug(
+                    f"{timeframe.value}: Calculated liquidity strength for "
+                    f"{len(strength_metrics)} levels, avg={avg_strength:.2f}"
+                )
+
+            # Update Market State (Bullish/Bearish/Ranging)
+            # Separate buy-side and sell-side levels for state tracker
+            buy_side_levels = [lvl for lvl in all_liquidity_levels if lvl.side == "BUY"]
+            sell_side_levels = [lvl for lvl in all_liquidity_levels if lvl.side == "SELL"]
+
+            # Get recent BMS events (last 10)
+            recent_bms = []
+            if hasattr(self, 'bms_detector'):
+                # Import at runtime to avoid circular dependency
+                from src.indicators.market_structure_break import MarketStructureBreakDetector
+                if not hasattr(self, '_bms_detector_instance'):
+                    self._bms_detector_instance = MarketStructureBreakDetector(event_bus=self.event_bus)
+
+                # Detect BMS using swing points
+                swing_highs = self.liquidity_zone_detector.detect_swing_highs(tf_data.candles)
+                swing_lows = self.liquidity_zone_detector.detect_swing_lows(tf_data.candles)
+
+                recent_bms = self._bms_detector_instance.detect_bms(
+                    tf_data.candles,
+                    swing_highs,
+                    swing_lows,
+                    start_index=max(0, len(tf_data.candles) - 50)
+                )
+
+            # Update market state
+            market_state_data = self.market_state_tracker.update_state(
+                candles=tf_data.candles,
+                trend_state=tf_data.indicators.trend_state,
+                bms_list=recent_bms,
+                buy_side_levels=buy_side_levels,
+                sell_side_levels=sell_side_levels
+            )
+
+            # Store updated market state if it changed
+            if market_state_data:
+                tf_data.indicators.market_state = market_state_data
+
+                logger.info(
+                    f"{timeframe.value}: Market state updated to "
+                    f"{market_state_data.state.value} (confidence={market_state_data.confidence:.2f})"
+                )
+
             # Apply expiration logic
             latest = tf_data.get_latest_candle()
             if latest:
@@ -762,6 +853,9 @@ class MultiTimeframeIndicatorEngine:
                         'trend_structures_count': len(tf_data.indicators.trend_structures),
                         'trend_direction': tf_data.indicators.trend_state.direction.value if tf_data.indicators.trend_state else None,
                         'trend_strength': tf_data.indicators.trend_state.strength if tf_data.indicators.trend_state else None,
+                        'liquidity_strength_count': len(tf_data.indicators.liquidity_strength_metrics),
+                        'market_state': tf_data.indicators.market_state.state.value if tf_data.indicators.market_state else None,
+                        'market_state_confidence': tf_data.indicators.market_state.confidence if tf_data.indicators.market_state else None,
                         'total_indicators': (
                             len(tf_data.indicators.order_blocks) +
                             len(tf_data.indicators.fair_value_gaps) +
@@ -783,7 +877,9 @@ class MultiTimeframeIndicatorEngine:
                 f"Liquidity={len(tf_data.indicators.liquidity_levels)}, "
                 f"Sweeps={len(tf_data.indicators.liquidity_sweeps)}, "
                 f"Trends={len(tf_data.indicators.trend_structures)}, "
-                f"Direction={tf_data.indicators.trend_state.direction.value if tf_data.indicators.trend_state else 'N/A'}"
+                f"Direction={tf_data.indicators.trend_state.direction.value if tf_data.indicators.trend_state else 'N/A'}, "
+                f"Strength={len(tf_data.indicators.liquidity_strength_metrics)}, "
+                f"State={tf_data.indicators.market_state.state.value if tf_data.indicators.market_state else 'N/A'}"
             )
 
         except Exception as e:
