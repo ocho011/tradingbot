@@ -59,7 +59,7 @@ class TestBinanceManagerInitialization:
     @pytest.mark.asyncio
     async def test_initialize_testnet(self, binance_manager):
         """Test initialization with testnet configuration."""
-        with patch('ccxt.async_support.binance') as mock_binance:
+        with patch('ccxt.pro.binance') as mock_binance:
             mock_exchange = AsyncMock()
             mock_binance.return_value = mock_exchange
             await binance_manager.initialize()
@@ -72,7 +72,7 @@ class TestBinanceManagerInitialization:
         """Test initialization with mainnet configuration."""
         binance_config.testnet = False
         manager = BinanceManager(config=binance_config, event_bus=event_bus)
-        with patch('ccxt.async_support.binance') as mock_binance:
+        with patch('ccxt.pro.binance') as mock_binance:
             mock_exchange = AsyncMock()
             mock_binance.return_value = mock_exchange
             await manager.initialize()
@@ -83,7 +83,7 @@ class TestBinanceManagerInitialization:
     @pytest.mark.asyncio
     async def test_initialize_failure(self, binance_manager):
         """Test initialization failure handling."""
-        with patch('ccxt.async_support.binance') as mock_binance:
+        with patch('ccxt.pro.binance') as mock_binance:
             mock_binance.side_effect = Exception("Connection failed")
             with pytest.raises(BinanceConnectionError, match="Failed to initialize"):
                 await binance_manager.initialize()
@@ -192,7 +192,7 @@ class TestBinanceManagerContextManager:
     @pytest.mark.asyncio
     async def test_context_manager_success(self, binance_config, event_bus):
         """Test async context manager with successful connection."""
-        with patch('ccxt.async_support.binance') as mock_binance:
+        with patch('ccxt.pro.binance') as mock_binance:
             mock_exchange = AsyncMock()
             mock_exchange.fetch_time = AsyncMock(return_value=1234567890000)
             mock_binance.return_value = mock_exchange
@@ -204,7 +204,7 @@ class TestBinanceManagerContextManager:
     @pytest.mark.asyncio
     async def test_context_manager_initialization_failure(self, binance_config):
         """Test async context manager with initialization failure."""
-        with patch('ccxt.async_support.binance') as mock_binance:
+        with patch('ccxt.pro.binance') as mock_binance:
             mock_binance.side_effect = Exception("Init failed")
         with pytest.raises(BinanceConnectionError):
             # async with BinanceManager(config=binance_config) as manager:

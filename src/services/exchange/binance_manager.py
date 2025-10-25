@@ -10,7 +10,7 @@ import logging
 import time
 from typing import Dict, Any, Optional, List, Set
 from datetime import datetime
-import ccxt.async_support as ccxt
+import ccxt.pro as ccxt
 
 from src.core.config import BinanceConfig
 from src.core.events import Event, EventBus
