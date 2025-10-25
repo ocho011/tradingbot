@@ -606,7 +606,7 @@
             "description": "15분 차트에서 Liquidity Sweep와 FVG 동시 감지 시 즉시 진입하는 공격적 매매 전략 구현",
             "dependencies": [],
             "details": "15분 차트에서 Liquidity Sweep 감지 로직, Fair Value Gap 즉시 감지 및 검증, 빠른 진입 신호 생성, 높은 위험-수익 비율 계산, 시장 변동성 고려한 신호 강도 조정",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Liquidity Sweep과 FVG 동시 발생 시나리오 테스트, 즉시 진입 로직 검증",
             "parentId": "undefined"
           },
@@ -849,7 +849,7 @@
       ],
       "created": "2025-10-24T18:00:49.495Z",
       "description": "Tasks for master context",
-      "updated": "2025-10-24T23:16:51.439Z"
+      "updated": "2025-10-25T00:03:19.098Z"
     }
   }
 }
