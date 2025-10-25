@@ -23,7 +23,8 @@
       "Bash(python3 -m pytest tests/database/test_models.py::TestTradeModel::test_create_trade -v --tb=short)",
       "mcp__task-master-ai__get_task",
       "Bash(python3 -m pytest:*)",
-      "mcp__serena__find_symbol"
+      "mcp__serena__find_symbol",
+      "Bash(mkdir:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

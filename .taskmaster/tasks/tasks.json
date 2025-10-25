@@ -630,7 +630,7 @@
               3
             ],
             "details": "Signal 데이터 클래스 정의 (진입가, 방향, 신뢰도, 손절가, 익절가, 타임스탬프), 각 전략별 신호 생성 인터페이스, 신호 검증 로직, signal_generated 이벤트 발행 메커니즘, 신호 로깅 및 추적 시스템",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "신호 클래스 필드 검증, 전략별 신호 생성 테스트, 이벤트 발행 확인",
             "parentId": "undefined"
           },
@@ -849,7 +849,7 @@
       ],
       "created": "2025-10-24T18:00:49.495Z",
       "description": "Tasks for master context",
-      "updated": "2025-10-25T04:47:29.098Z"
+      "updated": "2025-10-25T09:54:55.697Z"
     }
   }
 }
