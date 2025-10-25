@@ -129,40 +129,47 @@ class RealtimeCandleProcessor(EventHandler):
             # Check for candle completion
             is_completed = await self._check_candle_completion(candle)
 
-            # Update tracking
+            # If previous candle completed, publish it BEFORE updating tracking
             key = (symbol, timeframe)
-            self._last_candles[key] = candle
-            self._candle_timestamps[key] = timestamp
-            self._candles_processed += 1
-
-            # Store in CandleStorage if available and candle is completed
-            if is_completed and self.storage:
-                candle.is_closed = True
-                self.storage.add_candle(candle)
-                logger.debug(f"Stored completed candle: {symbol} {timeframe.value} @ {candle.get_datetime_iso()}")
-
-            # Publish CANDLE_CLOSED event if candle is completed
             if is_completed:
+                # Get the PREVIOUS candle that just completed
+                completed_candle = self._last_candles[key]
+                completed_candle.is_closed = True
+
+                # Store completed candle
+                if self.storage:
+                    self.storage.add_candle(completed_candle)
+                    logger.debug(
+                        f"Stored completed candle: {symbol} {timeframe.value} "
+                        f"@ {completed_candle.get_datetime_iso()}"
+                    )
+
+                # Publish CANDLE_CLOSED event for the PREVIOUS candle
                 self._candles_closed += 1
                 await self.event_bus.publish(Event(
                     event_type=EventType.CANDLE_CLOSED,
                     priority=7,  # Higher priority than CANDLE_RECEIVED
                     data={
-                        'candle': candle,
+                        'candle': completed_candle,
                         'symbol': symbol,
                         'timeframe': timeframe.value,
-                        'timestamp': timestamp,
-                        'datetime': candle.get_datetime_iso(),
-                        'close': candle.close,
-                        'volume': candle.volume
+                        'timestamp': completed_candle.timestamp,
+                        'datetime': completed_candle.get_datetime_iso(),
+                        'close': completed_candle.close,
+                        'volume': completed_candle.volume
                     },
                     source='RealtimeCandleProcessor'
                 ))
 
                 logger.info(
                     f"✓ Candle closed: {symbol} {timeframe.value} "
-                    f"@ {candle.get_datetime_iso()} close={candle.close:.2f}"
+                    f"@ {completed_candle.get_datetime_iso()} close={completed_candle.close:.2f}"
                 )
+
+            # Update tracking with CURRENT candle
+            self._last_candles[key] = candle
+            self._candle_timestamps[key] = timestamp
+            self._candles_processed += 1
 
         except Exception as e:
             logger.error(f"Error processing realtime candle: {e}", exc_info=True)

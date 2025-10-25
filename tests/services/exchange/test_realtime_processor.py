@@ -302,7 +302,7 @@ class TestStorageIntegration:
         candles = storage.get_candles('BTCUSDT', TimeFrame.M1)
         assert len(candles) == 1
         assert candles[0].symbol == 'BTCUSDT'
-        assert candles[0].close == 50100.0  # Second candle that triggered completion
+        assert candles[0].close == 50050.0  # First candle that completed (not the trigger)
         assert candles[0].is_closed is True
 
     @pytest.mark.asyncio
