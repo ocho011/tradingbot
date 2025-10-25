@@ -588,7 +588,7 @@
         "dependencies": [
           "7"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -666,7 +666,7 @@
               6
             ],
             "details": "전략별 활성화 상태 관리 (enable/disable), 런타임 전략 설정 변경 기능, 전략별 파라미터 조정 인터페이스 (신뢰도 임계값, 시간 윈도우 등), 설정 저장 및 로드 기능, 전략 성능 모니터링 및 자동 조정 기능",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "전략 활성화/비활성화 테스트, 런타임 설정 변경 검증, 설정 저장/로드 확인",
             "parentId": "undefined"
           }
@@ -693,7 +693,7 @@
             "description": "계좌 잔고의 2% 리스크 기반으로 포지션 크기를 계산하고 레버리지 5배를 적용하는 시스템 구현",
             "dependencies": [],
             "details": "PositionSizer 클래스 구현: 계좌 잔고 조회, 2% 리스크 계산 (balance * 0.02), 레버리지 5배 적용, 최소/최대 포지션 사이즈 검증, 유효성 검사 로직 포함",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "다양한 계좌 잔고 시나리오에서 포지션 사이징 계산 정확성 검증, 레버리지 적용 테스트",
             "parentId": "undefined"
           },
@@ -849,7 +849,7 @@
       ],
       "created": "2025-10-24T18:00:49.495Z",
       "description": "Tasks for master context",
-      "updated": "2025-10-25T10:35:49.612Z"
+      "updated": "2025-10-25T14:07:46.074Z"
     }
   }
 }

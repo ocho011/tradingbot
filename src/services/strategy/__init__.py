@@ -23,6 +23,7 @@ from src.services.strategy.events import (
 from src.services.strategy.tracker import SignalTracker, get_signal_tracker
 from src.services.strategy.signal_filter import SignalFilter, FilterConfig
 from src.services.strategy.integration_layer import StrategyIntegrationLayer
+from src.services.strategy.config_manager import StrategyConfigManager, ConfigurationError
 
 __all__ = [
     # Core signal classes
@@ -57,4 +58,8 @@ __all__ = [
 
     # Integration
     'StrategyIntegrationLayer',
+
+    # Configuration
+    'StrategyConfigManager',
+    'ConfigurationError',
 ]
