@@ -24,7 +24,8 @@
       "mcp__task-master-ai__get_task",
       "Bash(python3 -m pytest:*)",
       "mcp__serena__find_symbol",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "mcp__task-master-ai__set_task_status"
     ]
   },
   "enableAllProjectMcpServers": true,
