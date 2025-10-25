@@ -9,13 +9,52 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class BinanceConfig(BaseSettings):
-    """Binance API configuration."""
+    """Binance API configuration with separate mainnet/testnet credentials."""
 
-    api_key: str = Field(..., description="Binance API key")
-    secret_key: str = Field(..., description="Binance secret key")
+    # Testnet credentials
+    testnet_api_key: Optional[str] = Field(None, description="Binance testnet API key")
+    testnet_secret_key: Optional[str] = Field(None, description="Binance testnet secret key")
+
+    # Mainnet credentials
+    mainnet_api_key: Optional[str] = Field(None, description="Binance mainnet API key")
+    mainnet_secret_key: Optional[str] = Field(None, description="Binance mainnet secret key")
+
+    # Legacy fallback (for backward compatibility)
+    api_key: Optional[str] = Field(None, description="Legacy API key (fallback)")
+    secret_key: Optional[str] = Field(None, description="Legacy secret key (fallback)")
+
     testnet: bool = Field(True, description="Use Binance testnet")
 
     model_config = SettingsConfigDict(env_prefix="BINANCE_", env_file=".env", extra="ignore")
+
+    @property
+    def active_api_key(self) -> str:
+        """Get active API key based on testnet setting."""
+        if self.testnet:
+            return self.testnet_api_key or self.api_key or ""
+        return self.mainnet_api_key or self.api_key or ""
+
+    @property
+    def active_secret_key(self) -> str:
+        """Get active secret key based on testnet setting."""
+        if self.testnet:
+            return self.testnet_secret_key or self.secret_key or ""
+        return self.mainnet_secret_key or self.secret_key or ""
+
+    def validate_credentials(self) -> None:
+        """
+        Validate that required credentials are present for the selected environment.
+
+        Raises:
+            ValueError: If credentials are missing for the active environment
+        """
+        env_name = "testnet" if self.testnet else "mainnet"
+        if not self.active_api_key or not self.active_secret_key:
+            raise ValueError(
+                f"Binance {env_name} API credentials not configured. "
+                f"Please set BINANCE_{env_name.upper()}_API_KEY and "
+                f"BINANCE_{env_name.upper()}_SECRET_KEY in your .env file."
+            )
 
 
 class DiscordConfig(BaseSettings):

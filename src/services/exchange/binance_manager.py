@@ -98,20 +98,25 @@ class BinanceManager:
         Initialize ccxt Binance exchange instance with proper configuration.
 
         Creates exchange instance with:
-        - API credentials from config
+        - API credentials from config (auto-selected based on testnet setting)
         - Testnet/mainnet endpoint selection
         - Basic connection options
 
         Raises:
             BinanceConnectionError: If initialization fails
+            ValueError: If credentials are missing for the selected environment
         """
         try:
-            logger.info("Creating ccxt.binance instance...")
+            # Validate credentials before initialization
+            self.config.validate_credentials()
 
-            # Initialize ccxt Binance exchange
+            env_name = "testnet" if self.config.testnet else "mainnet"
+            logger.info(f"Creating ccxt.binance instance for {env_name}...")
+
+            # Initialize ccxt Binance exchange with active credentials
             self.exchange = ccxt.binance({
-                'apiKey': self.config.api_key,
-                'secret': self.config.secret_key,
+                'apiKey': self.config.active_api_key,
+                'secret': self.config.active_secret_key,
                 'enableRateLimit': True,  # Respect rate limits
                 'options': {
                     'defaultType': 'future',  # Use futures trading
@@ -134,6 +139,10 @@ class BinanceManager:
 
             logger.info(f"Binance exchange initialized (testnet={self.config.testnet})")
 
+        except ValueError as e:
+            # Re-raise credential validation errors with clear message
+            logger.error(f"Credential validation failed: {e}")
+            raise BinanceConnectionError(str(e)) from e
         except Exception as e:
             error_msg = f"Failed to initialize Binance exchange: {e}"
             logger.error(error_msg, exc_info=True)

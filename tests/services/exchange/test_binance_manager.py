@@ -13,8 +13,10 @@ from src.core.events import EventBus, EventType
 def binance_config():
     """Create test Binance configuration."""
     return BinanceConfig(
-        api_key="test_api_key",
-        secret_key="test_secret_key",
+        testnet_api_key="test_testnet_api_key",
+        testnet_secret_key="test_testnet_secret_key",
+        mainnet_api_key="test_mainnet_api_key",
+        mainnet_secret_key="test_mainnet_secret_key",
         testnet=True
     )
 
@@ -241,3 +243,163 @@ class TestBinanceManagerClose:
         binance_manager.exchange = mock_exchange
         # Should not raise error, just log
         await binance_manager.close()
+
+
+class TestBinanceConfigCredentials:
+    """Test BinanceConfig credential selection and validation."""
+
+    def test_active_api_key_testnet_selection(self):
+        """Test that testnet credentials are selected when testnet=True."""
+        config = BinanceConfig(
+            testnet_api_key="testnet_key",
+            testnet_secret_key="testnet_secret",
+            mainnet_api_key="mainnet_key",
+            mainnet_secret_key="mainnet_secret",
+            testnet=True
+        )
+        assert config.active_api_key == "testnet_key"
+        assert config.active_secret_key == "testnet_secret"
+
+    def test_active_api_key_mainnet_selection(self):
+        """Test that mainnet credentials are selected when testnet=False."""
+        config = BinanceConfig(
+            testnet_api_key="testnet_key",
+            testnet_secret_key="testnet_secret",
+            mainnet_api_key="mainnet_key",
+            mainnet_secret_key="mainnet_secret",
+            testnet=False
+        )
+        assert config.active_api_key == "mainnet_key"
+        assert config.active_secret_key == "mainnet_secret"
+
+    def test_active_api_key_legacy_fallback_testnet(self):
+        """Test that legacy credentials are used as fallback for testnet."""
+        config = BinanceConfig(
+            api_key="legacy_key",
+            secret_key="legacy_secret",
+            testnet=True
+        )
+        assert config.active_api_key == "legacy_key"
+        assert config.active_secret_key == "legacy_secret"
+
+    def test_active_api_key_legacy_fallback_mainnet(self):
+        """Test that legacy credentials are used as fallback for mainnet."""
+        config = BinanceConfig(
+            api_key="legacy_key",
+            secret_key="legacy_secret",
+            testnet=False
+        )
+        assert config.active_api_key == "legacy_key"
+        assert config.active_secret_key == "legacy_secret"
+
+    def test_active_api_key_testnet_with_legacy_fallback(self):
+        """Test that testnet credentials take precedence over legacy."""
+        config = BinanceConfig(
+            testnet_api_key="testnet_key",
+            testnet_secret_key="testnet_secret",
+            api_key="legacy_key",
+            secret_key="legacy_secret",
+            testnet=True
+        )
+        assert config.active_api_key == "testnet_key"
+        assert config.active_secret_key == "testnet_secret"
+
+    def test_validate_credentials_success_testnet(self):
+        """Test successful credential validation for testnet."""
+        config = BinanceConfig(
+            testnet_api_key="testnet_key",
+            testnet_secret_key="testnet_secret",
+            testnet=True
+        )
+        # Should not raise exception
+        config.validate_credentials()
+
+    def test_validate_credentials_success_mainnet(self):
+        """Test successful credential validation for mainnet."""
+        config = BinanceConfig(
+            mainnet_api_key="mainnet_key",
+            mainnet_secret_key="mainnet_secret",
+            testnet=False
+        )
+        # Should not raise exception
+        config.validate_credentials()
+
+    def test_validate_credentials_missing_testnet_api_key(self):
+        """Test validation fails when testnet API key is missing."""
+        config = BinanceConfig(
+            testnet_api_key="",  # Empty string
+            testnet_secret_key="testnet_secret",
+            api_key="",  # Ensure no fallback
+            secret_key="",
+            testnet=True
+        )
+        with pytest.raises(ValueError, match="Binance testnet API credentials not configured"):
+            config.validate_credentials()
+
+    def test_validate_credentials_missing_testnet_secret_key(self):
+        """Test validation fails when testnet secret key is missing."""
+        config = BinanceConfig(
+            testnet_api_key="testnet_key",
+            testnet_secret_key="",  # Empty string
+            api_key="",  # Ensure no fallback
+            secret_key="",
+            testnet=True
+        )
+        with pytest.raises(ValueError, match="Binance testnet API credentials not configured"):
+            config.validate_credentials()
+
+    def test_validate_credentials_missing_mainnet_api_key(self):
+        """Test validation fails when mainnet API key is missing."""
+        config = BinanceConfig(
+            mainnet_api_key="",  # Empty string
+            mainnet_secret_key="mainnet_secret",
+            api_key="",  # Ensure no fallback
+            secret_key="",
+            testnet=False
+        )
+        with pytest.raises(ValueError, match="Binance mainnet API credentials not configured"):
+            config.validate_credentials()
+
+    def test_validate_credentials_missing_mainnet_secret_key(self):
+        """Test validation fails when mainnet secret key is missing."""
+        config = BinanceConfig(
+            mainnet_api_key="mainnet_key",
+            mainnet_secret_key="",  # Empty string
+            api_key="",  # Ensure no fallback
+            secret_key="",
+            testnet=False
+        )
+        with pytest.raises(ValueError, match="Binance mainnet API credentials not configured"):
+            config.validate_credentials()
+
+    def test_validate_credentials_error_message_includes_env_vars(self):
+        """Test validation error message includes correct environment variable names."""
+        config = BinanceConfig(
+            testnet_api_key="",
+            testnet_secret_key="",
+            api_key="",
+            secret_key="",
+            testnet=True
+        )
+        try:
+            config.validate_credentials()
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            error_message = str(e)
+            assert "BINANCE_TESTNET_API_KEY" in error_message
+            assert "BINANCE_TESTNET_SECRET_KEY" in error_message
+
+    @pytest.mark.asyncio
+    async def test_initialize_validates_credentials(self, event_bus):
+        """Test that BinanceManager.initialize() validates credentials before initializing exchange."""
+        config = BinanceConfig(
+            testnet_api_key="",
+            testnet_secret_key="",
+            api_key="",
+            secret_key="",
+            testnet=True
+        )
+        manager = BinanceManager(config=config, event_bus=event_bus)
+
+        with pytest.raises(BinanceConnectionError, match="Binance testnet API credentials not configured"):
+            await manager.initialize()
