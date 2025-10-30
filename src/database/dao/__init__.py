@@ -10,6 +10,7 @@ from src.database.dao.trade_dao import TradeDAO
 from src.database.dao.position_dao import PositionDAO
 from src.database.dao.statistics_dao import StatisticsDAO
 from src.database.dao.backtest_dao import BacktestResultDAO
+from src.database.dao.daily_pnl_dao import DailyPnLDAO
 
 __all__ = [
     'BaseDAO',
@@ -17,4 +18,5 @@ __all__ = [
     'PositionDAO',
     'StatisticsDAO',
     'BacktestResultDAO',
+    'DailyPnLDAO',
 ]

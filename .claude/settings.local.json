@@ -26,7 +26,12 @@
       "mcp__serena__find_symbol",
       "Bash(mkdir:*)",
       "mcp__task-master-ai__set_task_status",
-      "Bash(python3 -m flake8:*)"
+      "Bash(python3 -m flake8:*)",
+      "Bash(git commit:*)",
+      "mcp__serena__find_file",
+      "Bash(task-master set-status:*)",
+      "mcp__serena__search_for_pattern",
+      "mcp__serena__insert_after_symbol"
     ]
   },
   "enableAllProjectMcpServers": true,

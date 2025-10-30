@@ -11,6 +11,11 @@ from src.services.risk.take_profit_calculator import (
     TakeProfitStrategy,
     PartialTakeProfit
 )
+from src.services.risk.daily_loss_monitor import (
+    DailyLossMonitor,
+    DailySession,
+    DailyLossLimitError
+)
 
 __all__ = [
     'PositionSizer',
@@ -18,5 +23,8 @@ __all__ = [
     'StopLossStrategy',
     'TakeProfitCalculator',
     'TakeProfitStrategy',
-    'PartialTakeProfit'
+    'PartialTakeProfit',
+    'DailyLossMonitor',
+    'DailySession',
+    'DailyLossLimitError'
 ]

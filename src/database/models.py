@@ -316,3 +316,66 @@ class BacktestResult(Base):
             f"<BacktestResult(id={self.id}, name='{self.name}', strategy='{self.strategy}', "
             f"symbol='{self.symbol}', total_return={self.total_return}%, sharpe={self.sharpe_ratio})>"
         )
+
+
+class DailyPnL(Base):
+    """
+    Daily profit/loss tracking records.
+
+    Stores daily session data including starting balance, P&L metrics,
+    and loss limit status for risk management monitoring.
+    """
+
+    __tablename__ = 'daily_pnl'
+
+    # Primary key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Session identification
+    date = Column(String(10), nullable=False, unique=True, index=True)  # YYYY-MM-DD
+
+    # Balance tracking
+    starting_balance = Column(Numeric(precision=18, scale=8), nullable=False)
+    ending_balance = Column(Numeric(precision=18, scale=8), nullable=True)
+
+    # P&L metrics
+    realized_pnl = Column(Numeric(precision=18, scale=8), nullable=False, default=0)
+    unrealized_pnl = Column(Numeric(precision=18, scale=8), nullable=False, default=0)
+    total_pnl = Column(Numeric(precision=18, scale=8), nullable=False, default=0)
+    pnl_percentage = Column(Float, nullable=False, default=0.0)
+
+    # Risk management
+    loss_limit_reached = Column(Boolean, nullable=False, default=False)
+    loss_limit_percentage = Column(Float, nullable=False, default=6.0)
+
+    # Trading activity
+    total_trades = Column(Integer, nullable=False, default=0)
+    winning_trades = Column(Integer, nullable=False, default=0)
+    losing_trades = Column(Integer, nullable=False, default=0)
+
+    # Timestamps
+    session_start = Column(DateTime(timezone=True), nullable=False)
+    session_end = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Indexes and constraints
+    __table_args__ = (
+        Index('idx_daily_pnl_date', 'date'),
+        Index('idx_daily_pnl_session_start', 'session_start'),
+        Index('idx_daily_pnl_loss_limit', 'loss_limit_reached'),
+        CheckConstraint('starting_balance > 0', name='check_starting_balance_positive'),
+        CheckConstraint('loss_limit_percentage > 0', name='check_loss_limit_positive'),
+        CheckConstraint('total_trades >= 0', name='check_total_trades_non_negative'),
+        CheckConstraint('winning_trades >= 0', name='check_winning_trades_non_negative'),
+        CheckConstraint('losing_trades >= 0', name='check_losing_trades_non_negative'),
+    )
+
+    def __repr__(self) -> str:
+        """String representation of DailyPnL."""
+        return (
+            f"<DailyPnL(date='{self.date}', "
+            f"pnl={self.total_pnl}, "
+            f"pnl_pct={self.pnl_percentage:.2f}%, "
+            f"limit_reached={self.loss_limit_reached})>"
+        )

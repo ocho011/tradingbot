@@ -730,9 +730,10 @@
               3
             ],
             "details": "DailyLossMonitor 클래스: 일일 시작 잔고 기록, 실시간 손익 계산, 6% 한도 도달 감지, daily_loss_limit_reached 이벤트 발행, SQLite 기반 일일 손익 저장",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "일일 손실 한도 시뮬레이션, 실시간 손익 계산 정확성 검증, 이벤트 발행 테스트",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-30T17:23:34.601Z"
           },
           {
             "id": 5,
@@ -750,7 +751,7 @@
         "complexity": 7,
         "recommendedSubtasks": 5,
         "expansionPrompt": "리스크 관리를 체계적으로 구현하여 포지션 사이징 계산, 손절/익절 레벨 설정, 일일 한도 모니터링, 실시간 손익 추적, 진입 제어 로직으로 세분화",
-        "updatedAt": "2025-10-30T16:02:09.638Z"
+        "updatedAt": "2025-10-30T17:23:34.601Z"
       },
       {
         "id": "10",
@@ -843,7 +844,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-30T16:02:09.639Z",
+      "lastModified": "2025-10-30T17:23:34.602Z",
       "taskCount": 10,
       "completedCount": 8,
       "tags": [
