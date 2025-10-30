@@ -693,7 +693,7 @@
             "description": "계좌 잔고의 2% 리스크 기반으로 포지션 크기를 계산하고 레버리지 5배를 적용하는 시스템 구현",
             "dependencies": [],
             "details": "PositionSizer 클래스 구현: 계좌 잔고 조회, 2% 리스크 계산 (balance * 0.02), 레버리지 5배 적용, 최소/최대 포지션 사이즈 검증, 유효성 검사 로직 포함",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "다양한 계좌 잔고 시나리오에서 포지션 사이징 계산 정확성 검증, 레버리지 적용 테스트",
             "parentId": "undefined"
           },
@@ -849,7 +849,7 @@
       ],
       "created": "2025-10-24T18:00:49.495Z",
       "description": "Tasks for master context",
-      "updated": "2025-10-25T14:07:46.074Z"
+      "updated": "2025-10-30T15:32:44.999Z"
     }
   }
 }
