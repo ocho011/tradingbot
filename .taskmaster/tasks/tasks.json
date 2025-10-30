@@ -796,7 +796,7 @@
               2
             ],
             "details": "OrderTracker 클래스 구현, 주문 상태 enum (PENDING, PLACED, FILLED, FAILED, CANCELLED), 상태 변경 시 이벤트 자동 발행, 주문 ID별 상태 맵핑 관리, 바이낸스 웹소켓으로 실시간 상태 업데이트",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "주문 상태 변경 이벤트 검증, 웹소켓 연결 테스트, 상태 추적 정확성 테스트",
             "parentId": "undefined"
           },
@@ -852,7 +852,7 @@
       ],
       "created": "2025-10-30T17:35:30.130Z",
       "description": "Tasks for master context",
-      "updated": "2025-10-30T22:15:52.224Z"
+      "updated": "2025-10-30T22:27:24.335Z"
     }
   }
 }
