@@ -16,6 +16,11 @@ from src.services.risk.daily_loss_monitor import (
     DailySession,
     DailyLossLimitError
 )
+from src.services.risk.risk_validator import (
+    RiskValidator,
+    ValidationResult,
+    RiskValidationError
+)
 
 __all__ = [
     'PositionSizer',
@@ -26,5 +31,8 @@ __all__ = [
     'PartialTakeProfit',
     'DailyLossMonitor',
     'DailySession',
-    'DailyLossLimitError'
+    'DailyLossLimitError',
+    'RiskValidator',
+    'ValidationResult',
+    'RiskValidationError'
 ]

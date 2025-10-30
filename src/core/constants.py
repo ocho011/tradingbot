@@ -101,6 +101,9 @@ class EventType(str, Enum):
     STOP_LOSS_HIT = "stop_loss_hit"
     TAKE_PROFIT_HIT = "take_profit_hit"
     RISK_LIMIT_EXCEEDED = "risk_limit_exceeded"
+    DAILY_LOSS_LIMIT_REACHED = "daily_loss_limit_reached"
+    RISK_CHECK_PASSED = "risk_check_passed"
+    RISK_CHECK_FAILED = "risk_check_failed"
 
     # Exchange connection events
     EXCHANGE_CONNECTED = "exchange_connected"
