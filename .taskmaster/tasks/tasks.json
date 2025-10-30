@@ -705,7 +705,7 @@
               1
             ],
             "details": "StopLossCalculator 클래스: 구조적 레벨 분석, 가격 대비 0.1-0.3% 톨러런스 적용, 진입가 대비 손절가 거리 계산, 리스크 대비 포지션 사이즈 재검증",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "구조적 레벨 감지 정확성 테스트, 톨러런스 적용 검증, 다양한 시장 상황에서 손절가 계산 테스트",
             "parentId": "undefined"
           },
@@ -849,7 +849,7 @@
       ],
       "created": "2025-10-24T18:00:49.495Z",
       "description": "Tasks for master context",
-      "updated": "2025-10-30T15:32:44.999Z"
+      "updated": "2025-10-30T15:48:01.875Z"
     }
   }
 }
