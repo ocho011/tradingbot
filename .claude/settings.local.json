@@ -31,7 +31,9 @@
       "mcp__serena__find_file",
       "Bash(task-master set-status:*)",
       "mcp__serena__search_for_pattern",
-      "mcp__serena__insert_after_symbol"
+      "mcp__serena__insert_after_symbol",
+      "mcp__task-master-ai__update_subtask",
+      "mcp__task-master-ai__next_task"
     ]
   },
   "enableAllProjectMcpServers": true,

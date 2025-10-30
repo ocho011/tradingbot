@@ -771,7 +771,7 @@
             "description": "시장가, 손절, 익절 주문을 비동기로 실행하는 시스템 구현",
             "dependencies": [],
             "details": "OrderExecutor 클래스 구현, 바이낸스 선물 API 연동, 시장가/지정가/조건부 주문 타입별 실행 로직, 비동기 주문 전송 및 응답 처리, 주문 파라미터 검증 및 타임스탬프 관리",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "테스트넷에서 각 주문 타입별 실행 테스트, 주문 파라미터 검증 테스트, 비동기 동시성 테스트",
             "parentId": "undefined"
           },
@@ -783,7 +783,7 @@
               1
             ],
             "details": "RetryManager 클래스 구현, 지수 백오프 재시도 패턴 (1s, 2s, 5s), 재시도 가능한 에러 타입 분류 (네트워크, API 한도 등), 재시도 불가능한 에러 처리 (잔고 부족 등), 재시도 횟수 및 간격 로깅",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "재시도 로직 단위 테스트, 네트워크 에러 시뮬레이션, 재시도 간격 정확성 검증",
             "parentId": "undefined"
           },
@@ -796,7 +796,7 @@
               2
             ],
             "details": "OrderTracker 클래스 구현, 주문 상태 enum (PENDING, PLACED, FILLED, FAILED, CANCELLED), 상태 변경 시 이벤트 자동 발행, 주문 ID별 상태 맵핑 관리, 바이낸스 웹소켓으로 실시간 상태 업데이트",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "주문 상태 변경 이벤트 검증, 웹소켓 연결 테스트, 상태 추적 정확성 테스트",
             "parentId": "undefined"
           },
@@ -852,7 +852,7 @@
       ],
       "created": "2025-10-30T17:35:30.130Z",
       "description": "Tasks for master context",
-      "updated": "2025-10-30T17:48:21.759Z"
+      "updated": "2025-10-30T22:15:52.224Z"
     }
   }
 }
