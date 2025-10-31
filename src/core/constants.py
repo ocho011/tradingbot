@@ -93,8 +93,10 @@ class EventType(str, Enum):
     ORDER_PLACED = "order_placed"
     ORDER_FILLED = "order_filled"
     ORDER_CANCELLED = "order_cancelled"
+    ORDER_FAILED = "order_failed"
     POSITION_OPENED = "position_opened"
     POSITION_CLOSED = "position_closed"
+    POSITION_UPDATED = "position_updated"
     POSITION_MODIFIED = "position_modified"
 
     # Risk management events
