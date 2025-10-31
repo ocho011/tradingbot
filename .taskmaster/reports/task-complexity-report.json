@@ -1,93 +1,37 @@
 {
 	"meta": {
-		"generatedAt": "2025-10-18T05:52:55.501Z",
-		"tasksAnalyzed": 10,
-		"totalTasks": 10,
-		"analysisCount": 10,
+		"generatedAt": "2025-10-31T14:03:10.980Z",
+		"tasksAnalyzed": 3,
+		"totalTasks": 13,
+		"analysisCount": 3,
 		"thresholdScore": 5,
 		"projectName": "Taskmaster",
 		"usedResearch": true
 	},
 	"complexityAnalysis": [
 		{
-			"taskId": 1,
-			"taskTitle": "프로젝트 환경 설정 및 기본 구조 구축",
-			"complexityScore": 3,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "프로젝트 초기 설정을 단계별로 나누어 가상환경 설정, 의존성 관리, 환경 변수 구성, 폴더 구조 생성으로 세분화하여 각각 독립적으로 구현할 수 있도록 계획",
-			"reasoning": "표준적인 Python 프로젝트 설정 작업으로 복잡도는 낮지만, 여러 구성 요소(가상환경, 의존성, 환경변수, 폴더구조)를 포함하므로 체계적인 접근이 필요"
-		},
-		{
-			"taskId": 2,
-			"taskTitle": "이벤트 시스템 핵심 구현",
-			"complexityScore": 6,
-			"recommendedSubtasks": 5,
-			"expansionPrompt": "이벤트 시스템을 핵심 컴포넌트별로 분리하여 Event 클래스 설계, EventBus 구현, 핸들러 인터페이스 정의, 우선순위 큐 구현, 비동기 디스패처 구현으로 세분화",
-			"reasoning": "비동기 처리와 pub/sub 패턴을 포함한 복잡한 아키텍처 설계가 필요하며, 우선순위 큐와 에러 격리 등 고급 기능이 요구됨"
-		},
-		{
-			"taskId": 3,
-			"taskTitle": "바이낸스 API 연동 및 WebSocket 관리자 구현",
-			"complexityScore": 7,
-			"recommendedSubtasks": 6,
-			"expansionPrompt": "API 연동을 단계별로 구현하여 ccxt.pro 초기화, WebSocket 연결 관리, 하트비트 모니터링, 재연결 로직, REST API 래퍼, 권한 검증으로 세분화",
-			"reasoning": "외부 API 연동, WebSocket 실시간 통신, 연결 상태 관리, 자동 재연결 등 네트워크 관련 복잡한 로직과 에러 처리가 필요"
-		},
-		{
-			"taskId": 4,
-			"taskTitle": "실시간 캔들 데이터 수신 및 관리 시스템 구현",
-			"complexityScore": 6,
-			"recommendedSubtasks": 5,
-			"expansionPrompt": "데이터 처리 파이프라인을 구성하여 캔들 데이터 모델 설계, 메모리 스토리지 구현, 과거 데이터 로드, 실시간 수신 처리, 멀티 심볼 지원으로 세분화",
-			"reasoning": "실시간 데이터 처리, 메모리 관리, 멀티 심볼/타임프레임 지원 등 데이터 집약적 처리와 성능 최적화가 필요"
-		},
-		{
-			"taskId": 5,
-			"taskTitle": "SQLite 데이터베이스 설계 및 데이터 저장 레이어 구현",
-			"complexityScore": 5,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "데이터베이스 레이어를 체계적으로 구현하여 스키마 설계, ORM 설정, 데이터 모델 구현, 연결 풀 및 마이그레이션 관리로 세분화",
-			"reasoning": "데이터베이스 스키마 설계와 ORM 구현이 필요하지만, SQLite의 단순함으로 인해 중간 수준의 복잡도"
-		},
-		{
-			"taskId": 6,
-			"taskTitle": "ICT 지표 엔진 구현 - Order Blocks 및 Fair Value Gaps",
-			"complexityScore": 8,
-			"recommendedSubtasks": 6,
-			"expansionPrompt": "복잡한 기술적 지표를 단계별로 구현하여 Order Blocks 감지 알고리즘, FVG 계산 로직, Breaker Blocks 인식, 멀티 타임프레임 처리, 지표 만료 관리, 성능 최적화로 세분화",
-			"reasoning": "복잡한 기술적 분석 알고리즘 구현이 필요하며, 멀티 타임프레임 지원과 실시간 성능 최적화가 중요한 고난도 작업"
-		},
-		{
-			"taskId": 7,
-			"taskTitle": "ICT 지표 엔진 구현 - Liquidity 및 Market Structure",
-			"complexityScore": 8,
-			"recommendedSubtasks": 6,
-			"expansionPrompt": "시장 구조 분석을 체계적으로 구현하여 유동성 레벨 식별, Liquidity Sweep 감지, 추세 분석, BMS 로직, 구조 상태 추적, 강도 계산으로 세분화",
-			"reasoning": "고급 시장 구조 분석과 복잡한 패턴 인식 알고리즘이 필요하며, 실시간 처리 성능과 정확도가 중요한 고난도 작업"
-		},
-		{
-			"taskId": 8,
-			"taskTitle": "매매 전략 엔진 구현 - 3가지 전략 로직",
+			"taskId": 11,
+			"taskTitle": "통합 테스트 및 시스템 오케스트레이션 - 완전한 트레이딩 시스템 구현",
 			"complexityScore": 9,
-			"recommendedSubtasks": 7,
-			"expansionPrompt": "복합적인 매매 전략을 체계적으로 구현하여 전략 A 로직, 전략 B 로직, 전략 C 로직, 신호 생성 시스템, 중복 필터링, 우선순위 관리, 전략 제어로 세분화",
-			"reasoning": "다중 전략을 통합하는 복잡한 로직이 필요하며, 각 전략의 상호작용과 신호 생성의 정확성이 매우 중요한 최고 난도 작업"
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "TradingSystemOrchestrator 메인 클래스 구현, 실시간 데이터 파이프라인 구축, 백그라운드 태스크 관리, 설정 관리 시스템, 상태 모니터링, 시스템 생명주기 관리, FastAPI 서버 구현, WebSocket 인터페이스 구현으로 세분화하여 각각을 독립적인 서브태스크로 구현합니다.",
+			"reasoning": "모든 기존 모듈을 통합하는 최고 난이도 작업입니다. 10개의 복잡한 모듈 간 의존성 관리, 실시간 데이터 파이프라인 구축, 비동기 처리, 에러 전파, 상태 동기화 등 아키텍처 수준의 복잡한 문제들을 해결해야 합니다. 또한 FastAPI 서버와 WebSocket 인터페이스까지 포함한 종합적인 시스템 구현이 필요합니다."
 		},
 		{
-			"taskId": 9,
-			"taskTitle": "리스크 관리 시스템 구현",
+			"taskId": 12,
+			"taskTitle": "프로덕션 배포 및 운영 준비 - 모니터링, 보안, 인프라 자동화",
+			"complexityScore": 8,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Docker/Kubernetes 컨테이너화, Prometheus/Grafana 모니터링 설정, 보안 강화 및 키 관리, 운영 자동화 시스템, CI/CD 파이프라인 구축, 운영 문서 작성, Testnet/Mainnet 전환 준비로 나누어 각 영역별로 전문적인 인프라 구성을 구현합니다.",
+			"reasoning": "프로덕션 운영을 위한 종합적인 인프라 구축 작업으로 높은 복잡도를 가집니다. Docker/Kubernetes, 모니터링 스택, 보안 설정, CI/CD 등 DevOps 전 영역을 다루며, 실제 금융 거래 시스템의 안정성과 보안을 보장해야 하는 중요한 작업입니다."
+		},
+		{
+			"taskId": 13,
+			"taskTitle": "프로덕션 최적화 및 메인넷 준비 - 성능 튜닝, 보안 강화, 배포 자동화",
 			"complexityScore": 7,
 			"recommendedSubtasks": 5,
-			"expansionPrompt": "리스크 관리를 체계적으로 구현하여 포지션 사이징 계산, 손절/익절 레벨 설정, 일일 한도 모니터링, 실시간 손익 추적, 진입 제어 로직으로 세분화",
-			"reasoning": "금융 리스크 관리의 핵심적인 계산과 실시간 모니터링이 필요하며, 정확성과 안정성이 매우 중요한 고위험 작업"
-		},
-		{
-			"taskId": 10,
-			"taskTitle": "주문 실행 및 포지션 관리 시스템 구현",
-			"complexityScore": 8,
-			"recommendedSubtasks": 6,
-			"expansionPrompt": "주문 시스템을 안정적으로 구현하여 비동기 주문 실행, 재시도 로직, 주문 상태 추적, 포지션 관리, 포지션 복구, 긴급 청산으로 세분화",
-			"reasoning": "실제 거래 주문을 처리하는 핵심 시스템으로 높은 안정성과 에러 처리가 필요하며, 비동기 처리와 상태 관리의 복잡성이 높음"
+			"expansionPrompt": "성능 최적화 및 튜닝, 고급 보안 강화, CI/CD 파이프라인 완성, 메인넷 준비 작업, 운영 문서 완성으로 나누어 실제 거래 환경으로의 전환을 위한 최종 준비 작업을 체계적으로 수행합니다.",
+			"reasoning": "실제 거래 환경으로의 전환을 위한 최종 단계로 높은 복잡도를 가집니다. 성능 최적화, 고급 보안 설정, HSM/KMS 통합 등 프로덕션 수준의 요구사항을 만족시켜야 하며, 실제 자금이 투입되는 메인넷 환경에서의 안정성을 보장해야 합니다."
 		}
 	]
 }

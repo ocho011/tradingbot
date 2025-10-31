@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "프로젝트 환경 설정 및 기본 구조 구축",
         "description": "Python 프로젝트 초기 설정, 의존성 관리, 환경 변수 구성 및 기본 폴더 구조 생성",
         "details": "Python 3.10+ 가상환경 생성, pyproject.toml로 의존성 관리 (asyncio, aiohttp, ccxt.pro, fastapi, sqlite3, discord-webhook), .env 파일 템플릿 생성 (BINANCE_API_KEY, BINANCE_SECRET_KEY, DISCORD_WEBHOOK_URL), 폴더 구조 설정 (/src, /tests, /logs, /config, /data), .gitignore 설정 (.env, logs/, __pycache__/), README.md 기본 구조 작성",
@@ -69,7 +69,7 @@
         "updatedAt": "2025-10-18T10:28:22.391Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "이벤트 시스템 핵심 구현",
         "description": "Event 클래스, EventBus, 핸들러 인터페이스 및 우선순위 큐 기반 이벤트 처리 시스템 구현",
         "details": "Event 데이터 클래스 (event_type, data, timestamp, priority), EventBus 클래스 (asyncio.Queue 기반, pub/sub 패턴), EventHandler 추상 베이스 클래스 (handle, on_error 메서드), 우선순위 큐 구현 (heapq 또는 asyncio.PriorityQueue), 이벤트 디스패처 (비동기 처리, 에러 격리), 이벤트 타입 상수 정의 (CANDLE_CLOSED, SIGNAL_GENERATED 등)",
@@ -151,7 +151,7 @@
         "updatedAt": "2025-10-18T14:25:44.766Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "바이낸스 API 연동 및 WebSocket 관리자 구현",
         "description": "ccxt.pro를 이용한 바이낸스 연결, WebSocket 실시간 데이터 수신, 자동 재연결 기능 구현",
         "details": "ccxt.pro Binance 클래스 초기화 (testnet/mainnet 분리), WebSocket 캔들 스트림 구독 (1m, 15m, 1h), 하트비트 기반 연결 상태 모니터링, 지수 백오프 재연결 로직, REST API 래퍼 (잔고, 포지션, 주문), API 키 권한 검증 (읽기, 거래 권한 확인), ws_connected, ws_disconnected, ws_error 이벤트 발행",
@@ -245,7 +245,7 @@
         "updatedAt": "2025-10-19T02:36:26.895Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "실시간 캔들 데이터 수신 및 관리 시스템 구현",
         "description": "WebSocket으로부터 실시간 캔들 데이터 수신, 메모리 기반 데이터 저장, 과거 데이터 로드 기능 구현",
         "details": "캔들 데이터 클래스 (OHLCV, timestamp, symbol, timeframe), 메모리 기반 캔들 스토리지 (deque 최대 500개), 과거 캔들 로드 (REST API, 초기화 시), 캔들 완성 감지 및 candle_closed 이벤트 발행, 멀티 심볼/타임프레임 지원 (BTCUSDT, ETHUSDT), 데이터 검증 (결측치, 이상치 처리)",
@@ -324,7 +324,7 @@
         "updatedAt": "2025-10-19T11:18:05.686Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "SQLite 데이터베이스 설계 및 데이터 저장 레이어 구현",
         "description": "거래 이력, 통계, 백테스팅 결과를 위한 SQLite 스키마 설계 및 ORM 구현",
         "details": "SQLite 스키마 설계 (trades, positions, statistics, backtest_results 테이블), SQLAlchemy 또는 aiosqlite 사용, 거래 이력 테이블 (id, symbol, strategy, entry_time, exit_time, entry_price, exit_price, quantity, pnl, leverage), 포지션 테이블 (current positions, unrealized_pnl), 통계 테이블 (daily, monthly stats by strategy), DB 연결 풀 관리, 마이그레이션 스크립트",
@@ -392,7 +392,7 @@
         "updatedAt": "2025-10-19T16:25:35.859Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "ICT 지표 엔진 구현 - Order Blocks 및 Fair Value Gaps",
         "description": "Order Blocks 감지, Fair Value Gaps 계산, Breaker Blocks 인식 알고리즘 구현",
         "details": "Order Blocks 식별 (swing high/low 기반, 최소 3-5개 캔들), FVG 감지 (3개 캔들 패턴, gap > 최소 임계값), Breaker Blocks 로직 (OB 깨진 후 역할 전환), 멀티 타임프레임 지표 계산 (1m, 15m, 1h), 지표 만료 로직 (시간 또는 가격 기반), 지표 데이터 클래스 (좌표, 강도, 상태), indicators_updated 이벤트 발행",
@@ -484,7 +484,7 @@
         "updatedAt": "2025-10-23T14:56:04.615Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "ICT 지표 엔진 구현 - Liquidity 및 Market Structure",
         "description": "유동성 존 매핑, Liquidity Sweep 감지, Market Structure 분석 알고리즘 구현",
         "details": "Buy/Sell side Liquidity 레벨 식별 (고점/저점 상단/하단), Liquidity Sweep 패턴 감지 (레벨 돌파 후 반전), Higher High/Lower Low 추세 인식, BMS (Break of Market Structure) 확인 로직, 멀티 타임프레임 구조 분석, 유동성 강도 계산 (터치 횟수, 거래량), Market Structure 상태 추적 (Bullish/Bearish/Ranging)",
@@ -579,7 +579,7 @@
         "updatedAt": "2025-10-24T14:40:32.542Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "매매 전략 엔진 구현 - 3가지 전략 로직",
         "description": "전략 A(보수적), B(공격적), C(혼합) 매매 로직 구현 및 신호 생성 시스템",
         "details": "전략 A: 1h BMS → 15m FVG/OB → 1m 진입 타이밍, 전략 B: 15m Liquidity Sweep + FVG 즉시 진입, 전략 C: 1h 추세 + 15m OB/FVG + Liquidity 조건, 각 전략별 신호 클래스 (entry_price, direction, confidence, stop_loss, take_profit), 중복 신호 필터링, 전략별 활성화/비활성화 설정, signal_generated 이벤트 발행, 신호 우선순위 관리",
@@ -676,7 +676,7 @@
         "expansionPrompt": "복합적인 매매 전략을 체계적으로 구현하여 전략 A 로직, 전략 B 로직, 전략 C 로직, 신호 생성 시스템, 중복 필터링, 우선순위 관리, 전략 제어로 세분화"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "리스크 관리 시스템 구현",
         "description": "포지션 사이징, 손절/익절 레벨 계산, 일일 손실 한도 관리 시스템 구현",
         "details": "계좌 잔고 기반 2% 리스크 계산, 레버리지 5배 적용 포지션 사이징, 구조적 레벨 기반 손절가 계산 + 톨러런스 (0.1-0.3%), Liquidity 레벨 기반 익절가 설정, 일일 손실 6% 한도 모니터링, 실시간 손익 추적, daily_loss_limit_reached 이벤트 발행, 신규 진입 차단 로직, 리스크 검증 통과 시 주문 승인",
@@ -754,7 +754,7 @@
         "updatedAt": "2025-10-30T17:23:34.601Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "주문 실행 및 포지션 관리 시스템 구현",
         "description": "비동기 주문 실행, 실패 재시도 로직, 포지션 추적 및 상태 관리 시스템 구현",
         "details": "비동기 주문 실행 (시장가, 손절, 익절), 최대 3회 재시도 로직 (1초, 2초, 5초 간격), 주문 상태 추적 및 이벤트 발행 (order_placed, order_filled, order_failed), 포지션 상태 관리 (opened, closed, updated), 미청산 포지션 실시간 모니터링, 시스템 재시작 시 포지션 복구 (바이낸스 API 조회), position_opened/closed/updated 이벤트 발행, 강제 청산 기능 (긴급 중지)",
@@ -842,16 +842,337 @@
         "recommendedSubtasks": 6,
         "expansionPrompt": "주문 시스템을 안정적으로 구현하여 비동기 주문 실행, 재시도 로직, 주문 상태 추적, 포지션 관리, 포지션 복구, 긴급 청산으로 세분화",
         "updatedAt": "2025-10-31T08:23:49.187Z"
+      },
+      {
+        "id": 11,
+        "title": "통합 테스트 및 시스템 오케스트레이션 - 완전한 트레이딩 시스템 구현",
+        "description": "모든 개별 모듈(이벤트 시스템, 바이낸스 API, 캔들 데이터, ICT 지표, 전략, 리스크 관리, 주문 실행, 포지션 관리)을 메인 오케스트레이션 레이어로 통합하여 실제 동작하는 완전한 트레이딩 시스템을 완성합니다.",
+        "details": "메인 오케스트레이션 클래스(TradingSystemOrchestrator) 구현: 모든 서비스 컴포넌트의 의존성 주입과 생명주기 관리, 이벤트 버스를 통한 컴포넌트 간 통신 조정, 서비스 간 상태 동기화 및 에러 전파 처리. 실시간 데이터 파이프라인 구축: BinanceManager → CandleStorage → MultiTimeframeEngine → StrategyIntegrationLayer → RiskValidator → OrderExecutor → PositionManager 순서의 완전한 데이터 흐름 구현. 백그라운드 태스크 관리: asyncio를 활용한 실시간 마켓 데이터 수신, 지표 계산, 신호 생성의 병렬 처리, 재연결 로직과 오류 복구 메커니즘. 설정 관리 시스템: 전략 활성화/비활성화, 리스크 파라미터 실시간 조정, 테스트넷/메인넷 환경 전환 기능. 상태 모니터링: 각 컴포넌트의 헬스체크, 성능 메트릭 수집, 오류 통계 추적. 시스템 시작/중지 시퀀스: 의존성 순서에 따른 안전한 서비스 초기화와 종료 절차. FastAPI 기반 REST API 엔드포인트: 시스템 상태 조회, 설정 변경, 실시간 메트릭 확인용 API 서버 구성. 웹소켓 인터페이스: 실시간 데이터 스트림, 신호 알림, 거래 상태 변경 푸시. 시스템 오케스트레이션은 src/core/orchestrator.py에 구현하고, API 서버는 src/api/server.py에, 메인 실행 로직은 src/__main__.py를 완전히 개선하여 구현합니다. 모든 모듈이 이벤트 기반으로 느슨하게 결합되어 확장 가능하고 유지보수가 용이한 아키텍처를 구성합니다.",
+        "testStrategy": "단위 테스트: 각 오케스트레이션 메소드의 독립적 테스트, 모킹을 활용한 컴포넌트 의존성 테스트. 통합 테스트: 전체 파이프라인의 End-to-End 테스트(테스트넷 환경에서 실제 API 호출), 모든 모듈 간 이벤트 전파 검증, 데이터 무결성 확인. 시나리오 테스트: 시장 시그널 발생부터 주문 실행까지 완전한 사이클 테스트, 다양한 시장 조건(급등, 급락, 횡보)에서의 시스템 반응 테스트. 성능 테스트: 고빈도 캔들 데이터 처리 성능 측정, 메모리 사용량 모니터링, 병목점 식별. 부하 테스트: 동시 다중 심볼 처리 능력 테스트, 피크 시간대 데이터 부하 시뮬레이션. 장애 복구 테스트: 네트워크 연결 끊김, API 제한, 거래소 장애 상황에서의 복구 능력 검증. 실시간 테스트: 24시간 연속 운영 테스트, 메모리 누수 검사, 장기 안정성 확인. 모든 테스트는 CI/CD 파이프라인에 통합하여 자동화하고, 테스트 커버리지 90% 이상 달성을 목표로 합니다.",
+        "status": "in-progress",
+        "dependencies": [
+          "10"
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "TradingSystemOrchestrator 핵심 클래스 구현",
+            "description": "모든 서비스 컴포넌트의 의존성 주입과 생명주기 관리를 위한 메인 오케스트레이션 클래스를 구현합니다.",
+            "dependencies": [],
+            "details": "src/core/orchestrator.py에 TradingSystemOrchestrator 클래스 구현. 모든 서비스 컴포넌트(BinanceManager, CandleStorage, MultiTimeframeEngine, StrategyIntegrationLayer, RiskValidator, OrderExecutor, PositionManager)의 의존성 주입 관리. 서비스 시작/중지 시퀀스 구현, 서비스 간 상태 동기화 메커니즘 구성, 에러 전파 처리 로직 구현.",
+            "status": "done",
+            "testStrategy": "서비스 초기화 순서 테스트, 의존성 주입 검증, 상태 동기화 테스트",
+            "updatedAt": "2025-10-31T20:46:32.126Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "실시간 데이터 파이프라인 통합 구현",
+            "description": "모든 데이터 처리 모듈을 연결하여 완전한 실시간 데이터 처리 파이프라인을 구축합니다.",
+            "dependencies": [
+              1
+            ],
+            "details": "BinanceManager → CandleStorage → MultiTimeframeEngine → StrategyIntegrationLayer → RiskValidator → OrderExecutor → PositionManager 순서의 완전한 데이터 흐름 구현. 이벤트 버스를 통한 컴포넌트 간 통신 조정, 데이터 무결성 보장, 처리 지연 시간 최소화, 백프레셔 처리 메커니즘 구현.",
+            "status": "pending",
+            "testStrategy": "전체 파이프라인 End-to-End 테스트, 데이터 무결성 검증, 처리 성능 측정",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "백그라운드 태스크 및 병렬 처리 시스템 구현",
+            "description": "asyncio를 활용한 실시간 처리, 재연결 로직, 오류 복구 메커니즘을 포함한 백그라운드 태스크 관리 시스템을 구현합니다.",
+            "dependencies": [
+              2
+            ],
+            "details": "asyncio를 활용한 실시간 마켓 데이터 수신, 지표 계산, 신호 생성의 병렬 처리 구현. 연결 끊김 감지 및 자동 재연결 로직, 지수 백오프 재시도 메커니즘, 태스크 실패 시 오류 복구 전략, 백그라운드 태스크 상태 모니터링 및 헬스체크 구현.",
+            "status": "pending",
+            "testStrategy": "병렬 처리 성능 테스트, 재연결 시나리오 테스트, 오류 복구 검증",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "동적 설정 관리 시스템 구현",
+            "description": "전략 활성화/비활성화, 리스크 파라미터 실시간 조정, 환경 전환 기능을 포함한 설정 관리 시스템을 구현합니다.",
+            "dependencies": [
+              1
+            ],
+            "details": "전략 활성화/비활성화 실시간 제어, 리스크 파라미터 동적 조정 기능, 테스트넷/메인넷 환경 전환 메커니즘, 설정 변경 시 시스템 재시작 없이 적용, 설정 변경 이력 추적 및 롤백 기능, JSON/YAML 기반 설정 파일 관리.",
+            "status": "pending",
+            "testStrategy": "설정 변경 실시간 적용 테스트, 환경 전환 검증, 롤백 기능 테스트",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "상태 모니터링 및 메트릭 수집 시스템 구현",
+            "description": "각 컴포넌트의 헬스체크, 성능 메트릭 수집, 오류 통계 추적을 위한 종합 모니터링 시스템을 구현합니다.",
+            "dependencies": [
+              3
+            ],
+            "details": "각 컴포넌트의 헬스체크 엔드포인트 구현, 성능 메트릭 수집(처리 시간, 메모리 사용량, CPU 사용률), 오류 통계 추적 및 분석, 실시간 시스템 상태 대시보드 데이터 제공, 임계값 기반 알림 시스템, 메트릭 데이터 영구 저장 및 히스토리 관리.",
+            "status": "pending",
+            "testStrategy": "헬스체크 응답 테스트, 메트릭 수집 정확성 검증, 알림 시스템 동작 테스트",
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "FastAPI 기반 REST API 서버 구현",
+            "description": "시스템 상태 조회, 설정 변경, 실시간 메트릭 확인을 위한 RESTful API 서버를 구현합니다.",
+            "dependencies": [
+              4,
+              5
+            ],
+            "details": "src/api/server.py에 FastAPI 기반 API 서버 구현. 시스템 상태 조회 엔드포인트(/status, /health), 설정 변경 API(/config), 실시간 메트릭 확인(/metrics), 인증 및 권한 관리, API 문서 자동 생성(Swagger UI), CORS 설정, 보안 헤더 적용.",
+            "status": "pending",
+            "testStrategy": "API 엔드포인트 기능 테스트, 인증 검증, API 문서 생성 확인",
+            "parentId": "undefined"
+          },
+          {
+            "id": 7,
+            "title": "웹소켓 실시간 통신 인터페이스 구현",
+            "description": "실시간 데이터 스트림, 신호 알림, 거래 상태 변경 푸시를 위한 웹소켓 서버를 구현합니다.",
+            "dependencies": [
+              6
+            ],
+            "details": "WebSocket 서버 구현으로 실시간 데이터 스트림 제공, 신호 생성 알림 푸시, 거래 상태 변경 실시간 통지, 클라이언트 연결 관리 및 브로드캐스트, 메시지 필터링 및 구독 관리, 연결 상태 모니터링, heartbeat 메커니즘 구현.",
+            "status": "pending",
+            "testStrategy": "웹소켓 연결 테스트, 실시간 메시지 전송 검증, 다중 클라이언트 연결 테스트",
+            "parentId": "undefined"
+          },
+          {
+            "id": 8,
+            "title": "메인 실행 로직 및 시스템 통합 완성",
+            "description": "src/__main__.py를 개선하여 전체 시스템의 시작/종료 로직과 최종 통합을 완성합니다.",
+            "dependencies": [
+              7
+            ],
+            "details": "src/__main__.py 완전 개선으로 시스템 부트스트랩 로직 구현, 의존성 순서에 따른 안전한 서비스 초기화 및 종료 절차, 신호 처리(SIGTERM, SIGINT)를 통한 우아한 종료, 로깅 설정 및 초기화, 환경 변수 검증, 전체 시스템 통합 테스트 실행 로직 구현.",
+            "status": "pending",
+            "testStrategy": "시스템 시작/종료 시퀀스 테스트, 신호 처리 검증, 전체 시스템 통합 테스트",
+            "parentId": "undefined"
+          }
+        ],
+        "complexity": 9,
+        "recommendedSubtasks": 8,
+        "expansionPrompt": "TradingSystemOrchestrator 메인 클래스 구현, 실시간 데이터 파이프라인 구축, 백그라운드 태스크 관리, 설정 관리 시스템, 상태 모니터링, 시스템 생명주기 관리, FastAPI 서버 구현, WebSocket 인터페이스 구현으로 세분화하여 각각을 독립적인 서브태스크로 구현합니다.",
+        "updatedAt": "2025-10-31T20:46:32.126Z"
+      },
+      {
+        "id": 12,
+        "title": "프로덕션 배포 및 운영 준비 - 모니터링, 보안, 인프라 자동화",
+        "description": "실제 운영 환경에서 안정적인 트레이딩 시스템 운영을 위한 종합적인 운영 인프라 구축. 모니터링, 로깅, 알림, 보안, 배포 자동화 및 운영 문서화를 포함한 프로덕션 준비 완료.",
+        "details": "**1. 인프라 컨테이너화 및 오케스트레이션:**\n- Dockerfile 작성: 멀티 스테이지 빌드로 Python 3.9 기반 컨테이너 최적화\n- docker-compose.yml: 트레이딩봇, Redis, Prometheus, Grafana, PostgreSQL 서비스 구성\n- Kubernetes 매니페스트: Deployment, Service, ConfigMap, Secret, PVC 리소스 정의\n- Helm 차트: 환경별 값 파일(dev/staging/prod)과 템플릿 구성\n\n**2. 고급 모니터링 및 관찰성:**\n- Prometheus 메트릭 수집: trading_signals_generated, order_execution_latency, risk_violations, position_pnl 커스텀 메트릭\n- Grafana 대시보드: 실시간 트레이딩 성과, 시스템 상태, 에러율, 레이턴시 시각화\n- OpenTelemetry 구현: 분산 트레이싱으로 신호 생성부터 주문 실행까지 전체 플로우 추적\n- Health Check 엔드포인트: /health, /ready, /metrics API 구현 (FastAPI)\n- 애플리케이션 로그 구조화: JSON 형태 로그로 ELK Stack 연동 준비\n\n**3. 보안 강화 및 키 관리:**\n- API 키 암호화: cryptography 라이브러리로 AES-256 암호화, 환경별 키 분리\n- Rate Limiting: Redis 기반 토큰 버킷 알고리즘으로 API 요청 제한\n- IP 화이트리스트: 관리자 접근 IP 제한, fail2ban 연동\n- TLS/SSL 설정: Let's Encrypt 자동 갱신, HTTPS 강제 리다이렉트\n- 보안 헤더: HSTS, CSP, X-Frame-Options 설정\n- Secrets 관리: Kubernetes Secret, HashiCorp Vault 또는 AWS Secrets Manager 연동\n\n**4. 운영 자동화 시스템:**\n- systemd 서비스: 자동 재시작, 프로세스 감시, 로그 순환 설정\n- 데이터베이스 백업: 일일 자동 백업 스크립트, 복구 테스트 자동화\n- 성능 최적화: aiofiles 비동기 I/O, 커넥션 풀링, 메모리 사용 모니터링\n- 장애 복구: Circuit Breaker 패턴, 자동 failover, 데이터 무결성 검증\n- 로그 로테이션: logrotate 설정으로 디스크 공간 관리\n\n**5. CI/CD 파이프라인 (GitHub Actions):**\n- 빌드 파이프라인: pytest 테스트, 코드 품질 검사(flake8, mypy), 보안 스캔(bandit)\n- 배포 전략: Blue-Green 또는 Rolling Update, 헬스체크 기반 트래픽 전환\n- 환경별 배포: dev → staging → prod 순차 배포, 수동 승인 게이트\n- Artifact 관리: Docker 이미지 태깅, 버전 관리, 레지스트리 보안\n\n**6. 운영 문서 및 런북:**\n- 배포 가이드: 환경 구성, 시크릿 설정, 첫 실행 체크리스트\n- 장애 대응 매뉴얼: 일반적 이슈 해결책, 에스컬레이션 절차\n- 모니터링 알럿 정의: 거래 중단, API 오류, 메모리 부족 등 임계값 설정\n- 백업/복구 절차: 데이터베이스 복원, 설정 롤백 방법\n- 성능 튜닝 가이드: 병목점 식별, 최적화 방안\n\n**7. Testnet/Mainnet 전환 준비:**\n- 환경 분리: testnet/mainnet 설정 검증, API 엔드포인트 자동 전환\n- 프로덕션 체크리스트: 실거래 전 필수 검증 항목\n- 실시간 모니터링: 초기 운영 시 24시간 모니터링 체계",
+        "testStrategy": "**단위 테스트:**\n- 보안 모듈: API 키 암호화/복호화, Rate Limiting 로직 검증\n- 모니터링: 메트릭 수집, 헬스체크 엔드포인트 응답 테스트\n- 백업 시스템: 백업 생성, 복구 시뮬레이션 테스트\n\n**통합 테스트:**\n- End-to-End 배포: Docker Compose로 전체 스택 구동 테스트\n- 모니터링 연동: Prometheus 메트릭 수집, Grafana 대시보드 동작 확인\n- 보안 검증: 화이트리스트 IP 필터링, Rate Limiting 동작 테스트\n\n**운영 테스트:**\n- 장애 시뮬레이션: 프로세스 종료, 네트워크 단절, 메모리 부족 상황 테스트\n- 백업/복구: 실제 데이터로 백업 생성 후 복구 검증\n- 성능 테스트: 부하 테스트로 시스템 한계점 확인\n- 보안 펜테스트: 기본적인 취약점 스캔, API 보안 테스트\n\n**프로덕션 검증:**\n- Testnet 완전 운영: 최소 1주일간 무중단 테스트넷 운영\n- 모니터링 알럿: 모든 알럿 조건에서 정상 동작 확인\n- 배포 시나리오: Blue-Green 배포, 롤백 시나리오 실제 테스트\n- 운영 문서: 런북 기반 실제 장애 대응 시뮬레이션",
+        "status": "pending",
+        "dependencies": [
+          "11"
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Docker 컨테이너화 및 멀티 스테이지 빌드 구현",
+            "description": "Python 3.9 기반 최적화된 Dockerfile 작성과 docker-compose.yml을 통한 전체 서비스 스택 구성",
+            "dependencies": [],
+            "details": "멀티 스테이지 빌드로 프로덕션 이미지 크기 최적화, 트레이딩봇/Redis/Prometheus/Grafana/PostgreSQL 서비스 구성, 환경별 볼륨 마운트 및 네트워크 설정, 헬스체크 및 재시작 정책 구성",
+            "status": "pending",
+            "testStrategy": "Docker 이미지 빌드 성공 검증, 컨테이너 간 네트워크 통신 테스트, 볼륨 퍼시스턴스 확인",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Kubernetes 매니페스트 및 Helm 차트 구성",
+            "description": "Kubernetes 환경에서의 배포를 위한 리소스 정의 및 환경별 Helm 차트 구성",
+            "dependencies": [
+              1
+            ],
+            "details": "Deployment, Service, ConfigMap, Secret, PVC 매니페스트 작성, Helm 차트로 dev/staging/prod 환경별 값 파일 구성, HPA 및 리소스 제한 설정, 네임스페이스 및 RBAC 권한 설정",
+            "status": "pending",
+            "testStrategy": "kubectl apply 성공 검증, Helm 배포 테스트, 파드 상태 및 서비스 디스커버리 확인",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Prometheus 메트릭 수집 및 커스텀 메트릭 구현",
+            "description": "트레이딩 시스템 전용 메트릭 수집과 Prometheus 연동 구현",
+            "dependencies": [],
+            "details": "trading_signals_generated, order_execution_latency, risk_violations, position_pnl 커스텀 메트릭 구현, prometheus_client 라이브러리 통합, 메트릭 익스포터 엔드포인트(/metrics) 구현, 알럿 규칙 정의",
+            "status": "pending",
+            "testStrategy": "메트릭 수집 정확성 검증, Prometheus 스크래핑 성공 확인, 커스텀 메트릭 쿼리 테스트",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Grafana 대시보드 및 시각화 구성",
+            "description": "실시간 트레이딩 성과와 시스템 상태를 위한 Grafana 대시보드 구축",
+            "dependencies": [
+              3
+            ],
+            "details": "실시간 트레이딩 성과, 시스템 상태, 에러율, 레이턴시 대시보드 구성, 알럿 매니저 연동, 임계값 기반 알림 설정, 사용자 권한 및 팀 대시보드 구성",
+            "status": "pending",
+            "testStrategy": "대시보드 렌더링 확인, 실시간 데이터 업데이트 테스트, 알럿 트리거 시뮬레이션",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "보안 강화 - API 키 암호화 및 접근 제어 구현",
+            "description": "API 키 보안 관리와 시스템 접근 제어 메커니즘 구현",
+            "dependencies": [],
+            "details": "cryptography 라이브러리로 AES-256 API 키 암호화, Redis 기반 Rate Limiting(토큰 버킷), IP 화이트리스트 구현, TLS/SSL Let's Encrypt 자동 갱신, 보안 헤더(HSTS, CSP) 설정",
+            "status": "pending",
+            "testStrategy": "암호화/복호화 성능 테스트, Rate Limiting 동작 검증, IP 필터링 테스트, SSL 인증서 검증",
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "OpenTelemetry 분산 트레이싱 구현",
+            "description": "신호 생성부터 주문 실행까지 전체 플로우의 분산 트레이싱 구현",
+            "dependencies": [],
+            "details": "OpenTelemetry SDK 통합, 트레이스 컨텍스트 전파, 스팬 생성 및 태깅, Jaeger 또는 Zipkin 백엔드 연동, 트레이스 샘플링 정책 설정, 성능 영향 최소화",
+            "status": "pending",
+            "testStrategy": "트레이스 생성 및 전파 확인, 백엔드 연동 테스트, 성능 오버헤드 측정",
+            "parentId": "undefined"
+          },
+          {
+            "id": 7,
+            "title": "자동화 시스템 - 백업, 복구, 모니터링 구현",
+            "description": "데이터베이스 백업, 시스템 복구 및 프로세스 모니터링 자동화 구현",
+            "dependencies": [],
+            "details": "systemd 서비스 설정(자동 재시작, 프로세스 감시), 일일 자동 데이터베이스 백업 스크립트, 복구 테스트 자동화, Circuit Breaker 패턴 구현, logrotate 설정",
+            "status": "pending",
+            "testStrategy": "백업 스크립트 실행 확인, 복구 시나리오 테스트, systemd 서비스 안정성 검증",
+            "parentId": "undefined"
+          },
+          {
+            "id": 8,
+            "title": "CI/CD 파이프라인 구축 - GitHub Actions",
+            "description": "자동화된 빌드, 테스트, 배포 파이프라인 구현",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "GitHub Actions 워크플로우 구성(pytest, flake8, mypy, bandit), Blue-Green 배포 전략, 환경별 순차 배포(dev→staging→prod), 수동 승인 게이트, Docker 이미지 태깅 및 레지스트리 관리",
+            "status": "pending",
+            "testStrategy": "파이프라인 전체 사이클 테스트, 배포 실패 시 롤백 검증, 환경별 배포 성공 확인",
+            "parentId": "undefined"
+          },
+          {
+            "id": 9,
+            "title": "헬스체크 및 구조화된 로깅 시스템 구현",
+            "description": "시스템 상태 모니터링을 위한 헬스체크 API와 구조화된 로깅 시스템 구현",
+            "dependencies": [],
+            "details": "FastAPI 기반 /health, /ready, /metrics 엔드포인트 구현, JSON 형태 구조화 로그 설정, ELK Stack 연동 준비, 애플리케이션 메트릭 수집, 로그 레벨 동적 변경 기능",
+            "status": "pending",
+            "testStrategy": "헬스체크 엔드포인트 응답 테스트, 로그 포맷 검증, 메트릭 수집 정확성 확인",
+            "parentId": "undefined"
+          },
+          {
+            "id": 10,
+            "title": "운영 문서 및 런북 작성",
+            "description": "프로덕션 운영을 위한 종합적인 운영 가이드 및 장애 대응 매뉴얼 작성",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "details": "배포 가이드(환경 구성, 시크릿 설정), 장애 대응 매뉴얼(일반 이슈 해결, 에스컬레이션), 모니터링 알럿 정의, 백업/복구 절차 문서화, 성능 튜닝 가이드, Testnet/Mainnet 전환 체크리스트",
+            "status": "pending",
+            "testStrategy": "문서 완성도 검토, 절차 실행 가능성 검증, 체크리스트 항목 검증",
+            "parentId": "undefined"
+          }
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 7,
+        "expansionPrompt": "Docker/Kubernetes 컨테이너화, Prometheus/Grafana 모니터링 설정, 보안 강화 및 키 관리, 운영 자동화 시스템, CI/CD 파이프라인 구축, 운영 문서 작성, Testnet/Mainnet 전환 준비로 나누어 각 영역별로 전문적인 인프라 구성을 구현합니다."
+      },
+      {
+        "id": 13,
+        "title": "프로덕션 최적화 및 메인넷 준비 - 성능 튜닝, 보안 강화, 배포 자동화",
+        "description": "프로덕션 환경에서의 최종 성능 최적화, 보안 강화, CI/CD 파이프라인 구축 및 메인넷 배포를 위한 최종 준비 작업을 수행합니다.",
+        "details": "**1. 성능 최적화 및 튜닝:**\n- 데이터베이스 쿼리 최적화: 인덱스 추가, 슬로우 쿼리 분석 및 개선\n- 메모리 사용량 최적화: 캔들 데이터 캐싱 전략 개선, 메모리 누수 방지\n- API 응답 시간 최적화: 커넥션 풀링, 비동기 처리 최적화\n- Redis 캐싱 전략: 자주 사용되는 데이터 캐싱, TTL 설정 최적화\n\n**2. 고급 보안 강화:**\n- API 키 HSM(Hardware Security Module) 또는 AWS KMS 통합\n- JWT 토큰 기반 인증 시스템 구현\n- 웹훅 서명 검증 강화\n- 네트워크 보안: VPN, 방화벽 규칙 설정\n- 보안 감사 로그 시스템 구현\n\n**3. CI/CD 파이프라인 구축:**\n- GitHub Actions 워크플로우: 테스트, 빌드, 배포 자동화\n- 스테이징 환경 자동 배포\n- 프로덕션 배포 승인 워크플로우\n- 롤백 메커니즘 구현\n- 배포 후 자동 헬스체크\n\n**4. 메인넷 준비:**\n- 테스트넷에서 메인넷으로 전환 체크리스트\n- 실거래 자금 관리 정책 수립\n- 긴급 중지 프로시저 문서화\n- 24/7 모니터링 체계 구축\n- 백업 및 재해 복구 계획 수립\n\n**5. 운영 문서화:**\n- 배포 가이드 및 체크리스트\n- 트러블슈팅 런북\n- 모니터링 알림 대응 매뉴얼\n- 성능 튜닝 가이드\n- 보안 사고 대응 절차",
+        "testStrategy": "**성능 테스트:**\n- Apache Bench, JMeter를 이용한 부하 테스트\n- 메모리 프로파일링 도구로 메모리 사용량 분석\n- 데이터베이스 성능 모니터링 및 쿼리 분석\n- API 응답 시간 벤치마크 측정\n\n**보안 테스트:**\n- 침투 테스트 도구를 이용한 보안 취약점 스캔\n- API 키 암호화/복호화 성능 테스트\n- JWT 토큰 검증 로직 테스트\n- 네트워크 보안 설정 검증\n\n**배포 테스트:**\n- CI/CD 파이프라인 전체 사이클 테스트\n- 스테이징 환경에서 자동 배포 검증\n- 롤백 시나리오 테스트\n- 배포 후 헬스체크 자동화 검증\n\n**메인넷 준비 검증:**\n- 테스트넷에서 메인넷 전환 시뮬레이션\n- 실거래 환경에서의 제한된 규모 테스트\n- 긴급 중지 시나리오 테스트\n- 모니터링 알림 시스템 전체 테스트",
+        "status": "pending",
+        "dependencies": [
+          "12"
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "성능 최적화 및 튜닝 구현",
+            "description": "데이터베이스 쿼리 최적화, 메모리 사용량 최적화, API 응답 시간 개선 및 Redis 캐싱 전략을 구현하여 프로덕션 환경에서의 성능을 최적화합니다.",
+            "dependencies": [],
+            "details": "데이터베이스 인덱스 추가 및 슬로우 쿼리 분석, 캔들 데이터 캐싱 전략 개선과 메모리 누수 방지, 커넥션 풀링 및 비동기 처리 최적화, Redis TTL 설정 및 캐싱 정책 구현을 통해 전반적인 시스템 성능을 향상시킵니다.",
+            "status": "pending",
+            "testStrategy": "Apache Bench와 JMeter를 이용한 부하 테스트, 메모리 프로파일링 도구를 통한 사용량 분석, 데이터베이스 성능 모니터링 및 API 응답 시간 벤치마크 측정을 수행합니다."
+          },
+          {
+            "id": 2,
+            "title": "고급 보안 강화 시스템 구축",
+            "description": "HSM/KMS 통합, JWT 토큰 기반 인증, 웹훅 서명 검증 강화, 네트워크 보안 및 보안 감사 로그 시스템을 구현하여 프로덕션 수준의 보안을 확보합니다.",
+            "dependencies": [
+              1
+            ],
+            "details": "API 키 HSM 또는 AWS KMS 통합으로 키 관리 보안 강화, JWT 토큰 기반 인증 시스템 구현, 웹훅 서명 검증 로직 강화, VPN 및 방화벽 규칙 설정, 모든 보안 이벤트에 대한 감사 로그 시스템을 구축합니다.",
+            "status": "pending",
+            "testStrategy": "침투 테스트 도구를 이용한 보안 취약점 스캔, API 키 암호화/복호화 성능 테스트, JWT 토큰 검증 로직 테스트, 네트워크 보안 설정 검증을 수행합니다."
+          },
+          {
+            "id": 3,
+            "title": "CI/CD 파이프라인 완성",
+            "description": "GitHub Actions 워크플로우 구축, 스테이징 환경 자동 배포, 프로덕션 배포 승인 프로세스, 롤백 메커니즘 및 배포 후 헬스체크를 구현합니다.",
+            "dependencies": [
+              2
+            ],
+            "details": "GitHub Actions를 통한 테스트, 빌드, 배포 자동화 워크플로우 구성, 스테이징 환경으로의 자동 배포 파이프라인, 프로덕션 배포를 위한 승인 워크플로우, 배포 실패 시 자동 롤백 메커니즘, 배포 후 자동 헬스체크 시스템을 구축합니다.",
+            "status": "pending",
+            "testStrategy": "CI/CD 파이프라인 전체 사이클 테스트, 스테이징 환경에서 자동 배포 검증, 롤백 시나리오 테스트, 배포 후 헬스체크 동작 확인을 수행합니다."
+          },
+          {
+            "id": 4,
+            "title": "메인넷 전환 준비 및 체크리스트 완성",
+            "description": "테스트넷에서 메인넷으로의 안전한 전환을 위한 체크리스트 작성, 실거래 자금 관리 정책 수립, 긴급 중지 프로시저 및 24/7 모니터링 체계를 구축합니다.",
+            "dependencies": [
+              3
+            ],
+            "details": "테스트넷에서 메인넷 전환을 위한 상세 체크리스트 작성, 실거래 자금의 안전한 관리 정책 및 절차 수립, 긴급 상황 시 시스템 중지 프로시저 문서화, 24시간 시스템 모니터링 체계 구축, 백업 및 재해 복구 계획을 수립합니다.",
+            "status": "pending",
+            "testStrategy": "메인넷 전환 시나리오 시뮬레이션, 긴급 중지 프로시저 테스트, 모니터링 알림 시스템 동작 확인, 백업 및 복구 절차 검증을 수행합니다."
+          },
+          {
+            "id": 5,
+            "title": "운영 문서화 및 매뉴얼 작성",
+            "description": "배포 가이드, 트러블슈팅 런북, 모니터링 알림 대응 매뉴얼, 성능 튜닝 가이드 및 보안 사고 대응 절차를 포함한 종합적인 운영 문서를 작성합니다.",
+            "dependencies": [
+              4
+            ],
+            "details": "단계별 배포 가이드 및 체크리스트 작성, 시스템 장애 시 대응을 위한 트러블슈팅 런북, 모니터링 알림 발생 시 대응 매뉴얼, 성능 최적화를 위한 튜닝 가이드, 보안 사고 발생 시 대응 절차를 포함한 포괄적인 운영 문서를 완성합니다.",
+            "status": "pending",
+            "testStrategy": "문서의 정확성 검증을 위한 실제 시나리오 테스트, 운영진의 문서 이해도 테스트, 각 매뉴얼의 실행 가능성 검증을 수행합니다."
+          }
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "성능 최적화 및 튜닝, 고급 보안 강화, CI/CD 파이프라인 완성, 메인넷 준비 작업, 운영 문서 완성으로 나누어 실제 거래 환경으로의 전환을 위한 최종 준비 작업을 체계적으로 수행합니다."
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T08:23:49.188Z",
-      "taskCount": 10,
+      "lastModified": "2025-10-31T20:46:32.127Z",
+      "taskCount": 13,
       "completedCount": 10,
       "tags": [
         "master"
-      ]
+      ],
+      "created": "2025-10-31T20:50:30.780Z",
+      "description": "Tasks for master context",
+      "updated": "2025-10-31T21:13:58.534Z"
     }
   }
 }
