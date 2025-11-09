@@ -1,0 +1,98 @@
+# Trading System Configuration Example
+# Copy this file to create your own configuration:
+#   cp config/config.example.yaml config/my_config.yaml
+#
+# Then edit the values according to your needs.
+# The system will automatically detect and reload changes.
+
+# ================================
+# Binance API Configuration
+# ================================
+# Configure your Binance API credentials in .env file:
+#   BINANCE_TESTNET_API_KEY=your_testnet_key
+#   BINANCE_TESTNET_SECRET_KEY=your_testnet_secret
+#   BINANCE_MAINNET_API_KEY=your_mainnet_key
+#   BINANCE_MAINNET_SECRET_KEY=your_mainnet_secret
+
+binance:
+  testnet: true  # true for testnet, false for mainnet
+  # Note: API keys are loaded from .env file for security
+
+# ================================
+# Trading Configuration
+# ================================
+trading:
+  mode: paper  # Trading mode: paper (simulation) or live (real trading)
+  default_leverage: 10  # Default leverage for futures positions (1-125)
+  max_position_size_usdt: 1000.0  # Maximum position size in USDT
+  risk_per_trade_percent: 1.0  # Risk per trade as percentage of capital (0.1-5.0)
+
+# ================================
+# Database Configuration
+# ================================
+database:
+  path: data/tradingbot.db  # SQLite database file path
+
+# ================================
+# Logging Configuration
+# ================================
+logging:
+  level: INFO  # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file_path: logs/tradingbot.log  # Log file path
+  max_size_mb: 10  # Maximum log file size in MB before rotation
+  backup_count: 5  # Number of backup log files to keep
+
+# ================================
+# API Server Configuration
+# ================================
+api:
+  host: 0.0.0.0  # API server host (0.0.0.0 for all interfaces)
+  port: 8000  # API server port
+  reload: false  # Enable auto-reload for development (true/false)
+
+# ================================
+# ICT Indicator Configuration
+# ================================
+ict:
+  fvg_min_size_percent: 0.1  # Minimum Fair Value Gap size as % of price (0.05-1.0)
+  ob_lookback_periods: 100   # Lookback periods for Order Block detection (20-200)
+  liquidity_sweep_threshold: 0.5  # Threshold for liquidity sweep (0.1-1.0)
+
+# ================================
+# Strategy Enable/Disable
+# ================================
+strategy:
+  enable_strategy_1: true  # Enable/disable Strategy 1 (Conservative)
+  enable_strategy_2: true  # Enable/disable Strategy 2 (Aggressive)
+  enable_strategy_3: true  # Enable/disable Strategy 3 (Hybrid)
+
+# ================================
+# Hot-Reload Feature
+# ================================
+# The configuration system automatically watches this file for changes.
+# When you save changes to this file, the system will:
+#   1. Detect the file modification
+#   2. Reload the configuration
+#   3. Validate the new settings
+#   4. Apply changes without restart
+#   5. Emit CONFIG_UPDATED event
+#
+# If validation fails, the system will rollback to the previous
+# configuration automatically.
+
+# ================================
+# Environment Switching
+# ================================
+# To switch environments safely:
+#   1. Use the API: POST /api/config/environment {"testnet": true/false}
+#   2. Or reload a different config file
+#   3. Or update this file and save (auto-reload)
+#
+# The system validates credentials before switching.
+
+# ================================
+# Configuration History & Rollback
+# ================================
+# The system keeps a history of the last 20 configuration changes.
+# You can rollback to previous configurations using:
+#   POST /api/config/rollback {"steps": 1}

@@ -1,0 +1,42 @@
+# Testnet Environment Configuration
+# Configuration optimized for Binance testnet trading
+
+# Binance API Configuration
+binance:
+  testnet: true  # TESTNET ENVIRONMENT
+
+# Trading Configuration
+trading:
+  mode: paper  # Safe mode for testing
+  default_leverage: 5  # Lower leverage for testing
+  max_position_size_usdt: 500.0  # Smaller positions for testing
+  risk_per_trade_percent: 0.5  # Lower risk for testing
+
+# Database Configuration
+database:
+  path: data/tradingbot_testnet.db  # Separate database for testnet
+
+# Logging Configuration
+logging:
+  level: DEBUG  # More verbose logging for testing
+  file_path: logs/tradingbot_testnet.log
+  max_size_mb: 10
+  backup_count: 5
+
+# API Server Configuration
+api:
+  host: 0.0.0.0
+  port: 8000
+  reload: true  # Enable auto-reload for development
+
+# ICT Indicator Configuration
+ict:
+  fvg_min_size_percent: 0.15  # More conservative for testing
+  ob_lookback_periods: 50     # Shorter lookback for faster testing
+  liquidity_sweep_threshold: 0.6  # Higher threshold for testing
+
+# Strategy Enable/Disable Configuration
+strategy:
+  enable_strategy_1: true
+  enable_strategy_2: true
+  enable_strategy_3: false  # Test with fewer strategies

@@ -16,6 +16,7 @@ from threading import Lock
 from src.core.events import EventBus, Event, EventHandler
 from src.core.constants import EventType
 from src.core.config import BinanceConfig
+from src.core.config_manager import ConfigurationManager
 from src.core.background_tasks import (
     BackgroundTaskManager,
     TaskConfig,
@@ -584,7 +585,8 @@ class TradingSystemOrchestrator:
         self,
         config: Optional[BinanceConfig] = None,
         enable_testnet: bool = True,
-        max_event_queue_size: int = 10000
+        max_event_queue_size: int = 10000,
+        config_manager: Optional[ConfigurationManager] = None,
     ):
         """
         Initialize trading system orchestrator.
@@ -593,6 +595,7 @@ class TradingSystemOrchestrator:
             config: Binance configuration (uses default if None)
             enable_testnet: Whether to use testnet environment
             max_event_queue_size: Maximum event queue size
+            config_manager: Global configuration manager (created if None)
         """
         self.config = config or BinanceConfig()
         self.config.testnet = enable_testnet
@@ -609,6 +612,7 @@ class TradingSystemOrchestrator:
 
         # Core components (initialized in _initialize_services)
         self.event_bus: Optional[EventBus] = None
+        self.config_manager: Optional[ConfigurationManager] = config_manager
         self.db_engine = db_engine  # Module reference for database operations
         self.binance_manager: Optional[BinanceManager] = None
         self.candle_storage: Optional[CandleStorage] = None

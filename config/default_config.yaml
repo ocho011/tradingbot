@@ -1,0 +1,43 @@
+# Default Trading System Configuration
+# This file defines the default configuration for the trading system.
+# Copy this file to create environment-specific configurations.
+
+# Binance API Configuration
+binance:
+  testnet: true  # Use testnet by default for safety
+
+# Trading Configuration
+trading:
+  mode: paper  # paper or live
+  default_leverage: 10
+  max_position_size_usdt: 1000.0
+  risk_per_trade_percent: 1.0
+
+# Database Configuration
+database:
+  path: data/tradingbot.db
+
+# Logging Configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file_path: logs/tradingbot.log
+  max_size_mb: 10
+  backup_count: 5
+
+# API Server Configuration
+api:
+  host: 0.0.0.0
+  port: 8000
+  reload: false  # Enable auto-reload for development
+
+# ICT Indicator Configuration
+ict:
+  fvg_min_size_percent: 0.1  # Minimum FVG size as percentage of price
+  ob_lookback_periods: 100   # Lookback periods for Order Blocks
+  liquidity_sweep_threshold: 0.5  # Threshold for liquidity sweep detection
+
+# Strategy Enable/Disable Configuration
+strategy:
+  enable_strategy_1: true
+  enable_strategy_2: true
+  enable_strategy_3: true

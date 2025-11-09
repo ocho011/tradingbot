@@ -116,6 +116,7 @@ class EventType(str, Enum):
     SYSTEM_START = "system_start"
     SYSTEM_STOP = "system_stop"
     ERROR_OCCURRED = "error_occurred"
+    CONFIG_UPDATED = "config_updated"
 
 
 # Trading pairs

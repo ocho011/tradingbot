@@ -1,0 +1,43 @@
+# Mainnet Environment Configuration
+# Configuration optimized for live Binance mainnet trading
+# ⚠️ WARNING: This configuration uses REAL MONEY - use with caution!
+
+# Binance API Configuration
+binance:
+  testnet: false  # ⚠️ MAINNET ENVIRONMENT - REAL MONEY
+
+# Trading Configuration
+trading:
+  mode: live  # ⚠️ LIVE TRADING MODE
+  default_leverage: 10
+  max_position_size_usdt: 1000.0
+  risk_per_trade_percent: 1.0
+
+# Database Configuration
+database:
+  path: data/tradingbot_mainnet.db  # Separate database for mainnet
+
+# Logging Configuration
+logging:
+  level: INFO  # Production logging level
+  file_path: logs/tradingbot_mainnet.log
+  max_size_mb: 50  # Larger log files for production
+  backup_count: 10  # More backups for production
+
+# API Server Configuration
+api:
+  host: 0.0.0.0
+  port: 8000
+  reload: false  # No auto-reload in production
+
+# ICT Indicator Configuration
+ict:
+  fvg_min_size_percent: 0.1
+  ob_lookback_periods: 100
+  liquidity_sweep_threshold: 0.5
+
+# Strategy Enable/Disable Configuration
+strategy:
+  enable_strategy_1: true
+  enable_strategy_2: true
+  enable_strategy_3: true

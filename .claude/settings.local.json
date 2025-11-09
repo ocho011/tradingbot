@@ -33,7 +33,22 @@
       "mcp__serena__search_for_pattern",
       "mcp__serena__insert_after_symbol",
       "mcp__task-master-ai__update_subtask",
-      "mcp__task-master-ai__next_task"
+      "mcp__task-master-ai__next_task",
+      "Bash(task-master show:*)",
+      "mcp__task-master-ai__expand_task",
+      "Bash(git add:*)",
+      "mcp__serena__insert_before_symbol",
+      "mcp__serena__replace_symbol_body",
+      "Bash(pkill:*)",
+      "Bash(tee:*)",
+      "Bash(killall:*)",
+      "Bash(python3:*)",
+      "Bash(timeout 30 python3:*)",
+      "Bash(echo \"TIMEOUT OR ERROR: $?\")",
+      "mcp__serena__find_referencing_symbols",
+      "Bash(cat:*)",
+      "mcp__task-master-ai__get_tasks",
+      "Bash(env)"
     ]
   },
   "enableAllProjectMcpServers": true,
