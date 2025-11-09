@@ -1,0 +1,813 @@
+"""
+FastAPI-based REST API Server for Trading System.
+
+Provides endpoints for system status, configuration management, metrics monitoring,
+and real-time system control. Includes authentication, CORS, and comprehensive
+API documentation via Swagger UI.
+"""
+
+import logging
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+from fastapi import FastAPI, HTTPException, Depends, status, Security
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+import uvicorn
+
+from src.core.config_manager import ConfigurationManager
+from src.core.metrics import MetricsCollector, MonitoringSystem
+from src.core.orchestrator import TradingSystemOrchestrator
+
+logger = logging.getLogger(__name__)
+
+# Security
+security = HTTPBearer(auto_error=False)
+
+# Global instances (will be initialized in lifespan)
+orchestrator: Optional[TradingSystemOrchestrator] = None
+config_manager: Optional[ConfigurationManager] = None
+metrics_collector: Optional[MetricsCollector] = None
+monitoring_system: Optional[MonitoringSystem] = None
+
+
+# ============================================================================
+# Request/Response Models
+# ============================================================================
+
+class HealthResponse(BaseModel):
+    """Health check response."""
+    status: str = Field(..., description="Health status: healthy, degraded, unhealthy")
+    timestamp: datetime = Field(default_factory=datetime.now)
+    uptime_seconds: float = Field(..., description="System uptime in seconds")
+    components: Dict[str, str] = Field(default_factory=dict, description="Component health statuses")
+
+
+class SystemStatusResponse(BaseModel):
+    """Detailed system status response."""
+    system_state: str = Field(..., description="Current system state")
+    environment: str = Field(..., description="Environment: testnet or mainnet")
+    trading_mode: str = Field(..., description="Trading mode")
+    services: Dict[str, Any] = Field(default_factory=dict, description="Service states")
+    uptime_seconds: float = Field(..., description="System uptime")
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class ConfigUpdateRequest(BaseModel):
+    """Configuration update request."""
+    section: str = Field(..., description="Configuration section to update")
+    updates: Dict[str, Any] = Field(..., description="Configuration updates")
+    validate: bool = Field(True, description="Validate before applying")
+
+
+class ConfigUpdateResponse(BaseModel):
+    """Configuration update response."""
+    success: bool
+    message: str
+    section: str
+    applied_updates: Dict[str, Any]
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class EnvironmentSwitchRequest(BaseModel):
+    """Environment switch request."""
+    to_testnet: bool = Field(..., description="True for testnet, False for mainnet")
+
+
+class RollbackRequest(BaseModel):
+    """Configuration rollback request."""
+    steps: int = Field(1, ge=1, le=10, description="Number of steps to rollback")
+
+
+class MetricsResponse(BaseModel):
+    """Metrics response."""
+    timestamp: datetime = Field(default_factory=datetime.now)
+    system_metrics: Dict[str, Any] = Field(default_factory=dict)
+    component_metrics: Dict[str, Any] = Field(default_factory=dict)
+    performance_metrics: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response."""
+    error: str
+    detail: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+# ============================================================================
+# Authentication & Authorization
+# ============================================================================
+
+async def verify_token(
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(security)
+) -> Dict[str, Any]:
+    """
+    Verify authentication token.
+
+    Currently implements a simple token verification.
+    In production, integrate with proper OAuth2/JWT validation.
+
+    Args:
+        credentials: HTTP authorization credentials
+
+    Returns:
+        User information dict
+
+    Raises:
+        HTTPException: If authentication fails
+    """
+    if credentials is None:
+        # For development/testing, allow anonymous access
+        # In production, raise HTTPException
+        return {"user": "anonymous", "role": "read-only"}
+
+    token = credentials.credentials
+
+    # TODO: Implement proper JWT/OAuth2 validation
+    # For now, simple token check
+    if not token or len(token) < 10:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Mock user info - replace with real JWT decoding
+    return {
+        "user": "authenticated_user",
+        "role": "admin",  # Could be: admin, trader, read-only
+        "token": token
+    }
+
+
+async def require_admin(_user: Dict[str, Any] = Depends(verify_token)) -> Dict[str, Any]:
+    """
+    Require admin role for protected endpoints.
+
+    Args:
+        _user: User information from verify_token (prefixed with _ to indicate unused in endpoint body)
+
+    Returns:
+        User information if authorized
+
+    Raises:
+        HTTPException: If user lacks admin permissions
+    """
+    if _user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required for this operation"
+        )
+    return _user
+
+
+# ============================================================================
+# Application Lifecycle
+# ============================================================================
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """
+    Application lifespan context manager.
+
+    Handles startup and shutdown of the trading system and all services.
+    """
+    global orchestrator, config_manager, metrics_collector, monitoring_system
+
+    logger.info("Starting API server and trading system...")
+
+    try:
+        # Initialize core systems
+        # Note: In production, these would be injected via dependency injection
+        # For now, we'll initialize them here
+
+        # These will be initialized by the main application
+        # and passed to the API server
+
+        logger.info("API server initialized successfully")
+
+        yield  # Application runs
+
+    except Exception as e:
+        logger.error(f"Error during API server startup: {e}", exc_info=True)
+        raise
+    finally:
+        logger.info("Shutting down API server...")
+
+        # Cleanup will be handled by the orchestrator
+        # when the main application shuts down
+
+        logger.info("API server shutdown complete")
+
+
+# ============================================================================
+# FastAPI Application
+# ============================================================================
+
+app = FastAPI(
+    title="Trading System API",
+    description="REST API for cryptocurrency trading system management and monitoring",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    lifespan=lifespan,
+)
+
+# ============================================================================
+# CORS Configuration
+# ============================================================================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # React development
+        "http://localhost:8080",  # Vue development
+        "http://localhost:5173",  # Vite development
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
+
+# ============================================================================
+# Custom Middleware for Security Headers
+# ============================================================================
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    """Add security headers to all responses."""
+    response = await call_next(request)
+
+    # Security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+
+    return response
+
+
+# ============================================================================
+# Health & Status Endpoints
+# ============================================================================
+
+@app.get(
+    "/health",
+    response_model=HealthResponse,
+    summary="Health Check",
+    description="Quick health check endpoint for load balancers and monitoring systems",
+    tags=["System"]
+)
+async def health_check() -> HealthResponse:
+    """
+    Quick health check endpoint.
+
+    Returns basic health status without requiring authentication.
+    Suitable for load balancer health checks.
+    """
+    try:
+        # Calculate uptime
+        uptime = 0.0
+        if monitoring_system:
+            uptime = (datetime.now() - monitoring_system._metrics_collector._start_time).total_seconds()
+
+        # Get component health if available
+        components = {}
+        if monitoring_system:
+            health_checks = monitoring_system.get_health_status()
+            components = {
+                check.component: check.status.value
+                for check in health_checks
+            }
+
+        # Determine overall health
+        if components:
+            unhealthy_count = sum(
+                1 for status in components.values()
+                if status == "unhealthy"
+            )
+            degraded_count = sum(
+                1 for status in components.values()
+                if status == "degraded"
+            )
+
+            if unhealthy_count > 0:
+                overall_status = "unhealthy"
+            elif degraded_count > 0:
+                overall_status = "degraded"
+            else:
+                overall_status = "healthy"
+        else:
+            overall_status = "healthy"
+
+        return HealthResponse(
+            status=overall_status,
+            uptime_seconds=uptime,
+            components=components
+        )
+
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return HealthResponse(
+            status="unhealthy",
+            uptime_seconds=0.0,
+            components={"error": str(e)}
+        )
+
+
+@app.get(
+    "/status",
+    response_model=SystemStatusResponse,
+    summary="System Status",
+    description="Get detailed system status including all services and components",
+    tags=["System"]
+)
+async def get_system_status(
+    _user: Dict[str, Any] = Depends(verify_token)
+) -> SystemStatusResponse:
+    """
+    Get comprehensive system status.
+
+    Requires authentication. Returns detailed information about
+    system state, services, and configuration.
+    """
+    try:
+        # Get orchestrator status
+        system_state = "offline"
+        services = {}
+
+        if orchestrator:
+            status = orchestrator.get_status()
+            system_state = status.get("state", "offline")
+            services = status.get("services", {})
+
+        # Get configuration
+        environment = "unknown"
+        trading_mode = "unknown"
+
+        if config_manager:
+            config_status = config_manager.get_status()
+            environment = config_status.get("environment", "unknown")
+            trading_mode = config_status.get("trading_mode", "unknown")
+
+        # Calculate uptime
+        uptime = 0.0
+        if monitoring_system:
+            uptime = (datetime.now() - monitoring_system._metrics_collector._start_time).total_seconds()
+
+        return SystemStatusResponse(
+            system_state=system_state,
+            environment=environment,
+            trading_mode=trading_mode,
+            services=services,
+            uptime_seconds=uptime
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get system status: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve system status: {str(e)}"
+        )
+
+
+# ============================================================================
+# Configuration Management Endpoints
+# ============================================================================
+
+@app.get(
+    "/config",
+    summary="Get Configuration",
+    description="Get current system configuration",
+    tags=["Configuration"]
+)
+async def get_configuration(
+    _user: Dict[str, Any] = Depends(verify_token)
+) -> Dict[str, Any]:
+    """
+    Get current system configuration.
+
+    Returns the complete current configuration including all sections.
+    """
+    if not config_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Configuration manager not available"
+        )
+
+    try:
+        config_status = config_manager.get_status()
+        return {
+            "success": True,
+            "configuration": config_status.get("current_config", {}),
+            "metadata": {
+                "environment": config_status.get("environment"),
+                "trading_mode": config_status.get("trading_mode"),
+                "history_size": config_status.get("history_size"),
+                "file_watching_enabled": config_status.get("file_watching_enabled"),
+                "auto_save_enabled": config_status.get("auto_save_enabled"),
+            },
+            "timestamp": datetime.now()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get configuration: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve configuration: {str(e)}"
+        )
+
+
+@app.post(
+    "/config/update",
+    response_model=ConfigUpdateResponse,
+    summary="Update Configuration",
+    description="Update specific configuration section at runtime",
+    tags=["Configuration"]
+)
+async def update_configuration(
+    request: ConfigUpdateRequest,
+    _user: Dict[str, Any] = Depends(require_admin)
+) -> ConfigUpdateResponse:
+    """
+    Update configuration at runtime.
+
+    Requires admin privileges. Updates are validated before being applied
+    and can be rolled back if needed.
+    """
+    if not config_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Configuration manager not available"
+        )
+
+    try:
+        success = config_manager.update_config(
+            section=request.section,
+            updates=request.updates,
+            validate=request.validate
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Configuration update failed validation"
+            )
+
+        return ConfigUpdateResponse(
+            success=True,
+            message=f"Configuration section '{request.section}' updated successfully",
+            section=request.section,
+            applied_updates=request.updates
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (like validation failures)
+        raise
+    except Exception as e:
+        logger.error(f"Configuration update failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Configuration update failed: {str(e)}"
+        )
+
+
+@app.post(
+    "/config/switch-environment",
+    summary="Switch Environment",
+    description="Switch between testnet and mainnet environments",
+    tags=["Configuration"]
+)
+async def switch_environment(
+    request: EnvironmentSwitchRequest,
+    _user: Dict[str, Any] = Depends(require_admin)
+) -> Dict[str, Any]:
+    """
+    Switch between testnet and mainnet.
+
+    Requires admin privileges. This is a critical operation that
+    requires system restart for full effect.
+    """
+    if not config_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Configuration manager not available"
+        )
+
+    try:
+        success = config_manager.switch_environment(to_testnet=request.to_testnet)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Environment switch failed"
+            )
+
+        target_env = "testnet" if request.to_testnet else "mainnet"
+
+        return {
+            "success": True,
+            "message": f"Successfully switched to {target_env}",
+            "environment": target_env,
+            "warning": "System restart recommended for full effect",
+            "timestamp": datetime.now()
+        }
+
+    except Exception as e:
+        logger.error(f"Environment switch failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Environment switch failed: {str(e)}"
+        )
+
+
+@app.post(
+    "/config/rollback",
+    summary="Rollback Configuration",
+    description="Rollback to previous configuration state",
+    tags=["Configuration"]
+)
+async def rollback_configuration(
+    request: RollbackRequest,
+    _user: Dict[str, Any] = Depends(require_admin)
+) -> Dict[str, Any]:
+    """
+    Rollback configuration to previous state.
+
+    Requires admin privileges. Can rollback up to 10 steps.
+    """
+    if not config_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Configuration manager not available"
+        )
+
+    try:
+        success = config_manager.rollback(steps=request.steps)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Configuration rollback failed - no history available"
+            )
+
+        return {
+            "success": True,
+            "message": f"Successfully rolled back {request.steps} step(s)",
+            "steps": request.steps,
+            "timestamp": datetime.now()
+        }
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (like validation failures)
+        raise
+    except Exception as e:
+        logger.error(f"Configuration rollback failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Configuration rollback failed: {str(e)}"
+        )
+
+
+@app.get(
+    "/config/history",
+    summary="Configuration History",
+    description="Get configuration change history",
+    tags=["Configuration"]
+)
+async def get_config_history(
+    limit: int = 10,
+    _user: Dict[str, Any] = Depends(verify_token)
+) -> Dict[str, Any]:
+    """
+    Get configuration change history.
+
+    Returns up to 'limit' most recent configuration changes.
+    """
+    if not config_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Configuration manager not available"
+        )
+
+    try:
+        history = config_manager.get_history(limit=min(limit, 50))
+
+        return {
+            "success": True,
+            "history": history,
+            "count": len(history),
+            "timestamp": datetime.now()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get configuration history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve configuration history: {str(e)}"
+        )
+
+
+# ============================================================================
+# Metrics & Monitoring Endpoints
+# ============================================================================
+
+@app.get(
+    "/metrics",
+    response_model=MetricsResponse,
+    summary="System Metrics",
+    description="Get comprehensive system metrics and performance data",
+    tags=["Metrics"]
+)
+async def get_metrics(
+    _user: Dict[str, Any] = Depends(verify_token)
+) -> MetricsResponse:
+    """
+    Get comprehensive system metrics.
+
+    Returns performance metrics, component health, and system statistics.
+    """
+    try:
+        system_metrics = {}
+        component_metrics = {}
+        performance_metrics = {}
+
+        if monitoring_system:
+            # System metrics from system metrics collector
+            sys_metrics = monitoring_system._system_metrics
+            system_metrics = {
+                "cpu_percent": sys_metrics.get_cpu_usage(),
+                "memory_percent": sys_metrics.get_memory_usage(),
+                "disk_percent": sys_metrics.get_disk_usage(),
+                "uptime_seconds": (datetime.now() - monitoring_system._metrics_collector._start_time).total_seconds()
+            }
+
+            # Performance metrics (would be collected from components)
+            performance_metrics = {
+                "api_latency_ms": 0,
+                "throughput_per_sec": 0,
+                "error_rate": 0
+            }
+
+        if metrics_collector:
+            # Component-specific metrics
+            # This would aggregate metrics from various components
+            pass
+
+        return MetricsResponse(
+            system_metrics=system_metrics,
+            component_metrics=component_metrics,
+            performance_metrics=performance_metrics
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve metrics: {str(e)}"
+        )
+
+
+@app.get(
+    "/metrics/components/{component_name}",
+    summary="Component Metrics",
+    description="Get metrics for a specific component",
+    tags=["Metrics"]
+)
+async def get_component_metrics(
+    component_name: str,
+    _user: Dict[str, Any] = Depends(verify_token)
+) -> Dict[str, Any]:
+    """
+    Get metrics for a specific component.
+
+    Args:
+        component_name: Name of the component (e.g., 'binance', 'strategy', 'risk')
+    """
+    if not monitoring_system:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Monitoring system not available"
+        )
+
+    try:
+        # Get component health
+        health_checks = monitoring_system.get_health_status()
+        component_health = next(
+            (check for check in health_checks if check.component == component_name),
+            None
+        )
+
+        if not component_health:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Component '{component_name}' not found"
+            )
+
+        return {
+            "component": component_name,
+            "health": component_health.status.value,
+            "message": component_health.message,
+            "details": component_health.details,
+            "response_time_ms": component_health.response_time_ms,
+            "timestamp": component_health.timestamp
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get component metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve component metrics: {str(e)}"
+        )
+
+
+# ============================================================================
+# Error Handlers
+# ============================================================================
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(_request, exc: HTTPException):
+    """Handle HTTP exceptions with structured error response."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": exc.detail,
+            "status_code": exc.status_code,
+            "timestamp": datetime.now().isoformat()
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(_request, exc: Exception):
+    """Handle unexpected exceptions."""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": "Internal server error",
+            "detail": str(exc) if logger.level <= logging.DEBUG else None,
+            "timestamp": datetime.now().isoformat()
+        }
+    )
+
+
+# ============================================================================
+# Server Runner
+# ============================================================================
+
+def run_server(
+    host: str = "0.0.0.0",
+    port: int = 8000,
+    reload: bool = False,
+    log_level: str = "info",
+    orchestrator_instance: Optional[TradingSystemOrchestrator] = None,
+    config_manager_instance: Optional[ConfigurationManager] = None,
+    metrics_collector_instance: Optional[MetricsCollector] = None,
+    monitoring_system_instance: Optional[MonitoringSystem] = None,
+) -> None:
+    """
+    Run the FastAPI server.
+
+    Args:
+        host: Host to bind to
+        port: Port to bind to
+        reload: Enable auto-reload for development
+        log_level: Logging level
+        orchestrator_instance: TradingSystemOrchestrator instance
+        config_manager_instance: ConfigurationManager instance
+        metrics_collector_instance: MetricsCollector instance
+        monitoring_system_instance: MonitoringSystem instance
+    """
+    global orchestrator, config_manager, metrics_collector, monitoring_system
+
+    # Set global instances
+    orchestrator = orchestrator_instance
+    config_manager = config_manager_instance
+    metrics_collector = metrics_collector_instance
+    monitoring_system = monitoring_system_instance
+
+    logger.info(f"Starting API server on {host}:{port}")
+
+    uvicorn.run(
+        "src.api.server:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level=log_level,
+        access_log=True,
+    )
+
+
+if __name__ == "__main__":
+    # For development/testing
+    run_server(reload=True, log_level="debug")
