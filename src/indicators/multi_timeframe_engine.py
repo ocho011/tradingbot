@@ -845,6 +845,7 @@ class MultiTimeframeIndicatorEngine:
                     EventType.INDICATORS_UPDATED,
                     timeframe,
                     {
+                        'symbol': tf_data.candles[0].symbol if tf_data.candles else "UNKNOWN",
                         'order_blocks_count': len(tf_data.indicators.order_blocks),
                         'fair_value_gaps_count': len(tf_data.indicators.fair_value_gaps),
                         'breaker_blocks_count': len(tf_data.indicators.breaker_blocks),

@@ -9,7 +9,6 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from decimal import Decimal
 from enum import Enum
 from typing import Dict, List, Optional, Any, Callable
 from threading import Lock
@@ -97,6 +96,455 @@ class OrchestratorError(Exception):
     pass
 
 
+# Pipeline Event Handlers
+
+
+class PipelineMetrics:
+    """Metrics for pipeline performance monitoring."""
+
+    def __init__(self):
+        """Initialize pipeline metrics."""
+        self.candles_received = 0
+        self.candles_processed = 0
+        self.indicators_calculated = 0
+        self.signals_generated = 0
+        self.orders_executed = 0
+        self.errors = 0
+        self.processing_times: Dict[str, List[float]] = {
+            "candle_to_indicator": [],
+            "indicator_to_signal": [],
+            "signal_to_risk": [],
+            "risk_to_order": [],
+            "order_to_position": [],
+        }
+        self._lock = Lock()
+
+    def record_candle(self) -> None:
+        """Record candle received."""
+        with self._lock:
+            self.candles_received += 1
+
+    def record_processed(self) -> None:
+        """Record candle processed."""
+        with self._lock:
+            self.candles_processed += 1
+
+    def record_indicator(self) -> None:
+        """Record indicator calculation."""
+        with self._lock:
+            self.indicators_calculated += 1
+
+    def record_signal(self) -> None:
+        """Record signal generation."""
+        with self._lock:
+            self.signals_generated += 1
+
+    def record_order(self) -> None:
+        """Record order execution."""
+        with self._lock:
+            self.orders_executed += 1
+
+    def record_error(self) -> None:
+        """Record pipeline error."""
+        with self._lock:
+            self.errors += 1
+
+    def record_processing_time(self, stage: str, duration: float) -> None:
+        """
+        Record processing time for a pipeline stage.
+
+        Args:
+            stage: Pipeline stage name
+            duration: Processing duration in seconds
+        """
+        with self._lock:
+            if stage in self.processing_times:
+                self.processing_times[stage].append(duration)
+                # Keep only last 100 measurements
+                if len(self.processing_times[stage]) > 100:
+                    self.processing_times[stage].pop(0)
+
+    def get_avg_processing_time(self, stage: str) -> Optional[float]:
+        """Get average processing time for a stage."""
+        with self._lock:
+            times = self.processing_times.get(stage, [])
+            return sum(times) / len(times) if times else None
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get all pipeline statistics."""
+        with self._lock:
+            avg_times = {
+                stage: self.get_avg_processing_time(stage)
+                for stage in self.processing_times.keys()
+            }
+            return {
+                "candles_received": self.candles_received,
+                "candles_processed": self.candles_processed,
+                "indicators_calculated": self.indicators_calculated,
+                "signals_generated": self.signals_generated,
+                "orders_executed": self.orders_executed,
+                "errors": self.errors,
+                "avg_processing_times_ms": {
+                    stage: round(time * 1000, 2) if time else None
+                    for stage, time in avg_times.items()
+                },
+                "processing_rate": (
+                    self.candles_processed / max(self.candles_received, 1) * 100
+                ) if self.candles_received > 0 else 0,
+            }
+
+
+class CandleProcessingHandler(EventHandler):
+    """
+    Handler for processing incoming candles through the pipeline.
+
+    Receives CANDLE_RECEIVED events and coordinates storage and indicator calculation.
+    """
+
+    def __init__(
+        self,
+        candle_storage: CandleStorage,
+        multi_timeframe_engine: MultiTimeframeIndicatorEngine,
+        metrics: PipelineMetrics
+    ):
+        """
+        Initialize candle processing handler.
+
+        Args:
+            candle_storage: Candle storage instance
+            multi_timeframe_engine: Multi-timeframe indicator engine
+            metrics: Pipeline metrics tracker
+        """
+        super().__init__(name="CandleProcessingHandler")
+        self.candle_storage = candle_storage
+        self.multi_timeframe_engine = multi_timeframe_engine
+        self.metrics = metrics
+
+    async def handle(self, event: Event) -> None:
+        """Process candle received event."""
+        if event.event_type != EventType.CANDLE_RECEIVED:
+            return
+
+        start_time = datetime.now()
+        self.metrics.record_candle()
+
+        try:
+            # Extract candle data from event
+            candle_data = event.data.get("candle")
+            if not candle_data:
+                self.logger.error("No candle data in CANDLE_RECEIVED event")
+                self.metrics.record_error()
+                return
+
+            # Store candle
+            from src.models.candle import Candle
+            candle = Candle(**candle_data)
+            self.candle_storage.add_candle(candle)
+
+            # Calculate indicators for this candle
+            self.multi_timeframe_engine.add_candle(candle)
+
+            # Record metrics
+            self.metrics.record_processed()
+            duration = (datetime.now() - start_time).total_seconds()
+            self.metrics.record_processing_time("candle_to_indicator", duration)
+
+            self.logger.debug(
+                f"Processed candle {candle.symbol} {candle.timeframe} "
+                f"in {duration*1000:.2f}ms"
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error processing candle: {e}", exc_info=True)
+            self.metrics.record_error()
+
+
+class IndicatorToStrategyHandler(EventHandler):
+    """
+    Handler for forwarding indicator updates to strategy layer.
+
+    Receives INDICATORS_UPDATED events and triggers strategy evaluation.
+    """
+
+    def __init__(
+        self,
+        strategy_layer: StrategyIntegrationLayer,
+        metrics: PipelineMetrics
+    ):
+        """
+        Initialize indicator to strategy handler.
+
+        Args:
+            strategy_layer: Strategy integration layer
+            metrics: Pipeline metrics tracker
+        """
+        super().__init__(name="IndicatorToStrategyHandler")
+        self.strategy_layer = strategy_layer
+        self.metrics = metrics
+
+    async def handle(self, event: Event) -> None:
+        """Process indicators updated event."""
+        if event.event_type != EventType.INDICATORS_UPDATED:
+            return
+
+        start_time = datetime.now()
+        self.metrics.record_indicator()
+
+        try:
+            # Extract indicator data
+            symbol = event.data.get("symbol")
+            timeframe = event.data.get("timeframe")
+            indicators = event.data.get("indicators", {})
+
+            if not symbol or not timeframe:
+                self.logger.error("Missing symbol or timeframe in INDICATORS_UPDATED event")
+                return
+
+            # Trigger strategy evaluation
+            signals = await self.strategy_layer.evaluate_strategies(
+                symbol=symbol,
+                timeframe=timeframe,
+                indicators=indicators
+            )
+
+            # Record metrics
+            if signals:
+                self.metrics.record_signal()
+
+            duration = (datetime.now() - start_time).total_seconds()
+            self.metrics.record_processing_time("indicator_to_signal", duration)
+
+        except Exception as e:
+            self.logger.error(f"Error in indicator to strategy: {e}", exc_info=True)
+            self.metrics.record_error()
+
+
+class SignalToRiskHandler(EventHandler):
+    """
+    Handler for processing trading signals through risk validation.
+
+    Receives SIGNAL_GENERATED events and validates them against risk rules.
+    """
+
+    def __init__(
+        self,
+        risk_validator: RiskValidator,
+        metrics: PipelineMetrics
+    ):
+        """
+        Initialize signal to risk handler.
+
+        Args:
+            risk_validator: Risk validation service
+            metrics: Pipeline metrics tracker
+        """
+        super().__init__(name="SignalToRiskHandler")
+        self.risk_validator = risk_validator
+        self.metrics = metrics
+
+    async def handle(self, event: Event) -> None:
+        """Process signal generated event."""
+        if event.event_type != EventType.SIGNAL_GENERATED:
+            return
+
+        start_time = datetime.now()
+
+        try:
+            # Extract signal data
+            signal_data = event.data.get("signal")
+            if not signal_data:
+                self.logger.error("No signal data in SIGNAL_GENERATED event")
+                return
+
+            # Validate signal against risk rules
+            validation_result = await self.risk_validator.validate_signal(signal_data)
+
+            duration = (datetime.now() - start_time).total_seconds()
+            self.metrics.record_processing_time("signal_to_risk", duration)
+
+            if not validation_result.is_valid:
+                self.logger.info(
+                    f"Signal rejected by risk validator: {validation_result.rejection_reason}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error in signal to risk validation: {e}", exc_info=True)
+            self.metrics.record_error()
+
+
+class RiskToOrderHandler(EventHandler):
+    """
+    Handler for executing orders after risk approval.
+
+    Receives RISK_CHECK_PASSED events and executes validated orders.
+    """
+
+    def __init__(
+        self,
+        order_executor: OrderExecutor,
+        metrics: PipelineMetrics
+    ):
+        """
+        Initialize risk to order handler.
+
+        Args:
+            order_executor: Order execution service
+            metrics: Pipeline metrics tracker
+        """
+        super().__init__(name="RiskToOrderHandler")
+        self.order_executor = order_executor
+        self.metrics = metrics
+
+    async def handle(self, event: Event) -> None:
+        """Process risk check passed event."""
+        if event.event_type != EventType.RISK_CHECK_PASSED:
+            return
+
+        start_time = datetime.now()
+
+        try:
+            # Extract validated order data
+            order_data = event.data.get("order")
+            if not order_data:
+                self.logger.error("No order data in RISK_CHECK_PASSED event")
+                return
+
+            # Execute order
+            order_result = await self.order_executor.execute_order(order_data)
+
+            # Record metrics
+            self.metrics.record_order()
+            duration = (datetime.now() - start_time).total_seconds()
+            self.metrics.record_processing_time("risk_to_order", duration)
+
+            self.logger.info(
+                f"Order executed: {order_result.order_id} in {duration*1000:.2f}ms"
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error executing order: {e}", exc_info=True)
+            self.metrics.record_error()
+
+
+class OrderToPositionHandler(EventHandler):
+    """
+    Handler for updating positions after order execution.
+
+    Receives ORDER_FILLED events and updates position tracking.
+    """
+
+    def __init__(
+        self,
+        position_manager: PositionManager,
+        metrics: PipelineMetrics
+    ):
+        """
+        Initialize order to position handler.
+
+        Args:
+            position_manager: Position management service
+            metrics: Pipeline metrics tracker
+        """
+        super().__init__(name="OrderToPositionHandler")
+        self.position_manager = position_manager
+        self.metrics = metrics
+
+    async def handle(self, event: Event) -> None:
+        """Process order filled event."""
+        if event.event_type not in [EventType.ORDER_FILLED, EventType.ORDER_PLACED]:
+            return
+
+        start_time = datetime.now()
+
+        try:
+            # Extract order data
+            order_data = event.data.get("order")
+            if not order_data:
+                self.logger.error(f"No order data in {event.event_type} event")
+                return
+
+            # Update position tracking
+            await self.position_manager.update_from_order(order_data)
+
+            duration = (datetime.now() - start_time).total_seconds()
+            self.metrics.record_processing_time("order_to_position", duration)
+
+        except Exception as e:
+            self.logger.error(f"Error updating position: {e}", exc_info=True)
+            self.metrics.record_error()
+
+
+class BackpressureMonitor:
+    """
+    Monitor and control pipeline backpressure.
+
+    Tracks event queue sizes and processing rates to prevent overload.
+    """
+
+    def __init__(
+        self,
+        event_bus: EventBus,
+        max_queue_threshold: float = 0.8,
+        check_interval: int = 5
+    ):
+        """
+        Initialize backpressure monitor.
+
+        Args:
+            event_bus: Event bus to monitor
+            max_queue_threshold: Queue fullness threshold (0-1)
+            check_interval: Check interval in seconds
+        """
+        self.event_bus = event_bus
+        self.max_queue_threshold = max_queue_threshold
+        self.check_interval = check_interval
+        self.is_throttled = False
+        self.throttle_count = 0
+        self.logger = logging.getLogger(f"{__name__}.BackpressureMonitor")
+
+    def check_backpressure(self) -> bool:
+        """
+        Check if system is experiencing backpressure.
+
+        Returns:
+            True if backpressure detected
+        """
+        stats = self.event_bus.get_stats()
+        queue_size = stats.get("queue_size", 0)
+        max_size = self.event_bus._max_queue_size
+
+        queue_fullness = queue_size / max_size if max_size > 0 else 0
+
+        if queue_fullness > self.max_queue_threshold:
+            if not self.is_throttled:
+                self.logger.warning(
+                    f"Backpressure detected: queue {queue_fullness*100:.1f}% full "
+                    f"({queue_size}/{max_size})"
+                )
+                self.is_throttled = True
+                self.throttle_count += 1
+            return True
+        else:
+            if self.is_throttled:
+                self.logger.info("Backpressure relieved")
+                self.is_throttled = False
+            return False
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get backpressure statistics."""
+        stats = self.event_bus.get_stats()
+        queue_size = stats.get("queue_size", 0)
+        max_size = self.event_bus._max_queue_size
+
+        return {
+            "is_throttled": self.is_throttled,
+            "throttle_count": self.throttle_count,
+            "queue_fullness": (queue_size / max_size * 100) if max_size > 0 else 0,
+            "queue_size": queue_size,
+            "max_queue_size": max_size,
+        }
+
+
 class TradingSystemOrchestrator:
     """
     Main orchestrator for the trading system.
@@ -161,10 +609,16 @@ class TradingSystemOrchestrator:
         self.order_executor: Optional[OrderExecutor] = None
         self.position_manager: Optional[PositionManager] = None
 
+        # Pipeline components (initialized in _setup_pipeline_handlers)
+        self._pipeline_metrics: Optional[PipelineMetrics] = None
+        self._backpressure_monitor: Optional[BackpressureMonitor] = None
+        self._pipeline_handlers: List[EventHandler] = []
+
         # Background tasks
         self._background_tasks: List[asyncio.Task] = []
         self._health_check_task: Optional[asyncio.Task] = None
         self._health_check_interval = 30  # seconds
+        self._backpressure_check_task: Optional[asyncio.Task] = None
 
         logger.info(
             f"TradingSystemOrchestrator initialized "
@@ -185,6 +639,7 @@ class TradingSystemOrchestrator:
         7. Risk components (depends on Database)
         8. OrderExecutor (depends on BinanceManager, EventBus)
         9. PositionManager (depends on Database, EventBus)
+        10. Pipeline Handlers (depends on all above components)
 
         Raises:
             OrchestratorError: If initialization fails
@@ -197,7 +652,7 @@ class TradingSystemOrchestrator:
             # Check if services are already initialized
             if self._services:
                 raise OrchestratorError(
-                    f"Cannot initialize from state INITIALIZED"
+                    "Cannot initialize from state INITIALIZED"
                 )
             self._state = SystemState.INITIALIZING
 
@@ -214,6 +669,9 @@ class TradingSystemOrchestrator:
             await self._initialize_risk_components()
             await self._initialize_order_executor()
             await self._initialize_position_manager()
+
+            # Set up data pipeline handlers
+            await self._setup_pipeline_handlers()
 
             # Calculate initialization order based on dependencies
             self._calculate_initialization_order()
@@ -309,19 +767,21 @@ class TradingSystemOrchestrator:
         logger.info("MultiTimeframeIndicatorEngine initialized")
 
     async def _initialize_strategy_layer(self) -> None:
-        """Initialize strategy integration layer (depends on MultiTimeframeEngine)."""
+        """Initialize strategy integration layer (depends on MultiTimeframeEngine, EventBus, CandleStorage)."""
         logger.info("Initializing StrategyIntegrationLayer...")
         self.strategy_layer = StrategyIntegrationLayer(
             enable_strategy_a=True,
             enable_strategy_b=True,
-            enable_strategy_c=True
+            enable_strategy_c=True,
+            event_bus=self.event_bus,
+            candle_storage=self.candle_storage
         )
 
         self._services["strategy_layer"] = ServiceInfo(
             name="strategy_layer",
             instance=self.strategy_layer,
             state=ServiceState.INITIALIZED,
-            dependencies=["multi_timeframe_engine"]
+            dependencies=["multi_timeframe_engine", "event_bus", "candle_storage"]
         )
         logger.info("StrategyIntegrationLayer initialized")
 
@@ -395,6 +855,120 @@ class TradingSystemOrchestrator:
         )
         logger.info("PositionManager initialized")
 
+    async def _setup_pipeline_handlers(self) -> None:
+        """
+        Set up data pipeline event handlers.
+
+        Registers handlers for the complete data flow:
+        BinanceManager → CandleStorage → MultiTimeframeEngine →
+        StrategyIntegrationLayer → RiskValidator → OrderExecutor → PositionManager
+        """
+        logger.info("Setting up data pipeline handlers...")
+
+        # Initialize pipeline metrics
+        self._pipeline_metrics = PipelineMetrics()
+
+        # Initialize backpressure monitor
+        self._backpressure_monitor = BackpressureMonitor(
+            event_bus=self.event_bus,
+            max_queue_threshold=0.8,
+            check_interval=5
+        )
+
+        # Create pipeline handlers
+        candle_handler = CandleProcessingHandler(
+            candle_storage=self.candle_storage,
+            multi_timeframe_engine=self.multi_timeframe_engine,
+            metrics=self._pipeline_metrics
+        )
+
+        indicator_handler = IndicatorToStrategyHandler(
+            strategy_layer=self.strategy_layer,
+            metrics=self._pipeline_metrics
+        )
+
+        signal_handler = SignalToRiskHandler(
+            risk_validator=self.risk_validator,
+            metrics=self._pipeline_metrics
+        )
+
+        risk_handler = RiskToOrderHandler(
+            order_executor=self.order_executor,
+            metrics=self._pipeline_metrics
+        )
+
+        order_handler = OrderToPositionHandler(
+            position_manager=self.position_manager,
+            metrics=self._pipeline_metrics
+        )
+
+        # Register handlers with event bus
+        self.event_bus.subscribe(EventType.CANDLE_RECEIVED, candle_handler)
+        self.event_bus.subscribe(EventType.INDICATORS_UPDATED, indicator_handler)
+        self.event_bus.subscribe(EventType.SIGNAL_GENERATED, signal_handler)
+        self.event_bus.subscribe(EventType.RISK_CHECK_PASSED, risk_handler)
+        self.event_bus.subscribe(EventType.ORDER_FILLED, order_handler)
+        self.event_bus.subscribe(EventType.ORDER_PLACED, order_handler)
+
+        # Store handlers for cleanup
+        self._pipeline_handlers = [
+            candle_handler,
+            indicator_handler,
+            signal_handler,
+            risk_handler,
+            order_handler
+        ]
+
+        logger.info(
+            f"Data pipeline configured with {len(self._pipeline_handlers)} handlers"
+        )
+
+    async def _start_backpressure_monitoring(self) -> None:
+        """Start background task for backpressure monitoring."""
+        logger.info("Starting backpressure monitoring...")
+        self._backpressure_check_task = asyncio.create_task(
+            self._backpressure_check_loop()
+        )
+
+    async def _backpressure_check_loop(self) -> None:
+        """Background loop for checking pipeline backpressure."""
+        while True:
+            try:
+                await asyncio.sleep(self._backpressure_monitor.check_interval)
+
+                # Check backpressure
+                has_backpressure = self._backpressure_monitor.check_backpressure()
+
+                # Log backpressure stats periodically
+                if has_backpressure:
+                    stats = self._backpressure_monitor.get_stats()
+                    logger.warning(f"Backpressure stats: {stats}")
+
+            except asyncio.CancelledError:
+                logger.info("Backpressure monitoring loop cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error in backpressure monitoring: {e}", exc_info=True)
+                await asyncio.sleep(1)  # Brief pause on error
+
+    def get_pipeline_stats(self) -> Dict[str, Any]:
+        """
+        Get comprehensive pipeline statistics.
+
+        Returns:
+            Dictionary with pipeline performance metrics
+        """
+        if not self._pipeline_metrics:
+            return {}
+
+        stats = self._pipeline_metrics.get_stats()
+
+        # Add backpressure stats if available
+        if self._backpressure_monitor:
+            stats["backpressure"] = self._backpressure_monitor.get_stats()
+
+        return stats
+
     def _calculate_initialization_order(self) -> None:
         """
         Calculate service initialization order based on dependencies.
@@ -462,12 +1036,17 @@ class TradingSystemOrchestrator:
                 self._health_check_loop()
             )
 
+            # Start backpressure monitoring
+            if self._backpressure_monitor:
+                await self._start_backpressure_monitoring()
+
             with self._state_lock:
                 self._state = SystemState.RUNNING
 
             logger.info(
                 f"Trading system started successfully "
-                f"({len(self._services)} services running)"
+                f"({len(self._services)} services running, "
+                f"pipeline monitoring active)"
             )
 
         except Exception as e:
@@ -539,9 +1118,23 @@ class TradingSystemOrchestrator:
                 except asyncio.CancelledError:
                     pass
 
+            # Stop backpressure monitoring
+            if self._backpressure_check_task:
+                self._backpressure_check_task.cancel()
+                try:
+                    await self._backpressure_check_task
+                except asyncio.CancelledError:
+                    pass
+
             # Stop services in reverse order
             for service_name in reversed(self._initialization_order):
                 await self._stop_service(service_name)
+
+            # Unsubscribe pipeline handlers
+            if self.event_bus and self._pipeline_handlers:
+                for handler in self._pipeline_handlers:
+                    self.event_bus.unsubscribe_all(handler)
+                logger.info("Pipeline handlers unsubscribed")
 
             # Cancel all background tasks
             for task in self._background_tasks:
@@ -558,6 +1151,12 @@ class TradingSystemOrchestrator:
                 self._shutdown_time - self._startup_time
                 if self._startup_time else None
             )
+
+            # Log final pipeline stats
+            if self._pipeline_metrics:
+                final_stats = self._pipeline_metrics.get_stats()
+                logger.info(f"Final pipeline stats: {final_stats}")
+
             logger.info(
                 f"Trading system stopped successfully "
                 f"(uptime: {uptime})"
@@ -676,7 +1275,7 @@ class TradingSystemOrchestrator:
         Get comprehensive system statistics.
 
         Returns:
-            Dictionary with system-wide statistics
+            Dictionary with system-wide statistics including pipeline metrics
         """
         uptime = None
         if self._startup_time:
@@ -685,7 +1284,7 @@ class TradingSystemOrchestrator:
             elif self._state == SystemState.RUNNING:
                 uptime = (datetime.now() - self._startup_time).total_seconds()
 
-        return {
+        stats = {
             "system_state": self._state.value,
             "uptime_seconds": uptime,
             "service_count": len(self._services),
@@ -700,6 +1299,12 @@ class TradingSystemOrchestrator:
                 self._shutdown_time.isoformat() if self._shutdown_time else None
             )
         }
+
+        # Add pipeline statistics
+        if self._pipeline_metrics or self._backpressure_monitor:
+            stats["pipeline"] = self.get_pipeline_stats()
+
+        return stats
 
     def is_healthy(self) -> bool:
         """

@@ -10,6 +10,8 @@ from decimal import Decimal
 import logging
 import pandas as pd
 
+from src.core.events import EventBus, Event, EventType
+from src.services.candle_storage import CandleStorage
 from src.services.strategy.signal import Signal
 from src.services.strategy.generator import (
     SignalGenerator,
@@ -47,6 +49,8 @@ class StrategyIntegrationLayer:
         enable_strategy_a: bool = True,
         enable_strategy_b: bool = True,
         enable_strategy_c: bool = True,
+        event_bus: Optional[EventBus] = None,
+        candle_storage: Optional[CandleStorage] = None,
     ):
         """
         Initialize strategy integration layer.
@@ -56,7 +60,13 @@ class StrategyIntegrationLayer:
             enable_strategy_a: Enable Strategy A (Conservative)
             enable_strategy_b: Enable Strategy B (Aggressive)
             enable_strategy_c: Enable Strategy C (Hybrid)
+            event_bus: Main event bus for publishing SIGNAL_GENERATED events
+            candle_storage: Candle storage for retrieving historical candles
         """
+        # Store dependencies
+        self.event_bus = event_bus
+        self.candle_storage = candle_storage
+
         # Initialize signal filter
         self.signal_filter = SignalFilter(config=filter_config)
 
@@ -189,6 +199,75 @@ class StrategyIntegrationLayer:
         )
 
         return validated_signals
+
+    async def evaluate_strategies(
+        self,
+        symbol: str,
+        timeframe: str,
+        indicators: Dict[str, Any],
+    ) -> List[Signal]:
+        """
+        Evaluate all active strategies based on updated indicators.
+
+        This is the async entry point called by the orchestrator when INDICATORS_UPDATED
+        events are received. It retrieves candles, generates signals, and publishes them
+        to the main EventBus.
+
+        Args:
+            symbol: Trading symbol
+            timeframe: Timeframe string (e.g., '1m', '5m')
+            indicators: Dictionary of indicator data from the event
+
+        Returns:
+            List of validated Signal objects
+        """
+        if not self.candle_storage:
+            logger.error("CandleStorage not configured, cannot evaluate strategies")
+            return []
+
+        try:
+            # Retrieve candles for this symbol/timeframe from storage
+            from src.models.timeframe import TimeFrame
+            tf = TimeFrame(timeframe)
+            candles_df = self.candle_storage.get_candles(symbol, tf, limit=100)
+
+            if candles_df.empty:
+                logger.warning(f"No candles available for {symbol} {timeframe}")
+                return []
+
+            # Get current price from latest candle
+            current_price = Decimal(str(candles_df.iloc[-1]['close']))
+
+            # Generate signals using existing method
+            signals = self.generate_signals(
+                symbol=symbol,
+                current_price=current_price,
+                candles=candles_df,
+                indicators=indicators
+            )
+
+            # Publish SIGNAL_GENERATED events to main EventBus if configured
+            if self.event_bus and signals:
+                for signal in signals:
+                    event = Event(
+                        priority=6,
+                        event_type=EventType.SIGNAL_GENERATED,
+                        data={
+                            'signal': signal.to_dict(),
+                            'symbol': symbol,
+                            'timeframe': timeframe,
+                            'strategy': signal.strategy_name if hasattr(signal, 'strategy_name') else 'unknown'
+                        },
+                        source='StrategyIntegrationLayer'
+                    )
+                    await self.event_bus.publish(event)
+                    logger.debug(f"Published SIGNAL_GENERATED event for {symbol} {timeframe}")
+
+            return signals
+
+        except Exception as e:
+            logger.error(f"Error evaluating strategies for {symbol} {timeframe}: {e}", exc_info=True)
+            return []
 
     def enable_strategy(self, strategy_name: str):
         """
