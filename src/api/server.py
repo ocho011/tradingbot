@@ -11,14 +11,16 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Depends, status, Security
+from fastapi import FastAPI, HTTPException, Depends, status, Security, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import uvicorn
 
+from src.api.websocket import WebSocketManager
 from src.core.config_manager import ConfigurationManager
+from src.core.events import EventBus
 from src.core.metrics import MetricsCollector, MonitoringSystem
 from src.core.orchestrator import TradingSystemOrchestrator
 
@@ -32,6 +34,8 @@ orchestrator: Optional[TradingSystemOrchestrator] = None
 config_manager: Optional[ConfigurationManager] = None
 metrics_collector: Optional[MetricsCollector] = None
 monitoring_system: Optional[MonitoringSystem] = None
+event_bus: Optional[EventBus] = None
+ws_manager: Optional[WebSocketManager] = None
 
 
 # ============================================================================
@@ -175,7 +179,7 @@ async def lifespan(_app: FastAPI):
 
     Handles startup and shutdown of the trading system and all services.
     """
-    global orchestrator, config_manager, metrics_collector, monitoring_system
+    global orchestrator, config_manager, metrics_collector, monitoring_system, event_bus, ws_manager
 
     logger.info("Starting API server and trading system...")
 
@@ -187,6 +191,11 @@ async def lifespan(_app: FastAPI):
         # These will be initialized by the main application
         # and passed to the API server
 
+        # Start WebSocket manager if event bus is available
+        if event_bus and ws_manager:
+            await ws_manager.start()
+            logger.info("WebSocket manager started")
+
         logger.info("API server initialized successfully")
 
         yield  # Application runs
@@ -196,6 +205,11 @@ async def lifespan(_app: FastAPI):
         raise
     finally:
         logger.info("Shutting down API server...")
+
+        # Stop WebSocket manager
+        if ws_manager:
+            await ws_manager.stop()
+            logger.info("WebSocket manager stopped")
 
         # Cleanup will be handled by the orchestrator
         # when the main application shuts down
@@ -730,6 +744,93 @@ async def get_component_metrics(
 
 
 # ============================================================================
+# WebSocket Endpoints
+# ============================================================================
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time communication.
+
+    Clients can connect to receive real-time updates on:
+    - Candle data
+    - Trading signals
+    - Order updates
+    - Position updates
+    - Indicator updates
+    - System status
+
+    Message format (client to server):
+    {
+        "type": "subscribe|unsubscribe|ping|get_subscriptions",
+        "topics": ["candles", "signals", "orders", "positions", "indicators", "system"],
+        "filters": {"symbol": "BTCUSDT"}  // Optional
+    }
+
+    Message format (server to client):
+    {
+        "type": "candle_update|signal|order_update|position_update|indicator_update|system_status|error|pong",
+        "timestamp": "2024-01-01T00:00:00",
+        "data": {...}
+    }
+    """
+    if not ws_manager:
+        await websocket.close(code=1011, reason="WebSocket service not available")
+        return
+
+    connection_id = await ws_manager.connect(websocket)
+
+    try:
+        while True:
+            # Receive message from client
+            message = await websocket.receive_text()
+            await ws_manager.handle_message(connection_id, message)
+
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket client disconnected: {connection_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error for connection {connection_id}: {e}", exc_info=True)
+    finally:
+        await ws_manager.disconnect(connection_id)
+
+
+@app.get(
+    "/ws/stats",
+    summary="WebSocket Statistics",
+    description="Get WebSocket connection statistics",
+    tags=["WebSocket"]
+)
+async def get_websocket_stats(
+    _user: Dict[str, Any] = Depends(verify_token)
+) -> Dict[str, Any]:
+    """
+    Get WebSocket statistics.
+
+    Returns information about active connections, message counts,
+    and subscription details.
+    """
+    if not ws_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="WebSocket service not available"
+        )
+
+    try:
+        stats = ws_manager.get_stats()
+        return {
+            "success": True,
+            "stats": stats,
+            "timestamp": datetime.now()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get WebSocket stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve WebSocket statistics: {str(e)}"
+        )
+
+
+# ============================================================================
 # Error Handlers
 # ============================================================================
 
@@ -774,6 +875,7 @@ def run_server(
     config_manager_instance: Optional[ConfigurationManager] = None,
     metrics_collector_instance: Optional[MetricsCollector] = None,
     monitoring_system_instance: Optional[MonitoringSystem] = None,
+    event_bus_instance: Optional[EventBus] = None,
 ) -> None:
     """
     Run the FastAPI server.
@@ -787,14 +889,21 @@ def run_server(
         config_manager_instance: ConfigurationManager instance
         metrics_collector_instance: MetricsCollector instance
         monitoring_system_instance: MonitoringSystem instance
+        event_bus_instance: EventBus instance for WebSocket integration
     """
-    global orchestrator, config_manager, metrics_collector, monitoring_system
+    global orchestrator, config_manager, metrics_collector, monitoring_system, event_bus, ws_manager
 
     # Set global instances
     orchestrator = orchestrator_instance
     config_manager = config_manager_instance
     metrics_collector = metrics_collector_instance
     monitoring_system = monitoring_system_instance
+    event_bus = event_bus_instance
+
+    # Initialize WebSocket manager if event bus is available
+    if event_bus:
+        ws_manager = WebSocketManager(event_bus=event_bus)
+        logger.info("WebSocket manager initialized")
 
     logger.info(f"Starting API server on {host}:{port}")
 
