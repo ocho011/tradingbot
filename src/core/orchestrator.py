@@ -16,6 +16,15 @@ from threading import Lock
 from src.core.events import EventBus, Event, EventHandler
 from src.core.constants import EventType
 from src.core.config import BinanceConfig
+from src.core.background_tasks import (
+    BackgroundTaskManager,
+    TaskConfig,
+    TaskPriority
+)
+from src.core.parallel_processor import (
+    ParallelProcessor,
+    DataPipelineParallelProcessor
+)
 from src.services.exchange.binance_manager import BinanceManager
 from src.services.candle_storage import CandleStorage
 from src.indicators.multi_timeframe_engine import MultiTimeframeIndicatorEngine
@@ -614,11 +623,13 @@ class TradingSystemOrchestrator:
         self._backpressure_monitor: Optional[BackpressureMonitor] = None
         self._pipeline_handlers: List[EventHandler] = []
 
-        # Background tasks
-        self._background_tasks: List[asyncio.Task] = []
-        self._health_check_task: Optional[asyncio.Task] = None
+        # Background task management (Task 11.3)
+        self.background_task_manager: Optional[BackgroundTaskManager] = None
+        self.parallel_processor: Optional[DataPipelineParallelProcessor] = None
+        self._background_tasks: List[asyncio.Task] = []  # Legacy compatibility
+        self._health_check_task: Optional[asyncio.Task] = None  # Legacy compatibility
         self._health_check_interval = 30  # seconds
-        self._backpressure_check_task: Optional[asyncio.Task] = None
+        self._backpressure_check_task: Optional[asyncio.Task] = None  # Legacy compatibility
 
         logger.info(
             f"TradingSystemOrchestrator initialized "
@@ -672,6 +683,10 @@ class TradingSystemOrchestrator:
 
             # Set up data pipeline handlers
             await self._setup_pipeline_handlers()
+
+            # Initialize background task management (Task 11.3)
+            await self._initialize_background_task_manager()
+            await self._initialize_parallel_processor()
 
             # Calculate initialization order based on dependencies
             self._calculate_initialization_order()
@@ -923,6 +938,54 @@ class TradingSystemOrchestrator:
             f"Data pipeline configured with {len(self._pipeline_handlers)} handlers"
         )
 
+    async def _initialize_background_task_manager(self) -> None:
+        """
+        Initialize background task manager (Task 11.3).
+
+        Sets up comprehensive task management system with:
+        - Health monitoring
+        - Automatic recovery
+        - Task lifecycle management
+        """
+        logger.info("Initializing BackgroundTaskManager...")
+        self.background_task_manager = BackgroundTaskManager(
+            enable_health_monitoring=True,
+            health_check_interval=self._health_check_interval,
+            enable_auto_recovery=True
+        )
+
+        self._services["background_task_manager"] = ServiceInfo(
+            name="background_task_manager",
+            instance=self.background_task_manager,
+            state=ServiceState.INITIALIZED,
+            dependencies=[]
+        )
+        logger.info("BackgroundTaskManager initialized")
+
+    async def _initialize_parallel_processor(self) -> None:
+        """
+        Initialize parallel processor for data pipeline (Task 11.3).
+
+        Sets up parallel processing coordination for:
+        - Market data reception (multiple symbols/timeframes)
+        - Indicator calculations (multiple indicators per timeframe)
+        - Signal generation (multiple strategies)
+        """
+        logger.info("Initializing DataPipelineParallelProcessor...")
+        self.parallel_processor = DataPipelineParallelProcessor(
+            max_concurrent_candles=50,
+            max_concurrent_indicators=20,
+            max_concurrent_signals=10
+        )
+
+        self._services["parallel_processor"] = ServiceInfo(
+            name="parallel_processor",
+            instance=self.parallel_processor,
+            state=ServiceState.INITIALIZED,
+            dependencies=[]
+        )
+        logger.info("DataPipelineParallelProcessor initialized")
+
     async def _start_backpressure_monitoring(self) -> None:
         """Start background task for backpressure monitoring."""
         logger.info("Starting backpressure monitoring...")
@@ -1040,6 +1103,12 @@ class TradingSystemOrchestrator:
             if self._backpressure_monitor:
                 await self._start_backpressure_monitoring()
 
+            # Start background task manager (Task 11.3)
+            if self.background_task_manager:
+                logger.info("Starting BackgroundTaskManager...")
+                await self.background_task_manager.start_all()
+                logger.info("BackgroundTaskManager started")
+
             with self._state_lock:
                 self._state = SystemState.RUNNING
 
@@ -1109,6 +1178,12 @@ class TradingSystemOrchestrator:
         try:
             logger.info("Stopping trading system...")
             self._shutdown_time = datetime.now()
+
+            # Stop background task manager first (Task 11.3)
+            if self.background_task_manager:
+                logger.info("Stopping BackgroundTaskManager...")
+                await self.background_task_manager.stop_all()
+                logger.info("BackgroundTaskManager stopped")
 
             # Stop health monitoring
             if self._health_check_task:
