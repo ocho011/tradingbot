@@ -26,6 +26,7 @@ from ccxt.base.errors import (
 from src.core.constants import OrderSide, OrderType, PositionSide
 from src.core.events import EventBus, EventType
 from src.core.retry_manager import RetryManager, RetryConfig, RetryStrategy
+from src.monitoring.metrics import record_order_execution
 
 
 logger = logging.getLogger(__name__)
@@ -496,6 +497,9 @@ class OrderExecutor:
             ValueError: 주문 파라미터가 유효하지 않을 경우
             ExchangeError: 거래소 에러 발생 시
         """
+        import time
+        start_time = time.time()
+
         # 주문 파라미터 검증
         try:
             request.validate()
@@ -511,6 +515,16 @@ class OrderExecutor:
             response = await self._retry_manager.execute(
                 self._place_order_with_response, request
             )
+
+            # Record execution latency metric on success
+            execution_time = time.time() - start_time
+            record_order_execution(
+                symbol=request.symbol,
+                order_type=request.order_type.value,
+                side=request.side.value,
+                execution_time=execution_time
+            )
+
             return response
 
         except (InvalidOrder, InsufficientFunds) as e:

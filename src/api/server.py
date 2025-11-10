@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 from fastapi import FastAPI, HTTPException, Depends, status, Security, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 import uvicorn
 
@@ -334,6 +334,31 @@ async def health_check() -> HealthResponse:
             uptime_seconds=0.0,
             components={"error": str(e)}
         )
+
+
+@app.get(
+    "/metrics",
+    summary="Prometheus Metrics",
+    description="Prometheus metrics endpoint for scraping",
+    tags=["System"]
+)
+async def get_metrics():
+    """
+    Prometheus metrics endpoint.
+
+    Returns metrics in Prometheus text format for scraping.
+    No authentication required to allow Prometheus to scrape metrics.
+    """
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from src.monitoring.metrics import trading_metrics
+
+    # Generate Prometheus metrics
+    metrics_output = generate_latest(trading_metrics.get_registry())
+
+    return Response(
+        content=metrics_output,
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 
 @app.get(

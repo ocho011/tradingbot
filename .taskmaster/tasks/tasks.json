@@ -1003,7 +1003,7 @@
             "description": "트레이딩 시스템 전용 메트릭 수집과 Prometheus 연동 구현",
             "dependencies": [],
             "details": "trading_signals_generated, order_execution_latency, risk_violations, position_pnl 커스텀 메트릭 구현, prometheus_client 라이브러리 통합, 메트릭 익스포터 엔드포인트(/metrics) 구현, 알럿 규칙 정의",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "메트릭 수집 정확성 검증, Prometheus 스크래핑 성공 확인, 커스텀 메트릭 쿼리 테스트",
             "parentId": "undefined"
           },
@@ -1183,7 +1183,7 @@
       ],
       "created": "2025-11-09T21:56:30.474Z",
       "description": "Tasks for master context",
-      "updated": "2025-11-10T16:06:22.034Z"
+      "updated": "2025-11-10T19:56:24.333Z"
     }
   }
 }

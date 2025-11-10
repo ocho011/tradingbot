@@ -10,6 +10,7 @@ from decimal import Decimal
 import pandas as pd
 
 from src.services.strategy.signal import Signal
+from src.monitoring.metrics import record_signal_generated, ExecutionTimer
 
 
 class SignalGenerator(ABC):
@@ -29,9 +30,10 @@ class SignalGenerator(ABC):
         """
         self.strategy_name = strategy_name
         self._last_signal: Optional[Signal] = None
+        self._metrics_enabled = True  # Enable metrics collection by default
 
     @abstractmethod
-    def generate_signal(
+    def _generate_signal_impl(
         self,
         symbol: str,
         current_price: Decimal,
@@ -39,7 +41,10 @@ class SignalGenerator(ABC):
         **kwargs
     ) -> Optional[Signal]:
         """
-        Generate a trading signal based on current market conditions.
+        Internal signal generation implementation.
+
+        Subclasses should implement this method instead of generate_signal
+        to ensure metrics collection is applied consistently.
 
         Args:
             symbol: Trading pair symbol (e.g., 'BTCUSDT')
@@ -54,6 +59,45 @@ class SignalGenerator(ABC):
             ValueError: If input data is invalid
         """
         pass
+
+    def generate_signal(
+        self,
+        symbol: str,
+        current_price: Decimal,
+        candles: pd.DataFrame,
+        **kwargs
+    ) -> Optional[Signal]:
+        """
+        Generate a trading signal based on current market conditions.
+
+        This method wraps the internal implementation with metrics collection.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTCUSDT')
+            current_price: Current market price
+            candles: Historical candle data (OHLCV)
+            **kwargs: Additional strategy-specific parameters
+
+        Returns:
+            Signal object if conditions are met, None otherwise
+
+        Raises:
+            ValueError: If input data is invalid
+        """
+        # Time the strategy execution
+        with ExecutionTimer(self.strategy_name, symbol):
+            # Call internal implementation
+            signal = self._generate_signal_impl(symbol, current_price, candles, **kwargs)
+
+            # Record signal generation metric if signal was generated
+            if signal and self._metrics_enabled:
+                record_signal_generated(
+                    strategy=self.strategy_name,
+                    symbol=symbol,
+                    direction=signal.direction
+                )
+
+            return signal
 
     @abstractmethod
     def calculate_stop_loss(
@@ -169,7 +213,7 @@ class StrategyAGenerator(SignalGenerator):
     def __init__(self):
         super().__init__("Strategy_A_Conservative")
 
-    def generate_signal(
+    def _generate_signal_impl(
         self,
         symbol: str,
         current_price: Decimal,
@@ -230,7 +274,7 @@ class StrategyBGenerator(SignalGenerator):
     def __init__(self):
         super().__init__("Strategy_B_Aggressive")
 
-    def generate_signal(
+    def _generate_signal_impl(
         self,
         symbol: str,
         current_price: Decimal,
@@ -288,7 +332,7 @@ class StrategyCGenerator(SignalGenerator):
     def __init__(self):
         super().__init__("Strategy_C_Hybrid")
 
-    def generate_signal(
+    def _generate_signal_impl(
         self,
         symbol: str,
         current_price: Decimal,

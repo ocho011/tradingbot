@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from src.core.events import Event, EventBus
 from src.core.constants import EventType, PositionSide
 from src.database.models import Position as PositionModel
+from src.monitoring.metrics import update_position_pnl
 
 logger = logging.getLogger(__name__)
 
@@ -286,6 +287,13 @@ class PositionManager:
         position.unrealized_pnl = pnl
         position.unrealized_pnl_percent = pnl_percent
 
+        # Update P&L metrics
+        update_position_pnl(
+            symbol=symbol,
+            side=position.side.value,
+            pnl=float(pnl)
+        )
+
         # 데이터베이스 동기화
         db_position = self.db_session.query(PositionModel).filter_by(
             id=position.id
@@ -354,6 +362,13 @@ class PositionManager:
         position.realized_pnl = realized_pnl
         position.total_fees = fees
         position.closed_at = datetime.now(timezone.utc)
+
+        # Reset P&L metrics to 0 when position is closed
+        update_position_pnl(
+            symbol=symbol,
+            side=position.side.value,
+            pnl=0.0
+        )
 
         # 데이터베이스 동기화
         db_position = self.db_session.query(PositionModel).filter_by(

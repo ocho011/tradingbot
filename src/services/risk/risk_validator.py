@@ -22,6 +22,7 @@ from src.services.risk.position_sizer import PositionSizer
 from src.services.risk.stop_loss_calculator import StopLossCalculator
 from src.services.risk.take_profit_calculator import TakeProfitCalculator
 from src.services.risk.daily_loss_monitor import DailyLossMonitor
+from src.monitoring.metrics import record_risk_violation
 
 logger = logging.getLogger(__name__)
 
@@ -338,6 +339,11 @@ class RiskValidator:
             entry_allowed, entry_reason = self.check_entry_allowed()
             if not entry_allowed:
                 logger.warning(f"Order rejected: {entry_reason}")
+                record_risk_violation(
+                    violation_type="entry_blocked",
+                    symbol=symbol,
+                    severity="critical"
+                )
                 return ValidationResult(
                     approved=False,
                     reason=entry_reason,
@@ -351,11 +357,21 @@ class RiskValidator:
             )
             if not size_valid:
                 violations.append(f"position_size: {size_reason}")
+                record_risk_violation(
+                    violation_type="position_size_exceeded",
+                    symbol=symbol,
+                    severity="high"
+                )
 
             # 3. Validate stop loss
             sl_valid, sl_reason = self.validate_stop_loss(entry_price, stop_loss, side)
             if not sl_valid:
                 violations.append(f"stop_loss: {sl_reason}")
+                record_risk_violation(
+                    violation_type="invalid_stop_loss",
+                    symbol=symbol,
+                    severity="medium"
+                )
 
             # 4. Validate take profit
             tp_valid, tp_reason = self.validate_take_profit(
@@ -363,6 +379,11 @@ class RiskValidator:
             )
             if not tp_valid:
                 violations.append(f"take_profit: {tp_reason}")
+                record_risk_violation(
+                    violation_type="invalid_take_profit",
+                    symbol=symbol,
+                    severity="low"
+                )
 
             # Determine final approval
             approved = len(violations) == 0
