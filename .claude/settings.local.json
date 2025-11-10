@@ -48,7 +48,10 @@
       "mcp__serena__find_referencing_symbols",
       "Bash(cat:*)",
       "mcp__task-master-ai__get_tasks",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(chmod:*)",
+      "Bash(docker-compose config:*)",
+      "Bash(ls:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

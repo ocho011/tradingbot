@@ -1,0 +1,291 @@
+# =============================================================================
+# Trading Bot - Complete Service Stack
+# Services: TradingBot, Redis, PostgreSQL, Prometheus, Grafana
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Trading Bot - Main Application
+  # ---------------------------------------------------------------------------
+  tradingbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tradingbot
+    hostname: tradingbot
+    restart: unless-stopped
+
+    # Environment variables from .env file
+    env_file:
+      - .env
+
+    # Additional environment variables for Docker networking
+    environment:
+      - DATABASE_PATH=/app/data/tradingbot.db
+      - LOG_FILE_PATH=/app/logs/tradingbot.log
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      # Redis connection
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # PostgreSQL connection (future use)
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=tradingbot
+      - POSTGRES_USER=tradingbot
+      - POSTGRES_PASSWORD=tradingbot_secure_password
+
+    # Port mapping
+    ports:
+      - "8000:8000"  # FastAPI server
+
+    # Volume mounts
+    volumes:
+      - ./data:/app/data              # Database persistence
+      - ./logs:/app/logs              # Log files
+      - ./config:/app/config:ro       # Configuration files (read-only)
+
+    # Service dependencies
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+    # Networking
+    networks:
+      - tradingbot-network
+
+  # ---------------------------------------------------------------------------
+  # 2. Redis - Caching and Rate Limiting
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: tradingbot-redis
+    hostname: redis
+    restart: unless-stopped
+
+    # Port mapping
+    ports:
+      - "6379:6379"
+
+    # Volume for persistence
+    volumes:
+      - redis_data:/data
+
+    # Redis configuration
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+    # Networking
+    networks:
+      - tradingbot-network
+
+  # ---------------------------------------------------------------------------
+  # 3. PostgreSQL - Production Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: tradingbot-postgres
+    hostname: postgres
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      - POSTGRES_DB=tradingbot
+      - POSTGRES_USER=tradingbot
+      - POSTGRES_PASSWORD=tradingbot_secure_password
+      - PGDATA=/var/lib/postgresql/data/pgdata
+
+    # Port mapping
+    ports:
+      - "5432:5432"
+
+    # Volume for persistence
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradingbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Networking
+    networks:
+      - tradingbot-network
+
+  # ---------------------------------------------------------------------------
+  # 4. Prometheus - Metrics Collection
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: tradingbot-prometheus
+    hostname: prometheus
+    restart: unless-stopped
+
+    # Port mapping
+    ports:
+      - "9090:9090"
+
+    # Volume mounts
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+    # Prometheus command line arguments
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    # Service dependencies
+    depends_on:
+      - tradingbot
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+    # Networking
+    networks:
+      - tradingbot-network
+
+  # ---------------------------------------------------------------------------
+  # 5. Grafana - Visualization Dashboard
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: tradingbot-grafana
+    hostname: grafana
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=
+
+    # Port mapping
+    ports:
+      - "3000:3000"
+
+    # Volume for persistence
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    # Service dependencies
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+    # Networking
+    networks:
+      - tradingbot-network
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  tradingbot-network:
+    driver: bridge
+    name: tradingbot-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  redis_data:
+    name: tradingbot_redis_data
+    driver: local
+
+  postgres_data:
+    name: tradingbot_postgres_data
+    driver: local
+
+  prometheus_data:
+    name: tradingbot_prometheus_data
+    driver: local
+
+  grafana_data:
+    name: tradingbot_grafana_data
+    driver: local

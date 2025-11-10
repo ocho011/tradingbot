@@ -1,0 +1,97 @@
+# =============================================================================
+# Prometheus Configuration for Trading Bot Monitoring
+# =============================================================================
+
+global:
+  # Scrape interval - how often to scrape metrics
+  scrape_interval: 15s
+
+  # Evaluation interval - how often to evaluate rules
+  evaluation_interval: 15s
+
+  # External labels to attach to any time series or alerts
+  external_labels:
+    monitor: 'tradingbot-monitor'
+    environment: 'production'
+
+# Alertmanager configuration (optional - can be added later)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - 'alertmanager:9093'
+
+# Rule files (optional - can be added later for alerting rules)
+# rule_files:
+#   - 'alerts/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # ---------------------------------------------------------------------------
+  # Prometheus Self-Monitoring
+  # ---------------------------------------------------------------------------
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # ---------------------------------------------------------------------------
+  # Trading Bot Application Metrics
+  # ---------------------------------------------------------------------------
+  - job_name: 'tradingbot'
+    # Scrape interval override (more frequent for trading metrics)
+    scrape_interval: 10s
+    scrape_timeout: 10s
+
+    # Metrics path (default is /metrics)
+    metrics_path: '/metrics'
+
+    # Static configuration - target is tradingbot service
+    static_configs:
+      - targets: ['tradingbot:8000']
+        labels:
+          service: 'tradingbot'
+          component: 'api-server'
+
+    # Metric relabeling (optional - for metric filtering/renaming)
+    metric_relabel_configs:
+      # Keep only trading-specific metrics
+      - source_labels: [__name__]
+        regex: 'trading_.*|http_.*|system_.*'
+        action: keep
+
+  # ---------------------------------------------------------------------------
+  # Redis Exporter (if we add redis_exporter later)
+  # ---------------------------------------------------------------------------
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+  #       labels:
+  #         service: 'redis'
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Exporter (if we add postgres_exporter later)
+  # ---------------------------------------------------------------------------
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: 'postgres'
+
+# =============================================================================
+# Custom Metrics Documentation
+# =============================================================================
+#
+# Expected Trading Bot Metrics:
+# - trading_signals_generated_total: Counter of generated trading signals
+# - trading_orders_executed_total: Counter of executed orders
+# - trading_position_pnl: Gauge of current position P&L
+# - trading_risk_violations_total: Counter of risk management violations
+# - order_execution_latency_seconds: Histogram of order execution latency
+# - http_requests_total: Counter of HTTP requests to API
+# - http_request_duration_seconds: Histogram of HTTP request durations
+# - system_cpu_usage_percent: Gauge of CPU usage
+# - system_memory_usage_bytes: Gauge of memory usage
+#
+# =============================================================================

@@ -69,11 +69,43 @@ RISK_PER_TRADE_PERCENT=1.0
 DISCORD_WEBHOOK_URL=your_webhook_url
 ```
 
+## 🐳 Docker Deployment (Recommended)
+
+The easiest way to run the trading bot is using Docker Compose, which includes all services:
+
+```bash
+# 1. Copy Docker environment template
+cp .env.docker .env
+
+# 2. Edit .env with your Binance API credentials
+nano .env
+
+# 3. Start all services
+docker-compose up -d
+
+# 4. View logs
+docker-compose logs -f tradingbot
+```
+
+**Services Included:**
+- Trading Bot API (port 8000)
+- Redis (port 6379)
+- PostgreSQL (port 5432)
+- Prometheus (port 9090)
+- Grafana (port 3000)
+
+**Access Points:**
+- API Documentation: http://localhost:8000/docs
+- Prometheus Metrics: http://localhost:9090
+- Grafana Dashboard: http://localhost:3000 (admin/admin)
+
+📚 **Full Docker Guide**: See [docs/DOCKER.md](docs/DOCKER.md) for detailed deployment instructions.
+
 ## 🏃 Usage
 
-### Start the trading bot
+### Start the trading bot (without Docker)
 ```bash
-python -m src.main
+python -m src
 ```
 
 ### Run tests

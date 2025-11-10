@@ -1,0 +1,100 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# IDE and editor files
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Logs (will be mounted as volume)
+logs/
+*.log
+
+# Database files (will be mounted as volume)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+*.sqlite
+*.sqlite3
+
+# Environment files (secrets should not be in image)
+.env
+.env.*
+!.env.example
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Task Master files
+.taskmaster/
+.serena/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Backup files
+*.bak
+*.backup
+data/backups/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Configuration that should be mounted
+config/*.yml
+config/*.yaml
+!config/prometheus.yml
+
+# Test files (not needed in production)
+tests/
+test_*.py
+*_test.py
+
+# Development scripts
+scripts/dev/
+examples/
+
+# Alembic (database migrations run via entrypoint)
+alembic.ini
+alembic/versions/
+
+# Serena memory files
+serena/
