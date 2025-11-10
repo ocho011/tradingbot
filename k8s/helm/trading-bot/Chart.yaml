@@ -1,0 +1,14 @@
+apiVersion: v2
+name: trading-bot
+description: A Helm chart for deploying the Trading Bot application with monitoring and data persistence
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - trading
+  - crypto
+  - binance
+  - bitcoin
+maintainers:
+  - name: Trading Bot Team
+    email: team@tradingbot.example.com

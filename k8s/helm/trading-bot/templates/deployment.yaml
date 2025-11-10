@@ -1,0 +1,197 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "trading-bot.fullname" . }}
+  labels:
+    {{- include "trading-bot.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "trading-bot.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "trading-bot.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "trading-bot.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.targetPort }}
+          protocol: TCP
+        livenessProbe:
+          {{- toYaml .Values.livenessProbe | nindent 12 }}
+        readinessProbe:
+          {{- toYaml .Values.readinessProbe | nindent 12 }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        env:
+        # Application Configuration
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: log-level
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: environment
+
+        # Trading Configuration
+        - name: MAX_POSITIONS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: max-positions
+        - name: RISK_PER_TRADE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: risk-per-trade
+        - name: STOP_LOSS_PERCENTAGE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: stop-loss-percentage
+        - name: TAKE_PROFIT_PERCENTAGE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: take-profit-percentage
+        - name: TRADING_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: trading-enabled
+
+        # Database Configuration
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: database-host
+        - name: DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: database-port
+        - name: DATABASE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: database-name
+        - name: DATABASE_SSL_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: database-ssl-mode
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: database-user
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: database-password
+
+        # Redis Configuration
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: redis-host
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: redis-port
+        - name: REDIS_DB
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: redis-db
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: redis-password
+
+        # Binance API Credentials
+        - name: BINANCE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: binance-api-key
+        - name: BINANCE_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: binance-api-secret
+
+        # Encryption Key
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: encryption-key
+
+        # Monitoring Configuration
+        - name: PROMETHEUS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: prometheus-enabled
+        - name: METRICS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "trading-bot.fullname" . }}
+              key: metrics-port
+
+        volumeMounts:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          mountPath: {{ .Values.persistence.mountPath }}
+        {{- end }}
+
+      volumes:
+      {{- if .Values.persistence.enabled }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "trading-bot.fullname" . }}
+      {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

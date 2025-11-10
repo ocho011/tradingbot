@@ -1,0 +1,53 @@
+# Development environment values
+replicaCount: 1
+
+image:
+  tag: "dev"
+  pullPolicy: Always
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+
+config:
+  logLevel: DEBUG
+  environment: development
+
+  trading:
+    maxPositions: 1
+    riskPerTrade: 0.01
+    stopLossPercentage: 0.01
+    takeProfitPercentage: 0.02
+    tradingEnabled: false  # Keep disabled in dev
+
+  database:
+    host: postgres-dev
+    port: 5432
+    name: tradingbot_dev
+    sslMode: disable  # Disable SSL in dev for simplicity
+
+  redis:
+    host: redis-dev
+    port: 6379
+    db: 0
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: "standard"
+
+# Note: In production, use external secret management (e.g., Sealed Secrets, Vault)
+secrets:
+  binanceApiKey: "dev-testnet-key"
+  binanceApiSecret: "dev-testnet-secret"
+  databaseUser: "devuser"
+  databasePassword: "devpassword"
+  redisPassword: ""
+  encryptionKey: "dev-encryption-key-32-chars-long"

@@ -1,0 +1,156 @@
+# Default values for trading-bot
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: trading-bot
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: trading-bot.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Application Configuration
+config:
+  logLevel: INFO
+  environment: development
+
+  # Trading Configuration
+  trading:
+    maxPositions: 3
+    riskPerTrade: 0.02
+    stopLossPercentage: 0.02
+    takeProfitPercentage: 0.04
+    tradingEnabled: false  # Set to true in production
+
+  # Database Configuration
+  database:
+    host: postgres
+    port: 5432
+    name: tradingbot
+    sslMode: require
+
+  # Redis Configuration
+  redis:
+    host: redis
+    port: 6379
+    db: 0
+
+  # Monitoring Configuration
+  monitoring:
+    prometheusEnabled: true
+    metricsPort: 8000
+
+# Secrets (use external secret management in production)
+secrets:
+  # Binance API Credentials
+  binanceApiKey: ""
+  binanceApiSecret: ""
+
+  # Database Credentials
+  databaseUser: ""
+  databasePassword: ""
+
+  # Redis Password
+  redisPassword: ""
+
+  # Encryption Key for API key storage
+  encryptionKey: ""
+
+# Persistence
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /app/data
+  annotations: {}
+
+# RBAC
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["configmaps", "secrets"]
+      verbs: ["get", "list", "watch"]

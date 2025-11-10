@@ -993,7 +993,7 @@
               1
             ],
             "details": "Deployment, Service, ConfigMap, Secret, PVC 매니페스트 작성, Helm 차트로 dev/staging/prod 환경별 값 파일 구성, HPA 및 리소스 제한 설정, 네임스페이스 및 RBAC 권한 설정",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "kubectl apply 성공 검증, Helm 배포 테스트, 파드 상태 및 서비스 디스커버리 확인",
             "parentId": "undefined"
           },
@@ -1183,7 +1183,7 @@
       ],
       "created": "2025-11-09T21:56:30.474Z",
       "description": "Tasks for master context",
-      "updated": "2025-11-09T22:34:25.136Z"
+      "updated": "2025-11-10T16:06:22.034Z"
     }
   }
 }

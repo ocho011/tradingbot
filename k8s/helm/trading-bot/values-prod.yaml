@@ -1,0 +1,91 @@
+# Production environment values
+replicaCount: 3
+
+image:
+  tag: "1.0.0"  # Use specific version tags in production
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 75
+
+config:
+  logLevel: INFO
+  environment: production
+
+  trading:
+    maxPositions: 3
+    riskPerTrade: 0.02
+    stopLossPercentage: 0.02
+    takeProfitPercentage: 0.04
+    tradingEnabled: true  # Enable trading in production
+
+  database:
+    host: postgres-prod
+    port: 5432
+    name: tradingbot_prod
+    sslMode: require
+
+  redis:
+    host: redis-prod
+    port: 6379
+    db: 0
+
+persistence:
+  enabled: true
+  size: 20Gi
+  storageClass: "fast-ssd"  # Use high-performance storage in production
+  annotations:
+    backup.velero.io/backup-volumes: "data"  # Enable backups
+
+# Pod placement for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - trading-bot
+        topologyKey: kubernetes.io/hostname
+
+# CRITICAL: Use external secret management (Sealed Secrets, HashiCorp Vault, AWS Secrets Manager)
+# NEVER commit production secrets to git
+secrets:
+  binanceApiKey: ""  # MUST be set via external secret management
+  binanceApiSecret: ""  # MUST be set via external secret management
+  databaseUser: ""  # MUST be set via external secret management
+  databasePassword: ""  # MUST be set via external secret management
+  redisPassword: ""  # MUST be set via external secret management
+  encryptionKey: ""  # MUST be set via external secret management
+
+# Production ingress configuration (optional)
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+  hosts:
+    - host: trading-bot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: trading-bot-tls
+      hosts:
+        - trading-bot.example.com

@@ -1,0 +1,58 @@
+# Staging environment values
+replicaCount: 2
+
+image:
+  tag: "staging"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 750m
+    memory: 1.5Gi
+  requests:
+    cpu: 400m
+    memory: 768Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+config:
+  logLevel: INFO
+  environment: staging
+
+  trading:
+    maxPositions: 2
+    riskPerTrade: 0.015
+    stopLossPercentage: 0.015
+    takeProfitPercentage: 0.03
+    tradingEnabled: false  # Keep disabled until production ready
+
+  database:
+    host: postgres-staging
+    port: 5432
+    name: tradingbot_staging
+    sslMode: require
+
+  redis:
+    host: redis-staging
+    port: 6379
+    db: 0
+
+persistence:
+  enabled: true
+  size: 8Gi
+  storageClass: "standard-rwo"
+
+# Note: Use external secret management in staging/production
+# These are placeholder values - replace with actual secrets
+secrets:
+  binanceApiKey: ""  # Set via external secret management
+  binanceApiSecret: ""  # Set via external secret management
+  databaseUser: ""  # Set via external secret management
+  databasePassword: ""  # Set via external secret management
+  redisPassword: ""  # Set via external secret management
+  encryptionKey: ""  # Set via external secret management

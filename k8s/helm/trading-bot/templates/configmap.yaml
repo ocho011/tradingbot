@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "trading-bot.fullname" . }}
+  labels:
+    {{- include "trading-bot.labels" . | nindent 4 }}
+data:
+  # Application Configuration
+  log-level: {{ .Values.config.logLevel | quote }}
+  environment: {{ .Values.config.environment | quote }}
+
+  # Trading Configuration
+  max-positions: {{ .Values.config.trading.maxPositions | quote }}
+  risk-per-trade: {{ .Values.config.trading.riskPerTrade | quote }}
+  stop-loss-percentage: {{ .Values.config.trading.stopLossPercentage | quote }}
+  take-profit-percentage: {{ .Values.config.trading.takeProfitPercentage | quote }}
+  trading-enabled: {{ .Values.config.trading.tradingEnabled | quote }}
+
+  # Database Configuration
+  database-host: {{ .Values.config.database.host | quote }}
+  database-port: {{ .Values.config.database.port | quote }}
+  database-name: {{ .Values.config.database.name | quote }}
+  database-ssl-mode: {{ .Values.config.database.sslMode | quote }}
+
+  # Redis Configuration
+  redis-host: {{ .Values.config.redis.host | quote }}
+  redis-port: {{ .Values.config.redis.port | quote }}
+  redis-db: {{ .Values.config.redis.db | quote }}
+
+  # Monitoring Configuration
+  prometheus-enabled: {{ .Values.config.monitoring.prometheusEnabled | quote }}
+  metrics-port: {{ .Values.config.monitoring.metricsPort | quote }}

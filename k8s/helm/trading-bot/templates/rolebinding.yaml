@@ -1,0 +1,16 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "trading-bot.fullname" . }}
+  labels:
+    {{- include "trading-bot.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "trading-bot.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "trading-bot.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
