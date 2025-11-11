@@ -18,11 +18,13 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 import uvicorn
 
+from src.api.middleware import configure_security_middleware
 from src.api.websocket import WebSocketManager
 from src.core.config_manager import ConfigurationManager
 from src.core.events import EventBus
 from src.core.metrics import MetricsCollector, MonitoringSystem
 from src.core.orchestrator import TradingSystemOrchestrator
+from src.core.security import SecurityManager
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,7 @@ metrics_collector: Optional[MetricsCollector] = None
 monitoring_system: Optional[MonitoringSystem] = None
 event_bus: Optional[EventBus] = None
 ws_manager: Optional[WebSocketManager] = None
+security_manager: Optional[SecurityManager] = None
 
 
 # ============================================================================
@@ -179,7 +182,7 @@ async def lifespan(_app: FastAPI):
 
     Handles startup and shutdown of the trading system and all services.
     """
-    global orchestrator, config_manager, metrics_collector, monitoring_system, event_bus, ws_manager
+    global orchestrator, config_manager, metrics_collector, monitoring_system, event_bus, ws_manager, security_manager
 
     logger.info("Starting API server and trading system...")
 
@@ -190,6 +193,18 @@ async def lifespan(_app: FastAPI):
 
         # These will be initialized by the main application
         # and passed to the API server
+
+        # Configure security middleware if security manager is available
+        if security_manager:
+            import os
+            configure_security_middleware(
+                app=_app,
+                security_manager=security_manager,
+                rate_limit_enabled=os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true",
+                ip_whitelist_enabled=os.getenv("IP_WHITELIST_ENABLED", "false").lower() == "true",
+                security_headers_enabled=True
+            )
+            logger.info("Security middleware configured")
 
         # Start WebSocket manager if event bus is available
         if event_bus and ws_manager:
@@ -252,20 +267,8 @@ app.add_middleware(
 # ============================================================================
 # Custom Middleware for Security Headers
 # ============================================================================
-
-@app.middleware("http")
-async def add_security_headers(request, call_next):
-    """Add security headers to all responses."""
-    response = await call_next(request)
-
-    # Security headers
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'"
-
-    return response
+# Security headers are now handled by SecurityHeadersMiddleware in middleware.py
+# This section is kept for backward compatibility but middleware is configured in lifespan
 
 
 # ============================================================================
@@ -901,6 +904,7 @@ def run_server(
     metrics_collector_instance: Optional[MetricsCollector] = None,
     monitoring_system_instance: Optional[MonitoringSystem] = None,
     event_bus_instance: Optional[EventBus] = None,
+    security_manager_instance: Optional[SecurityManager] = None,
 ) -> None:
     """
     Run the FastAPI server.
@@ -915,8 +919,9 @@ def run_server(
         metrics_collector_instance: MetricsCollector instance
         monitoring_system_instance: MonitoringSystem instance
         event_bus_instance: EventBus instance for WebSocket integration
+        security_manager_instance: SecurityManager instance
     """
-    global orchestrator, config_manager, metrics_collector, monitoring_system, event_bus, ws_manager
+    global orchestrator, config_manager, metrics_collector, monitoring_system, event_bus, ws_manager, security_manager
 
     # Set global instances
     orchestrator = orchestrator_instance
@@ -924,6 +929,7 @@ def run_server(
     metrics_collector = metrics_collector_instance
     monitoring_system = monitoring_system_instance
     event_bus = event_bus_instance
+    security_manager = security_manager_instance
 
     # Initialize WebSocket manager if event bus is available
     if event_bus:
