@@ -1,0 +1,150 @@
+# =============================================================================
+# Grafana Alert Rules Provisioning
+# Automatically configures alert rules for trading system monitoring
+# =============================================================================
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: Trading System Alerts
+    folder: Alerts
+    interval: 1m
+    rules:
+      # Alert when no trading signals generated for 10 minutes
+      - uid: no_signals_generated
+        title: No Trading Signals Generated
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: rate(trading_signals_generated_total[5m]) == 0
+              refId: A
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          description: "No trading signals have been generated in the last 10 minutes"
+          summary: "Trading signal generation has stopped"
+        labels:
+          severity: warning
+          component: trading
+
+      # Alert on high risk violations
+      - uid: high_risk_violations
+        title: High Risk Violations Detected
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(rate(risk_violations_total[5m])) > 0.1
+              refId: A
+        noDataState: NoData
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          description: "Risk violations are occurring at a high rate (>0.1/sec)"
+          summary: "Multiple risk violations detected"
+        labels:
+          severity: critical
+          component: risk-management
+
+      # Alert on high order execution latency
+      - uid: high_order_latency
+        title: High Order Execution Latency
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: histogram_quantile(0.95, sum(rate(order_execution_latency_seconds_bucket[5m])) by (le)) > 5
+              refId: A
+        noDataState: NoData
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          description: "95th percentile order execution latency exceeds 5 seconds"
+          summary: "Order execution is slower than expected"
+        labels:
+          severity: warning
+          component: execution
+
+      # Alert on API errors
+      - uid: high_api_errors
+        title: High API Error Rate
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(rate(api_errors_total[5m])) > 0.5
+              refId: A
+        noDataState: NoData
+        execErrState: Alerting
+        for: 3m
+        annotations:
+          description: "API error rate exceeds 0.5 errors per second"
+          summary: "High rate of API errors detected"
+        labels:
+          severity: critical
+          component: api
+
+      # Alert on WebSocket disconnections
+      - uid: websocket_disconnected
+        title: WebSocket Connection Lost
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(websocket_connections_active) == 0
+              refId: A
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          description: "All WebSocket connections are disconnected"
+          summary: "WebSocket connectivity lost"
+        labels:
+          severity: critical
+          component: connectivity
+
+      # Alert on high memory usage
+      - uid: high_memory_usage
+        title: High Memory Usage
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (process_resident_memory_bytes / machine_memory_bytes) > 0.9
+              refId: A
+        noDataState: NoData
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          description: "Memory usage exceeds 90% of available memory"
+          summary: "System memory pressure detected"
+        labels:
+          severity: warning
+          component: system

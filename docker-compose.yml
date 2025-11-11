@@ -235,6 +235,7 @@ services:
     # Volume for persistence
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
 
     # Health check
     healthcheck:

@@ -93,7 +93,7 @@ scripts/dev/
 examples/
 
 # Alembic (database migrations run via entrypoint)
-alembic.ini
+# alembic.ini  # Commented out - needed in Docker image
 alembic/versions/
 
 # Serena memory files
