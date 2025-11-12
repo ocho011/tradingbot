@@ -27,6 +27,7 @@ from src.core.constants import OrderSide, OrderType, PositionSide
 from src.core.events import EventBus, EventType
 from src.core.retry_manager import RetryManager, RetryConfig, RetryStrategy
 from src.monitoring.metrics import record_order_execution
+from src.monitoring.tracing import get_tracer
 
 
 logger = logging.getLogger(__name__)
@@ -499,65 +500,110 @@ class OrderExecutor:
         """
         import time
         start_time = time.time()
+        tracer = get_tracer()
 
-        # 주문 파라미터 검증
-        try:
-            request.validate()
-        except ValueError as e:
-            logger.error(f"Order validation failed: {e}")
-            await self._emit_order_event(
-                EventType.ORDER_CANCELLED, request, error=str(e)
-            )
-            raise
+        # Create span for order execution
+        with tracer.start_span(
+            "order_execution",
+            attributes={
+                "order.symbol": request.symbol,
+                "order.type": request.order_type.value,
+                "order.side": request.side.value,
+                "order.quantity": str(request.quantity),
+                "order.price": str(request.price) if request.price else "market",
+            }
+        ) as span:
+            # 주문 파라미터 검증
+            try:
+                request.validate()
+                if span:
+                    tracer.add_event("order_validated")
+            except ValueError as e:
+                logger.error(f"Order validation failed: {e}")
+                if span:
+                    tracer.record_exception(e)
+                    span.set_attribute("order.validation_failed", True)
+                await self._emit_order_event(
+                    EventType.ORDER_CANCELLED, request, error=str(e)
+                )
+                raise
 
-        # RetryManager를 통한 주문 실행
-        try:
-            response = await self._retry_manager.execute(
-                self._place_order_with_response, request
-            )
+            # RetryManager를 통한 주문 실행
+            try:
+                response = await self._retry_manager.execute(
+                    self._place_order_with_response, request
+                )
 
-            # Record execution latency metric on success
-            execution_time = time.time() - start_time
-            record_order_execution(
-                symbol=request.symbol,
-                order_type=request.order_type.value,
-                side=request.side.value,
-                execution_time=execution_time
-            )
+                # Record execution latency metric on success
+                execution_time = time.time() - start_time
 
-            return response
+                # Add success attributes to span
+                if span:
+                    span.set_attribute("order.success", True)
+                    span.set_attribute("order.execution_time_ms", execution_time * 1000)
+                    span.set_attribute("order.order_id", response.order_id or "unknown")
+                    span.set_attribute("order.filled_quantity", str(response.filled_quantity))
+                    tracer.add_event("order_executed", {
+                        "order_id": response.order_id or "unknown",
+                        "execution_time_ms": execution_time * 1000,
+                    })
 
-        except (InvalidOrder, InsufficientFunds) as e:
-            # 재시도 불가능한 에러
-            logger.error(f"Non-retryable error: {type(e).__name__}: {e}")
-            await self._emit_order_event(
-                EventType.ORDER_CANCELLED, request, error=str(e)
-            )
-            raise
+                record_order_execution(
+                    symbol=request.symbol,
+                    order_type=request.order_type.value,
+                    side=request.side.value,
+                    execution_time=execution_time
+                )
 
-        except NetworkError as e:
-            # 모든 재시도 실패
-            logger.error(f"Order failed after all retries: {e}")
-            await self._emit_order_event(
-                EventType.EXCHANGE_ERROR, request, error=str(e)
-            )
-            raise
+                return response
 
-        except ExchangeError as e:
-            # 거래소 에러
-            logger.error(f"Exchange error: {e}")
-            await self._emit_order_event(
-                EventType.EXCHANGE_ERROR, request, error=str(e)
-            )
-            raise
+            except (InvalidOrder, InsufficientFunds) as e:
+                # 재시도 불가능한 에러
+                logger.error(f"Non-retryable error: {type(e).__name__}: {e}")
+                if span:
+                    tracer.record_exception(e)
+                    span.set_attribute("order.success", False)
+                    span.set_attribute("order.error_type", "non_retryable")
+                await self._emit_order_event(
+                    EventType.ORDER_CANCELLED, request, error=str(e)
+                )
+                raise
 
-        except Exception as e:
-            # 예상치 못한 에러
-            logger.error(f"Unexpected error during order execution: {e}", exc_info=True)
-            await self._emit_order_event(
-                EventType.ERROR_OCCURRED, request, error=str(e)
-            )
-            raise
+            except NetworkError as e:
+                # 모든 재시도 실패
+                logger.error(f"Order failed after all retries: {e}")
+                if span:
+                    tracer.record_exception(e)
+                    span.set_attribute("order.success", False)
+                    span.set_attribute("order.error_type", "network_error")
+                await self._emit_order_event(
+                    EventType.EXCHANGE_ERROR, request, error=str(e)
+                )
+                raise
+
+            except ExchangeError as e:
+                # 거래소 에러
+                logger.error(f"Exchange error: {e}")
+                if span:
+                    tracer.record_exception(e)
+                    span.set_attribute("order.success", False)
+                    span.set_attribute("order.error_type", "exchange_error")
+                await self._emit_order_event(
+                    EventType.EXCHANGE_ERROR, request, error=str(e)
+                )
+                raise
+
+            except Exception as e:
+                # 예상치 못한 에러
+                logger.error(f"Unexpected error during order execution: {e}", exc_info=True)
+                if span:
+                    tracer.record_exception(e)
+                    span.set_attribute("order.success", False)
+                    span.set_attribute("order.error_type", "unexpected")
+                await self._emit_order_event(
+                    EventType.ERROR_OCCURRED, request, error=str(e)
+                )
+                raise
 
     async def _place_order_with_response(self, request: OrderRequest) -> OrderResponse:
         """

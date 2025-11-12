@@ -11,6 +11,7 @@ import pandas as pd
 
 from src.services.strategy.signal import Signal
 from src.monitoring.metrics import record_signal_generated, ExecutionTimer
+from src.monitoring.tracing import get_tracer
 
 
 class SignalGenerator(ABC):
@@ -70,7 +71,7 @@ class SignalGenerator(ABC):
         """
         Generate a trading signal based on current market conditions.
 
-        This method wraps the internal implementation with metrics collection.
+        This method wraps the internal implementation with metrics collection and tracing.
 
         Args:
             symbol: Trading pair symbol (e.g., 'BTCUSDT')
@@ -84,20 +85,47 @@ class SignalGenerator(ABC):
         Raises:
             ValueError: If input data is invalid
         """
-        # Time the strategy execution
-        with ExecutionTimer(self.strategy_name, symbol):
-            # Call internal implementation
-            signal = self._generate_signal_impl(symbol, current_price, candles, **kwargs)
+        tracer = get_tracer()
 
-            # Record signal generation metric if signal was generated
-            if signal and self._metrics_enabled:
-                record_signal_generated(
-                    strategy=self.strategy_name,
-                    symbol=symbol,
-                    direction=signal.direction
-                )
+        # Create span for signal generation
+        with tracer.start_span(
+            f"signal_generation.{self.strategy_name}",
+            attributes={
+                "strategy.name": self.strategy_name,
+                "trading.symbol": symbol,
+                "trading.price": str(current_price),
+                "market.candles_count": len(candles) if candles is not None else 0,
+            }
+        ) as span:
+            # Time the strategy execution
+            with ExecutionTimer(self.strategy_name, symbol):
+                # Call internal implementation
+                signal = self._generate_signal_impl(symbol, current_price, candles, **kwargs)
 
-            return signal
+                # Add signal result to span
+                if span:
+                    if signal:
+                        span.set_attribute("signal.generated", True)
+                        span.set_attribute("signal.direction", signal.direction)
+                        span.set_attribute("signal.confidence", signal.confidence)
+                        span.set_attribute("signal.entry_price", str(signal.entry_price))
+                        tracer.add_event("signal_generated", {
+                            "direction": signal.direction,
+                            "symbol": symbol,
+                            "strategy": self.strategy_name,
+                        })
+                    else:
+                        span.set_attribute("signal.generated", False)
+
+                # Record signal generation metric if signal was generated
+                if signal and self._metrics_enabled:
+                    record_signal_generated(
+                        strategy=self.strategy_name,
+                        symbol=symbol,
+                        direction=signal.direction
+                    )
+
+                return signal
 
     @abstractmethod
     def calculate_stop_loss(
