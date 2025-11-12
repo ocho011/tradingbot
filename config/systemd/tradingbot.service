@@ -1,0 +1,55 @@
+[Unit]
+Description=Trading Bot Service
+Documentation=https://github.com/your-org/tradingbot
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=tradingbot
+Group=tradingbot
+WorkingDirectory=/opt/tradingbot
+
+# Environment
+EnvironmentFile=/opt/tradingbot/.env
+Environment="PYTHONUNBUFFERED=1"
+
+# Main process
+ExecStart=/opt/tradingbot/venv/bin/python -m src
+
+# Pre-start checks
+ExecStartPre=/usr/bin/test -f /opt/tradingbot/.env
+ExecStartPre=/opt/tradingbot/venv/bin/python -c "from src.database.engine import health_check; health_check()"
+
+# Post-stop cleanup
+ExecStopPost=/bin/sh -c 'echo "Service stopped at $(date)" >> /opt/tradingbot/logs/service.log'
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Watchdog
+WatchdogSec=60
+NotifyAccess=all
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/tradingbot/data /opt/tradingbot/logs /opt/tradingbot/backups
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=2G
+CPUQuota=200%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tradingbot
+
+[Install]
+WantedBy=multi-user.target

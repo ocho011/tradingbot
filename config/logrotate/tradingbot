@@ -1,0 +1,81 @@
+# Logrotate configuration for Trading Bot
+# Place this file in /etc/logrotate.d/tradingbot
+
+/opt/tradingbot/logs/*.log {
+    # Rotate daily
+    daily
+
+    # Keep 30 days of logs
+    rotate 30
+
+    # Compress old logs
+    compress
+    delaycompress
+
+    # Don't error if log file is missing
+    missingok
+
+    # Don't rotate empty logs
+    notifempty
+
+    # Create new log file with these permissions
+    create 0640 tradingbot tradingbot
+
+    # Use date as suffix instead of numbers
+    dateext
+    dateformat -%Y%m%d
+
+    # Shared scripts for all logs
+    sharedscripts
+
+    # After rotation, signal the application to reopen log files
+    postrotate
+        # Reload systemd service if it's running
+        systemctl reload tradingbot.service > /dev/null 2>&1 || true
+    endscript
+
+    # Maximum size before forced rotation (100MB)
+    maxsize 100M
+
+    # Don't rotate if size is less than 10MB
+    minsize 10M
+}
+
+# Backup logs
+/opt/tradingbot/logs/backup.log {
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 tradingbot tradingbot
+    dateext
+    maxsize 50M
+}
+
+# Restore logs
+/opt/tradingbot/logs/restore.log {
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 tradingbot tradingbot
+    dateext
+    maxsize 50M
+}
+
+# Service logs
+/opt/tradingbot/logs/service.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 tradingbot tradingbot
+    dateext
+    maxsize 50M
+}

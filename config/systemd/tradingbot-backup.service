@@ -1,0 +1,33 @@
+[Unit]
+Description=Trading Bot Database Backup Service
+Documentation=https://github.com/your-org/tradingbot
+After=tradingbot.service
+
+[Service]
+Type=oneshot
+User=tradingbot
+Group=tradingbot
+WorkingDirectory=/opt/tradingbot
+
+# Environment
+EnvironmentFile=/opt/tradingbot/.env
+Environment="BACKUP_DIR=/opt/tradingbot/backups"
+Environment="LOG_FILE=/opt/tradingbot/logs/backup.log"
+Environment="RETENTION_DAYS=7"
+
+# Execute backup script
+ExecStart=/opt/tradingbot/scripts/backup_database.sh
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/tradingbot/backups /opt/tradingbot/logs
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tradingbot-backup
+
+[Install]
+WantedBy=multi-user.target
