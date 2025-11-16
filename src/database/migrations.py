@@ -9,39 +9,36 @@ This module provides:
 - Production safety mechanisms
 """
 
-import os
-import shutil
 import logging
+import shutil
+import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any
-import subprocess
-import asyncio
-import json
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import inspect, text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.engine import get_engine, get_session, init_db as init_engine
+from src.database.engine import get_engine
+from src.database.engine import init_db as init_engine
 from src.database.models import Base
-
 
 logger = logging.getLogger(__name__)
 
 
 class MigrationError(Exception):
     """Base exception for migration-related errors."""
-    pass
+
 
 
 class BackupError(Exception):
     """Exception raised when backup operations fail."""
-    pass
+
 
 
 class ValidationError(Exception):
     """Exception raised when schema validation fails."""
-    pass
+
 
 
 # ============================================================================
@@ -297,8 +294,8 @@ def get_migration_history() -> List[Dict[str, str]]:
         result = run_alembic_command(["history"])
         history = []
 
-        for line in result.stdout.strip().split('\n'):
-            if '->' in line or '<-' in line:
+        for line in result.stdout.strip().split("\n"):
+            if "->" in line or "<-" in line:
                 history.append({"description": line.strip()})
 
         return history
@@ -348,13 +345,14 @@ async def backup_database(backup_path: Optional[Path] = None) -> Path:
     try:
         # Get current database path
         from src.database.engine import get_database_url
+
         db_url = get_database_url()
 
-        if not db_url.startswith('sqlite'):
+        if not db_url.startswith("sqlite"):
             raise BackupError("Backup only supported for SQLite databases")
 
         # Extract database file path
-        db_path = db_url.replace('sqlite+aiosqlite:///', '')
+        db_path = db_url.replace("sqlite+aiosqlite:///", "")
         source_path = Path(db_path)
 
         if not source_path.exists():
@@ -403,17 +401,20 @@ async def restore_database(backup_path: Path, confirm: bool = False) -> None:
 
         # Get current database path
         from src.database.engine import get_database_url
+
         db_url = get_database_url()
 
-        if not db_url.startswith('sqlite'):
+        if not db_url.startswith("sqlite"):
             raise BackupError("Restore only supported for SQLite databases")
 
-        db_path = db_url.replace('sqlite+aiosqlite:///', '')
+        db_path = db_url.replace("sqlite+aiosqlite:///", "")
         target_path = Path(db_path)
 
         # Create backup of current database before restoring
         if target_path.exists():
-            current_backup = get_backup_path(f"pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+            current_backup = get_backup_path(
+                f"pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+            )
             logger.info(f"Creating safety backup: {current_backup}")
             shutil.copy2(target_path, current_backup)
 
@@ -443,12 +444,14 @@ def list_backups() -> List[Dict[str, Any]]:
     backups = []
     for backup_file in backup_dir.glob("*.db"):
         stat = backup_file.stat()
-        backups.append({
-            "name": backup_file.name,
-            "path": str(backup_file),
-            "size": stat.st_size,
-            "created": datetime.fromtimestamp(stat.st_mtime),
-        })
+        backups.append(
+            {
+                "name": backup_file.name,
+                "path": str(backup_file),
+                "size": stat.st_size,
+                "created": datetime.fromtimestamp(stat.st_mtime),
+            }
+        )
 
     # Sort by creation time, newest first
     backups.sort(key=lambda x: x["created"], reverse=True)
@@ -509,7 +512,9 @@ async def validate_schema() -> Dict[str, Any]:
                     f"Missing tables: {', '.join(validation_results['missing_tables'])}"
                 )
 
-        logger.info(f"Schema validation complete: {'PASSED' if validation_results['valid'] else 'FAILED'}")
+        logger.info(
+            f"Schema validation complete: {'PASSED' if validation_results['valid'] else 'FAILED'}"
+        )
         return validation_results
 
     except Exception as e:
@@ -696,7 +701,7 @@ def check_migration_safety() -> Dict[str, Any]:
 
     # Check if database is accessible
     try:
-        engine = get_engine()
+        get_engine()
         safety_checks["checks"]["database_accessible"] = True
     except Exception as e:
         safety_checks["safe"] = False

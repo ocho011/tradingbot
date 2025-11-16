@@ -69,7 +69,6 @@ class EventHandler(ABC):
         Raises:
             NotImplementedError: Must be implemented by subclasses
         """
-        pass
 
     async def on_error(self, event: Event, error: Exception) -> None:
         """
@@ -82,8 +81,7 @@ class EventHandler(ABC):
             error: The exception that occurred
         """
         self.logger.error(
-            f"Error handling event {event.event_type} from {event.source}: {error}",
-            exc_info=True
+            f"Error handling event {event.event_type} from {event.source}: {error}", exc_info=True
         )
 
     def can_handle(self, event_type: EventType) -> bool:
@@ -126,10 +124,7 @@ class EventQueue:
         async with self._lock:
             # Use negative priority for max-heap behavior (higher priority first)
             # Use counter for stable FIFO ordering within same priority
-            heapq.heappush(
-                self._queue,
-                (-event.priority, self._counter, event.timestamp, event)
-            )
+            heapq.heappush(self._queue, (-event.priority, self._counter, event.timestamp, event))
             self._counter += 1
 
     async def get(self) -> Event:
@@ -206,19 +201,10 @@ class EventBus:
         self._max_queue_size = max_queue_size
         self._running = False
         self._dispatcher_task: Optional[asyncio.Task] = None
-        self._stats = {
-            "published": 0,
-            "processed": 0,
-            "errors": 0,
-            "dropped": 0
-        }
+        self._stats = {"published": 0, "processed": 0, "errors": 0, "dropped": 0}
         self.logger = logging.getLogger(f"{__name__}.EventBus")
 
-    def subscribe(
-        self,
-        event_type: EventType,
-        handler: EventHandler
-    ) -> None:
+    def subscribe(self, event_type: EventType, handler: EventHandler) -> None:
         """
         Subscribe a handler to a specific event type.
 
@@ -241,11 +227,7 @@ class EventBus:
         self._global_handlers.add(handler)
         self.logger.debug(f"Handler {handler.name} subscribed to all events")
 
-    def unsubscribe(
-        self,
-        event_type: EventType,
-        handler: EventHandler
-    ) -> None:
+    def unsubscribe(self, event_type: EventType, handler: EventHandler) -> None:
         """
         Unsubscribe a handler from a specific event type.
 
@@ -289,9 +271,7 @@ class EventBus:
 
         await self._queue.put(event)
         self._stats["published"] += 1
-        self.logger.debug(
-            f"Published event {event.event_type} with priority {event.priority}"
-        )
+        self.logger.debug(f"Published event {event.event_type} with priority {event.priority}")
         return True
 
     async def start(self) -> None:
@@ -370,10 +350,7 @@ class EventBus:
             return
 
         # Dispatch to all handlers concurrently with error isolation
-        tasks = [
-            self._safe_handle(handler, event)
-            for handler in handlers
-        ]
+        tasks = [self._safe_handle(handler, event) for handler in handlers]
 
         await asyncio.gather(*tasks, return_exceptions=True)
         self._stats["processed"] += 1
@@ -395,7 +372,7 @@ class EventBus:
             except Exception as error_handler_error:
                 self.logger.error(
                     f"Error in error handler for {handler.name}: {error_handler_error}",
-                    exc_info=True
+                    exc_info=True,
                 )
 
     def get_stats(self) -> Dict[str, int]:
@@ -409,7 +386,7 @@ class EventBus:
             **self._stats,
             "queue_size": self._queue.size(),
             "subscriber_count": sum(len(handlers) for handlers in self._subscribers.values()),
-            "global_handler_count": len(self._global_handlers)
+            "global_handler_count": len(self._global_handlers),
         }
 
     async def wait_empty(self, timeout: Optional[float] = None) -> bool:

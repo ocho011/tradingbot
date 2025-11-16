@@ -8,27 +8,25 @@
 - 에러 처리 및 재시도 로직 (RetryManager 사용)
 """
 
-import asyncio
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Dict, Any, Optional, List
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from ccxt.base.errors import (
-    NetworkError,
     ExchangeError,
-    InvalidOrder,
     InsufficientFunds,
+    InvalidOrder,
+    NetworkError,
     OrderNotFound,
 )
 
 from src.core.constants import OrderSide, OrderType, PositionSide
 from src.core.events import EventBus, EventType
-from src.core.retry_manager import RetryManager, RetryConfig, RetryStrategy
+from src.core.retry_manager import RetryConfig, RetryManager, RetryStrategy
 from src.monitoring.metrics import record_order_execution
 from src.monitoring.tracing import get_tracer
-
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +112,7 @@ class OrderRequest:
 
         elif self.order_type in (OrderType.STOP_LOSS, OrderType.TAKE_PROFIT):
             if self.stop_price is None or self.stop_price <= 0:
-                raise ValueError(
-                    f"{self.order_type.value} order requires a valid stop_price"
-                )
+                raise ValueError(f"{self.order_type.value} order requires a valid stop_price")
 
         # 포지션 방향 검증 (선물 거래)
         if self.position_side and self.position_side not in (
@@ -210,7 +206,11 @@ class OrderResponse:
 
     def is_active(self) -> bool:
         """주문이 아직 활성 상태인지 확인."""
-        return self.status in (OrderStatus.PENDING, OrderStatus.SUBMITTED, OrderStatus.PARTIALLY_FILLED)
+        return self.status in (
+            OrderStatus.PENDING,
+            OrderStatus.SUBMITTED,
+            OrderStatus.PARTIALLY_FILLED,
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """응답 데이터를 딕셔너리로 변환."""
@@ -271,8 +271,7 @@ class OrderExecutor:
         self._retry_manager = self._create_retry_manager()
 
         logger.info(
-            f"OrderExecutor initialized (max_retries={max_retries}, "
-            f"retry_delay={retry_delay}s)"
+            f"OrderExecutor initialized (max_retries={max_retries}, " f"retry_delay={retry_delay}s)"
         )
 
     def _create_retry_manager(self) -> RetryManager:
@@ -282,6 +281,7 @@ class OrderExecutor:
         Returns:
             RetryManager: 설정된 재시도 관리자
         """
+
         # 타임스탬프 동기화 핸들러
         async def timestamp_handler(exception: ExchangeError):
             error_msg = str(exception).lower()
@@ -499,6 +499,7 @@ class OrderExecutor:
             ExchangeError: 거래소 에러 발생 시
         """
         import time
+
         start_time = time.time()
         tracer = get_tracer()
 
@@ -511,7 +512,7 @@ class OrderExecutor:
                 "order.side": request.side.value,
                 "order.quantity": str(request.quantity),
                 "order.price": str(request.price) if request.price else "market",
-            }
+            },
         ) as span:
             # 주문 파라미터 검증
             try:
@@ -523,9 +524,7 @@ class OrderExecutor:
                 if span:
                     tracer.record_exception(e)
                     span.set_attribute("order.validation_failed", True)
-                await self._emit_order_event(
-                    EventType.ORDER_CANCELLED, request, error=str(e)
-                )
+                await self._emit_order_event(EventType.ORDER_CANCELLED, request, error=str(e))
                 raise
 
             # RetryManager를 통한 주문 실행
@@ -543,16 +542,19 @@ class OrderExecutor:
                     span.set_attribute("order.execution_time_ms", execution_time * 1000)
                     span.set_attribute("order.order_id", response.order_id or "unknown")
                     span.set_attribute("order.filled_quantity", str(response.filled_quantity))
-                    tracer.add_event("order_executed", {
-                        "order_id": response.order_id or "unknown",
-                        "execution_time_ms": execution_time * 1000,
-                    })
+                    tracer.add_event(
+                        "order_executed",
+                        {
+                            "order_id": response.order_id or "unknown",
+                            "execution_time_ms": execution_time * 1000,
+                        },
+                    )
 
                 record_order_execution(
                     symbol=request.symbol,
                     order_type=request.order_type.value,
                     side=request.side.value,
-                    execution_time=execution_time
+                    execution_time=execution_time,
                 )
 
                 return response
@@ -564,9 +566,7 @@ class OrderExecutor:
                     tracer.record_exception(e)
                     span.set_attribute("order.success", False)
                     span.set_attribute("order.error_type", "non_retryable")
-                await self._emit_order_event(
-                    EventType.ORDER_CANCELLED, request, error=str(e)
-                )
+                await self._emit_order_event(EventType.ORDER_CANCELLED, request, error=str(e))
                 raise
 
             except NetworkError as e:
@@ -576,9 +576,7 @@ class OrderExecutor:
                     tracer.record_exception(e)
                     span.set_attribute("order.success", False)
                     span.set_attribute("order.error_type", "network_error")
-                await self._emit_order_event(
-                    EventType.EXCHANGE_ERROR, request, error=str(e)
-                )
+                await self._emit_order_event(EventType.EXCHANGE_ERROR, request, error=str(e))
                 raise
 
             except ExchangeError as e:
@@ -588,9 +586,7 @@ class OrderExecutor:
                     tracer.record_exception(e)
                     span.set_attribute("order.success", False)
                     span.set_attribute("order.error_type", "exchange_error")
-                await self._emit_order_event(
-                    EventType.EXCHANGE_ERROR, request, error=str(e)
-                )
+                await self._emit_order_event(EventType.EXCHANGE_ERROR, request, error=str(e))
                 raise
 
             except Exception as e:
@@ -600,9 +596,7 @@ class OrderExecutor:
                     tracer.record_exception(e)
                     span.set_attribute("order.success", False)
                     span.set_attribute("order.error_type", "unexpected")
-                await self._emit_order_event(
-                    EventType.ERROR_OCCURRED, request, error=str(e)
-                )
+                await self._emit_order_event(EventType.ERROR_OCCURRED, request, error=str(e))
                 raise
 
     async def _place_order_with_response(self, request: OrderRequest) -> OrderResponse:
@@ -642,15 +636,11 @@ class OrderExecutor:
         await self._emit_order_event(EventType.ORDER_PLACED, request, response)
 
         if response.is_filled():
-            await self._emit_order_event(
-                EventType.ORDER_FILLED, request, response
-            )
+            await self._emit_order_event(EventType.ORDER_FILLED, request, response)
 
         return response
 
-    async def _place_order_on_exchange(
-        self, order_params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _place_order_on_exchange(self, order_params: Dict[str, Any]) -> Dict[str, Any]:
         """
         거래소에 주문 전송 (CCXT 사용).
 
@@ -800,9 +790,7 @@ class OrderExecutor:
         except Exception as e:
             logger.error(f"Failed to emit event {event_type}: {e}")
 
-    async def cancel_order(
-        self, order_id: str, symbol: str
-    ) -> Dict[str, Any]:
+    async def cancel_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
         """
         주문 취소.
 
@@ -843,9 +831,7 @@ class OrderExecutor:
             logger.error(f"Failed to cancel order {order_id}: {e}", exc_info=True)
             raise
 
-    async def fetch_order(
-        self, order_id: str, symbol: str
-    ) -> Dict[str, Any]:
+    async def fetch_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
         """
         주문 조회.
 

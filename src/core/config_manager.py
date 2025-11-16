@@ -7,35 +7,29 @@ across all services (Binance, Trading, Database, Logging, API, ICT, Strategies).
 """
 
 import asyncio
-import logging
-from pathlib import Path
-from typing import Dict, Any, Optional, Callable, List
-from datetime import datetime
-from threading import RLock
-import yaml
 import json
+import logging
+from datetime import datetime
+from pathlib import Path
+from threading import RLock
+from typing import Any, Callable, Dict, List, Optional
+
+import yaml
+from watchdog.events import FileModifiedEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileModifiedEvent
 
 from src.core.config import (
     Settings,
-    BinanceConfig,
-    TradingConfig,
-    DatabaseConfig,
-    LoggingConfig,
-    APIConfig,
-    ICTConfig,
-    StrategyConfig as EnvStrategyConfig,
 )
-from src.core.events import EventBus, Event
 from src.core.constants import EventType
+from src.core.events import Event, EventBus
 
 logger = logging.getLogger(__name__)
 
 
 class ConfigurationError(Exception):
     """Configuration-related errors"""
-    pass
+
 
 
 class ConfigFileWatcher(FileSystemEventHandler):
@@ -43,7 +37,7 @@ class ConfigFileWatcher(FileSystemEventHandler):
     Watches configuration files for changes and triggers hot-reload.
     """
 
-    def __init__(self, config_manager: 'ConfigurationManager'):
+    def __init__(self, config_manager: "ConfigurationManager"):
         self.config_manager = config_manager
         self.last_reload = {}
         self.debounce_seconds = 1.0  # Prevent rapid reloads
@@ -56,7 +50,7 @@ class ConfigFileWatcher(FileSystemEventHandler):
         file_path = Path(event.src_path)
 
         # Check if it's a config file
-        if file_path.suffix not in ['.yaml', '.yml', '.json']:
+        if file_path.suffix not in [".yaml", ".yml", ".json"]:
             return
 
         # Debounce rapid changes
@@ -89,9 +83,9 @@ class ConfigurationHistory:
         """Save configuration snapshot"""
         with self._lock:
             snapshot = {
-                'timestamp': datetime.utcnow().isoformat(),
-                'reason': reason,
-                'config': config.copy(),
+                "timestamp": datetime.utcnow().isoformat(),
+                "reason": reason,
+                "config": config.copy(),
             }
             self.history.append(snapshot)
 
@@ -113,7 +107,7 @@ class ConfigurationHistory:
             # Get the config to restore (going back 'steps' operations)
             # Snapshots are saved BEFORE operations, so history[-1] is the state before the last operation
             # For rollback(1), we want to restore history[-1] (state before last operation)
-            config_to_restore = self.history[-steps]['config']
+            config_to_restore = self.history[-steps]["config"]
 
             # Remove 'steps' most recent snapshots
             for _ in range(min(steps, len(self.history))):
@@ -179,12 +173,12 @@ class ConfigurationManager:
 
         # Metrics
         self.metrics = {
-            'reloads': 0,
-            'successful_reloads': 0,
-            'failed_reloads': 0,
-            'rollbacks': 0,
-            'env_switches': 0,
-            'config_updates': 0,
+            "reloads": 0,
+            "successful_reloads": 0,
+            "failed_reloads": 0,
+            "rollbacks": 0,
+            "env_switches": 0,
+            "config_updates": 0,
         }
 
         # Initialize
@@ -202,7 +196,9 @@ class ConfigurationManager:
         if self.enable_file_watching:
             self._start_file_watching()
 
-        logger.info(f"ConfigurationManager initialized (config_dir={self.config_dir}, file_watching={self.enable_file_watching})")
+        logger.info(
+            f"ConfigurationManager initialized (config_dir={self.config_dir}, file_watching={self.enable_file_watching})"
+        )
 
     def _start_file_watching(self) -> None:
         """Start watching configuration files for changes"""
@@ -227,37 +223,41 @@ class ConfigurationManager:
     def _get_current_config(self) -> Dict[str, Any]:
         """Get current configuration as dictionary"""
         return {
-            'binance': {
-                'testnet': self.settings.binance.testnet,
-                'api_key': self.settings.binance.active_api_key[:8] + '...' if self.settings.binance.active_api_key else None,
+            "binance": {
+                "testnet": self.settings.binance.testnet,
+                "api_key": (
+                    self.settings.binance.active_api_key[:8] + "..."
+                    if self.settings.binance.active_api_key
+                    else None
+                ),
             },
-            'trading': {
-                'mode': self.settings.trading.mode,
-                'default_leverage': self.settings.trading.default_leverage,
-                'max_position_size_usdt': self.settings.trading.max_position_size_usdt,
-                'risk_per_trade_percent': self.settings.trading.risk_per_trade_percent,
+            "trading": {
+                "mode": self.settings.trading.mode,
+                "default_leverage": self.settings.trading.default_leverage,
+                "max_position_size_usdt": self.settings.trading.max_position_size_usdt,
+                "risk_per_trade_percent": self.settings.trading.risk_per_trade_percent,
             },
-            'database': {
-                'path': self.settings.database.path,
+            "database": {
+                "path": self.settings.database.path,
             },
-            'logging': {
-                'level': self.settings.logging.level,
-                'file_path': self.settings.logging.file_path,
+            "logging": {
+                "level": self.settings.logging.level,
+                "file_path": self.settings.logging.file_path,
             },
-            'api': {
-                'host': self.settings.api.host,
-                'port': self.settings.api.port,
-                'reload': self.settings.api.reload,
+            "api": {
+                "host": self.settings.api.host,
+                "port": self.settings.api.port,
+                "reload": self.settings.api.reload,
             },
-            'ict': {
-                'fvg_min_size_percent': self.settings.ict.fvg_min_size_percent,
-                'ob_lookback_periods': self.settings.ict.ob_lookback_periods,
-                'liquidity_sweep_threshold': self.settings.ict.liquidity_sweep_threshold,
+            "ict": {
+                "fvg_min_size_percent": self.settings.ict.fvg_min_size_percent,
+                "ob_lookback_periods": self.settings.ict.ob_lookback_periods,
+                "liquidity_sweep_threshold": self.settings.ict.liquidity_sweep_threshold,
             },
-            'strategy': {
-                'enable_strategy_1': self.settings.strategy.enable_strategy_1,
-                'enable_strategy_2': self.settings.strategy.enable_strategy_2,
-                'enable_strategy_3': self.settings.strategy.enable_strategy_3,
+            "strategy": {
+                "enable_strategy_1": self.settings.strategy.enable_strategy_1,
+                "enable_strategy_2": self.settings.strategy.enable_strategy_2,
+                "enable_strategy_3": self.settings.strategy.enable_strategy_3,
             },
         }
 
@@ -276,17 +276,19 @@ class ConfigurationManager:
         """
         with self._lock:
             try:
-                self.metrics['reloads'] += 1
+                self.metrics["reloads"] += 1
 
                 # Save current config for rollback
-                self.history.save_snapshot(self._get_current_config(), reason=f"reload:{filepath.name}")
+                self.history.save_snapshot(
+                    self._get_current_config(), reason=f"reload:{filepath.name}"
+                )
 
                 # Load configuration file
-                if filepath.suffix in ['.yaml', '.yml']:
-                    with open(filepath, 'r') as f:
+                if filepath.suffix in [".yaml", ".yml"]:
+                    with open(filepath, "r") as f:
                         config_data = yaml.safe_load(f)
-                elif filepath.suffix == '.json':
-                    with open(filepath, 'r') as f:
+                elif filepath.suffix == ".json":
+                    with open(filepath, "r") as f:
                         config_data = json.load(f)
                 else:
                     raise ConfigurationError(f"Unsupported file format: {filepath.suffix}")
@@ -295,14 +297,14 @@ class ConfigurationManager:
                 self._apply_config(config_data)
 
                 # Emit event
-                self._emit_config_changed('file_reload', filepath.name, config_data)
+                self._emit_config_changed("file_reload", filepath.name, config_data)
 
-                self.metrics['successful_reloads'] += 1
+                self.metrics["successful_reloads"] += 1
                 logger.info(f"Configuration reloaded from {filepath}")
                 return True
 
             except Exception as e:
-                self.metrics['failed_reloads'] += 1
+                self.metrics["failed_reloads"] += 1
                 logger.error(f"Failed to reload configuration from {filepath}: {e}")
                 raise ConfigurationError(f"Configuration reload failed: {e}")
 
@@ -322,19 +324,19 @@ class ConfigurationManager:
 
         # Apply each section
         for section, data in config_data.items():
-            if section == 'binance' and hasattr(self.settings, 'binance'):
+            if section == "binance" and hasattr(self.settings, "binance"):
                 self._apply_binance_config(data)
-            elif section == 'trading' and hasattr(self.settings, 'trading'):
+            elif section == "trading" and hasattr(self.settings, "trading"):
                 self._apply_trading_config(data)
-            elif section == 'database' and hasattr(self.settings, 'database'):
+            elif section == "database" and hasattr(self.settings, "database"):
                 self._apply_database_config(data)
-            elif section == 'logging' and hasattr(self.settings, 'logging'):
+            elif section == "logging" and hasattr(self.settings, "logging"):
                 self._apply_logging_config(data)
-            elif section == 'api' and hasattr(self.settings, 'api'):
+            elif section == "api" and hasattr(self.settings, "api"):
                 self._apply_api_config(data)
-            elif section == 'ict' and hasattr(self.settings, 'ict'):
+            elif section == "ict" and hasattr(self.settings, "ict"):
                 self._apply_ict_config(data)
-            elif section == 'strategy' and hasattr(self.settings, 'strategy'):
+            elif section == "strategy" and hasattr(self.settings, "strategy"):
                 self._apply_strategy_config(data)
             else:
                 logger.warning(f"Unknown configuration section: {section}")
@@ -399,7 +401,7 @@ class ConfigurationManager:
                 # Save current config
                 self.history.save_snapshot(
                     self._get_current_config(),
-                    reason=f"env_switch:{'testnet' if to_testnet else 'mainnet'}"
+                    reason=f"env_switch:{'testnet' if to_testnet else 'mainnet'}",
                 )
 
                 old_env = self.settings.binance.testnet
@@ -411,13 +413,17 @@ class ConfigurationManager:
                 self.settings.binance.validate_credentials()
 
                 # Emit event
-                env_name = 'testnet' if to_testnet else 'mainnet'
-                self._emit_config_changed('environment_switch', env_name, {
-                    'from': 'testnet' if old_env else 'mainnet',
-                    'to': env_name,
-                })
+                env_name = "testnet" if to_testnet else "mainnet"
+                self._emit_config_changed(
+                    "environment_switch",
+                    env_name,
+                    {
+                        "from": "testnet" if old_env else "mainnet",
+                        "to": env_name,
+                    },
+                )
 
-                self.metrics['env_switches'] += 1
+                self.metrics["env_switches"] += 1
                 logger.info(f"Environment switched to {env_name}")
                 return True
 
@@ -450,39 +456,36 @@ class ConfigurationManager:
         with self._lock:
             try:
                 # Save current config
-                self.history.save_snapshot(
-                    self._get_current_config(),
-                    reason=f"update:{section}"
-                )
+                self.history.save_snapshot(self._get_current_config(), reason=f"update:{section}")
 
                 # Apply updates based on section
-                if section == 'binance':
+                if section == "binance":
                     self._apply_binance_config(updates)
                     if validate:
                         self.settings.binance.validate_credentials()
-                elif section == 'trading':
+                elif section == "trading":
                     self._apply_trading_config(updates)
-                elif section == 'database':
+                elif section == "database":
                     self._apply_database_config(updates)
-                elif section == 'logging':
+                elif section == "logging":
                     self._apply_logging_config(updates)
-                elif section == 'api':
+                elif section == "api":
                     self._apply_api_config(updates)
-                elif section == 'ict':
+                elif section == "ict":
                     self._apply_ict_config(updates)
-                elif section == 'strategy':
+                elif section == "strategy":
                     self._apply_strategy_config(updates)
                 else:
                     raise ConfigurationError(f"Unknown configuration section: {section}")
 
                 # Emit event
-                self._emit_config_changed('config_update', section, updates)
+                self._emit_config_changed("config_update", section, updates)
 
                 # Auto-save
                 if self.auto_save:
                     self.save_config()
 
-                self.metrics['config_updates'] += 1
+                self.metrics["config_updates"] += 1
                 logger.info(f"Configuration updated: {section} = {updates}")
                 return True
 
@@ -512,9 +515,9 @@ class ConfigurationManager:
                 self._apply_config(previous_config)
 
                 # Emit event
-                self._emit_config_changed('rollback', 'all', {'steps': steps})
+                self._emit_config_changed("rollback", "all", {"steps": steps})
 
-                self.metrics['rollbacks'] += 1
+                self.metrics["rollbacks"] += 1
                 logger.info(f"Configuration rolled back {steps} step(s)")
                 return True
 
@@ -542,7 +545,7 @@ class ConfigurationManager:
             config_data = self._get_current_config()
 
             # Write to file
-            with open(target_path, 'w') as f:
+            with open(target_path, "w") as f:
                 yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
 
             logger.info(f"Configuration saved to {target_path}")
@@ -556,15 +559,15 @@ class ConfigurationManager:
         """Get current configuration status"""
         with self._lock:
             return {
-                'environment': 'testnet' if self.settings.binance.testnet else 'mainnet',
-                'trading_mode': self.settings.trading.mode,
-                'config_dir': str(self.config_dir),
-                'file_watching_enabled': self.enable_file_watching,
-                'auto_save_enabled': self.auto_save,
-                'history_size': len(self.history.history),
-                'callbacks_registered': len(self._change_callbacks),
-                'metrics': self.metrics,
-                'current_config': self._get_current_config(),
+                "environment": "testnet" if self.settings.binance.testnet else "mainnet",
+                "trading_mode": self.settings.trading.mode,
+                "config_dir": str(self.config_dir),
+                "file_watching_enabled": self.enable_file_watching,
+                "auto_save_enabled": self.auto_save,
+                "history_size": len(self.history.history),
+                "callbacks_registered": len(self._change_callbacks),
+                "metrics": self.metrics,
+                "current_config": self._get_current_config(),
             }
 
     def get_history(self, limit: int = 10) -> List[Dict[str, Any]]:
@@ -604,16 +607,16 @@ class ConfigurationManager:
                 event = Event(
                     event_type=EventType.CONFIG_UPDATED,
                     data={
-                        'change_type': change_type,
-                        'subject': subject,
-                        'details': details,
-                        'timestamp': datetime.utcnow().isoformat(),
+                        "change_type": change_type,
+                        "subject": subject,
+                        "details": details,
+                        "timestamp": datetime.utcnow().isoformat(),
                     },
                     priority=5,  # Medium priority
                 )
                 # Try to emit event asynchronously if event loop is running
                 try:
-                    loop = asyncio.get_running_loop()
+                    asyncio.get_running_loop()
                     asyncio.create_task(self.event_bus.emit(event))
                 except RuntimeError:
                     # No running event loop - skip async emission in sync context
@@ -635,7 +638,7 @@ class ConfigurationManager:
         logger.info("ConfigurationManager shutdown complete")
 
     def __repr__(self) -> str:
-        env = 'testnet' if self.settings.binance.testnet else 'mainnet'
+        env = "testnet" if self.settings.binance.testnet else "mainnet"
         return (
             f"ConfigurationManager("
             f"env={env}, "

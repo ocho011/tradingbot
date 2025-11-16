@@ -6,17 +6,16 @@ tracking data, including session history and loss limit breach records.
 """
 
 import logging
-from typing import Optional, List
 from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import List, Optional
 
-from sqlalchemy import select, and_, desc
+from sqlalchemy import and_, desc, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from src.database.models import DailyPnL
 from src.database.dao.base import BaseDAO
-
+from src.database.models import DailyPnL
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
         date_str: str,
         starting_balance: Decimal,
         session_start: datetime,
-        loss_limit_percentage: float = 6.0
+        loss_limit_percentage: float = 6.0,
     ) -> DailyPnL:
         """
         Create a new daily P&L session.
@@ -69,7 +68,7 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
                 date=date_str,
                 starting_balance=starting_balance,
                 session_start=session_start,
-                loss_limit_percentage=loss_limit_percentage
+                loss_limit_percentage=loss_limit_percentage,
             )
             logger.info(f"Created daily session for {date_str} with balance {starting_balance}")
             return session
@@ -92,7 +91,7 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
         total_trades: Optional[int] = None,
         winning_trades: Optional[int] = None,
         losing_trades: Optional[int] = None,
-        session_end: Optional[datetime] = None
+        session_end: Optional[datetime] = None,
     ) -> Optional[DailyPnL]:
         """
         Update existing daily session.
@@ -176,9 +175,7 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
             raise
 
     async def get_recent_sessions(
-        self,
-        limit: int = 30,
-        include_loss_limit_only: bool = False
+        self, limit: int = 30, include_loss_limit_only: bool = False
     ) -> List[DailyPnL]:
         """
         Get recent daily sessions.
@@ -202,11 +199,7 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
             logger.error(f"Error fetching recent sessions: {e}")
             raise
 
-    async def get_sessions_in_range(
-        self,
-        start_date: str,
-        end_date: str
-    ) -> List[DailyPnL]:
+    async def get_sessions_in_range(self, start_date: str, end_date: str) -> List[DailyPnL]:
         """
         Get sessions within date range.
 
@@ -220,12 +213,7 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
         try:
             stmt = (
                 select(DailyPnL)
-                .where(
-                    and_(
-                        DailyPnL.date >= start_date,
-                        DailyPnL.date <= end_date
-                    )
-                )
+                .where(and_(DailyPnL.date >= start_date, DailyPnL.date <= end_date))
                 .order_by(DailyPnL.date)
             )
             result = await self.session.execute(stmt)
@@ -234,10 +222,7 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
             logger.error(f"Error fetching sessions in range {start_date} to {end_date}: {e}")
             raise
 
-    async def get_loss_limit_breaches(
-        self,
-        days: int = 30
-    ) -> List[DailyPnL]:
+    async def get_loss_limit_breaches(self, days: int = 30) -> List[DailyPnL]:
         """
         Get sessions where loss limit was breached.
 
@@ -248,15 +233,10 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
             List of DailyPnL records where loss_limit_reached is True
         """
         try:
-            cutoff_date = (datetime.now().date() - timedelta(days=days)).strftime('%Y-%m-%d')
+            cutoff_date = (datetime.now().date() - timedelta(days=days)).strftime("%Y-%m-%d")
             stmt = (
                 select(DailyPnL)
-                .where(
-                    and_(
-                        DailyPnL.loss_limit_reached.is_(True),
-                        DailyPnL.date >= cutoff_date
-                    )
-                )
+                .where(and_(DailyPnL.loss_limit_reached.is_(True), DailyPnL.date >= cutoff_date))
                 .order_by(desc(DailyPnL.date))
             )
             result = await self.session.execute(stmt)
@@ -265,10 +245,7 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
             logger.error(f"Error fetching loss limit breaches: {e}")
             raise
 
-    async def get_performance_summary(
-        self,
-        days: int = 30
-    ) -> dict:
+    async def get_performance_summary(self, days: int = 30) -> dict:
         """
         Get performance summary for the specified period.
 
@@ -286,20 +263,20 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
                 - win_rate: Percentage of winning sessions
         """
         try:
-            cutoff_date = (datetime.now().date() - timedelta(days=days)).strftime('%Y-%m-%d')
+            cutoff_date = (datetime.now().date() - timedelta(days=days)).strftime("%Y-%m-%d")
             stmt = select(DailyPnL).where(DailyPnL.date >= cutoff_date)
             result = await self.session.execute(stmt)
             sessions = list(result.scalars().all())
 
             if not sessions:
                 return {
-                    'total_sessions': 0,
-                    'total_pnl': 0.0,
-                    'avg_pnl': 0.0,
-                    'winning_sessions': 0,
-                    'losing_sessions': 0,
-                    'loss_limit_breaches': 0,
-                    'win_rate': 0.0
+                    "total_sessions": 0,
+                    "total_pnl": 0.0,
+                    "avg_pnl": 0.0,
+                    "winning_sessions": 0,
+                    "losing_sessions": 0,
+                    "loss_limit_breaches": 0,
+                    "win_rate": 0.0,
                 }
 
             total_pnl = sum(float(s.total_pnl) for s in sessions)
@@ -308,13 +285,13 @@ class DailyPnLDAO(BaseDAO[DailyPnL]):
             loss_limit_breaches = sum(1 for s in sessions if s.loss_limit_reached)
 
             return {
-                'total_sessions': len(sessions),
-                'total_pnl': total_pnl,
-                'avg_pnl': total_pnl / len(sessions),
-                'winning_sessions': winning_sessions,
-                'losing_sessions': losing_sessions,
-                'loss_limit_breaches': loss_limit_breaches,
-                'win_rate': (winning_sessions / len(sessions)) * 100 if sessions else 0.0
+                "total_sessions": len(sessions),
+                "total_pnl": total_pnl,
+                "avg_pnl": total_pnl / len(sessions),
+                "winning_sessions": winning_sessions,
+                "losing_sessions": losing_sessions,
+                "loss_limit_breaches": loss_limit_breaches,
+                "win_rate": (winning_sessions / len(sessions)) * 100 if sessions else 0.0,
             }
 
         except SQLAlchemyError as e:

@@ -2,18 +2,18 @@
 Tests for the OrderTracker system.
 """
 
-import pytest
 import asyncio
-from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+
+from src.core.constants import EventType
+from src.core.events import EventBus
 from src.services.exchange.order_tracker import (
     OrderTracker,
     OrderTrackingStatus,
     TrackedOrder,
 )
-from src.core.events import EventBus, Event
-from src.core.constants import EventType
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def sample_order_data():
         "quantity": 0.001,
         "price": None,
         "stop_price": None,
-        "client_order_id": "client_123"
+        "client_order_id": "client_123",
     }
 
 
@@ -58,7 +58,7 @@ class TestTrackedOrder:
             side="BUY",
             quantity=0.001,
             price=None,
-            stop_price=None
+            stop_price=None,
         )
 
         assert order.order_id == "12345"
@@ -78,7 +78,7 @@ class TestTrackedOrder:
             side="BUY",
             quantity=0.001,
             price=50000.0,
-            stop_price=None
+            stop_price=None,
         )
 
         # Update to PLACED
@@ -88,11 +88,7 @@ class TestTrackedOrder:
         assert order.status_history[0]["new_status"] == "PLACED"
 
         # Update to FILLED
-        order.update_status(
-            OrderTrackingStatus.FILLED,
-            filled_qty=0.001,
-            avg_price=50100.0
-        )
+        order.update_status(OrderTrackingStatus.FILLED, filled_qty=0.001, avg_price=50100.0)
         assert order.status == OrderTrackingStatus.FILLED
         assert order.filled_quantity == 0.001
         assert order.average_price == 50100.0
@@ -108,7 +104,7 @@ class TestTrackedOrder:
             side="BUY",
             quantity=0.001,
             price=None,
-            stop_price=None
+            stop_price=None,
         )
 
         # Non-final states
@@ -143,7 +139,7 @@ class TestTrackedOrder:
             side="SELL",
             quantity=0.002,
             price=55000.0,
-            stop_price=None
+            stop_price=None,
         )
 
         order_dict = order.to_dict()
@@ -212,8 +208,7 @@ class TestOrderTracker:
 
         # Update to PLACED
         updated_order = await order_tracker.update_order_status(
-            order_id="12345",
-            new_status=OrderTrackingStatus.PLACED
+            order_id="12345", new_status=OrderTrackingStatus.PLACED
         )
 
         assert updated_order is not None
@@ -224,7 +219,7 @@ class TestOrderTracker:
             order_id="12345",
             new_status=OrderTrackingStatus.FILLED,
             filled_quantity=0.001,
-            average_price=50000.0
+            average_price=50000.0,
         )
 
         assert updated_order.status == OrderTrackingStatus.FILLED
@@ -233,17 +228,13 @@ class TestOrderTracker:
 
         # Check ORDER_FILLED event was published
         calls = event_bus.publish.call_args_list
-        assert any(
-            call[0][0].event_type == EventType.ORDER_FILLED
-            for call in calls
-        )
+        assert any(call[0][0].event_type == EventType.ORDER_FILLED for call in calls)
 
     @pytest.mark.asyncio
     async def test_update_nonexistent_order(self, order_tracker):
         """Test updating an order that doesn't exist."""
         result = await order_tracker.update_order_status(
-            order_id="nonexistent",
-            new_status=OrderTrackingStatus.FILLED
+            order_id="nonexistent", new_status=OrderTrackingStatus.FILLED
         )
 
         assert result is None
@@ -259,7 +250,7 @@ class TestOrderTracker:
             order_id="12345",
             new_status=OrderTrackingStatus.FILLED,
             filled_quantity=0.001,
-            average_price=50000.0
+            average_price=50000.0,
         )
 
         # Check order moved to history
@@ -274,8 +265,7 @@ class TestOrderTracker:
         await order_tracker.track_order(**sample_order_data)
 
         await order_tracker.update_order_status(
-            order_id="12345",
-            new_status=OrderTrackingStatus.CANCELLED
+            order_id="12345", new_status=OrderTrackingStatus.CANCELLED
         )
 
         assert order_tracker._stats["total_cancelled"] == 1
@@ -288,7 +278,7 @@ class TestOrderTracker:
         await order_tracker.update_order_status(
             order_id="12345",
             new_status=OrderTrackingStatus.FAILED,
-            error_message="Insufficient funds"
+            error_message="Insufficient funds",
         )
 
         assert order_tracker._stats["total_failed"] == 1
@@ -306,7 +296,7 @@ class TestOrderTracker:
             "c": "client_123",  # client order ID
             "X": "FILLED",  # order status
             "z": "0.001",  # cumulative filled quantity
-            "Z": "50.0"  # cumulative quote asset transacted quantity
+            "Z": "50.0",  # cumulative quote asset transacted quantity
         }
 
         await order_tracker.update_from_websocket(ws_data)
@@ -320,10 +310,7 @@ class TestOrderTracker:
     @pytest.mark.asyncio
     async def test_websocket_update_invalid_event(self, order_tracker):
         """Test WebSocket update with invalid event type."""
-        ws_data = {
-            "e": "someOtherEvent",
-            "i": "12345"
-        }
+        ws_data = {"e": "someOtherEvent", "i": "12345"}
 
         # Should not raise exception
         await order_tracker.update_from_websocket(ws_data)
@@ -331,10 +318,7 @@ class TestOrderTracker:
     @pytest.mark.asyncio
     async def test_websocket_update_missing_order_id(self, order_tracker):
         """Test WebSocket update with missing order ID."""
-        ws_data = {
-            "e": "executionReport",
-            "X": "FILLED"
-        }
+        ws_data = {"e": "executionReport", "X": "FILLED"}
 
         # Should not raise exception
         await order_tracker.update_from_websocket(ws_data)
@@ -352,10 +336,11 @@ class TestOrderTracker:
     def test_get_order_completed(self, order_tracker, sample_order_data):
         """Test getting a completed order."""
         asyncio.run(order_tracker.track_order(**sample_order_data))
-        asyncio.run(order_tracker.update_order_status(
-            order_id="12345",
-            new_status=OrderTrackingStatus.FILLED
-        ))
+        asyncio.run(
+            order_tracker.update_order_status(
+                order_id="12345", new_status=OrderTrackingStatus.FILLED
+            )
+        )
 
         order = order_tracker.get_order("12345")
 
@@ -382,14 +367,21 @@ class TestOrderTracker:
     def test_get_active_orders(self, order_tracker):
         """Test getting all active orders."""
         # Track multiple orders
-        asyncio.run(order_tracker.track_order(
-            order_id="1", symbol="BTCUSDT", order_type="MARKET",
-            side="BUY", quantity=0.001
-        ))
-        asyncio.run(order_tracker.track_order(
-            order_id="2", symbol="ETHUSDT", order_type="LIMIT",
-            side="SELL", quantity=0.01, price=3000.0
-        ))
+        asyncio.run(
+            order_tracker.track_order(
+                order_id="1", symbol="BTCUSDT", order_type="MARKET", side="BUY", quantity=0.001
+            )
+        )
+        asyncio.run(
+            order_tracker.track_order(
+                order_id="2",
+                symbol="ETHUSDT",
+                order_type="LIMIT",
+                side="SELL",
+                quantity=0.01,
+                price=3000.0,
+            )
+        )
 
         all_orders = order_tracker.get_active_orders()
         assert len(all_orders) == 2
@@ -402,21 +394,23 @@ class TestOrderTracker:
     def test_get_completed_orders(self, order_tracker):
         """Test getting completed orders."""
         # Track and complete multiple orders
-        asyncio.run(order_tracker.track_order(
-            order_id="1", symbol="BTCUSDT", order_type="MARKET",
-            side="BUY", quantity=0.001
-        ))
-        asyncio.run(order_tracker.update_order_status(
-            order_id="1", new_status=OrderTrackingStatus.FILLED
-        ))
+        asyncio.run(
+            order_tracker.track_order(
+                order_id="1", symbol="BTCUSDT", order_type="MARKET", side="BUY", quantity=0.001
+            )
+        )
+        asyncio.run(
+            order_tracker.update_order_status(order_id="1", new_status=OrderTrackingStatus.FILLED)
+        )
 
-        asyncio.run(order_tracker.track_order(
-            order_id="2", symbol="ETHUSDT", order_type="MARKET",
-            side="BUY", quantity=0.01
-        ))
-        asyncio.run(order_tracker.update_order_status(
-            order_id="2", new_status=OrderTrackingStatus.FILLED
-        ))
+        asyncio.run(
+            order_tracker.track_order(
+                order_id="2", symbol="ETHUSDT", order_type="MARKET", side="BUY", quantity=0.01
+            )
+        )
+        asyncio.run(
+            order_tracker.update_order_status(order_id="2", new_status=OrderTrackingStatus.FILLED)
+        )
 
         completed = order_tracker.get_completed_orders()
         assert len(completed) == 2
@@ -435,17 +429,20 @@ class TestOrderTracker:
 
         # Track and complete 5 orders
         for i in range(5):
-            asyncio.run(order_tracker.track_order(
-                order_id=str(i),
-                symbol="BTCUSDT",
-                order_type="MARKET",
-                side="BUY",
-                quantity=0.001
-            ))
-            asyncio.run(order_tracker.update_order_status(
-                order_id=str(i),
-                new_status=OrderTrackingStatus.FILLED
-            ))
+            asyncio.run(
+                order_tracker.track_order(
+                    order_id=str(i),
+                    symbol="BTCUSDT",
+                    order_type="MARKET",
+                    side="BUY",
+                    quantity=0.001,
+                )
+            )
+            asyncio.run(
+                order_tracker.update_order_status(
+                    order_id=str(i), new_status=OrderTrackingStatus.FILLED
+                )
+            )
 
         # Only last 3 should be in history
         assert len(order_tracker._completed_orders) == 3
@@ -455,13 +452,14 @@ class TestOrderTracker:
     def test_get_stats(self, order_tracker):
         """Test getting tracker statistics."""
         # Track some orders
-        asyncio.run(order_tracker.track_order(
-            order_id="1", symbol="BTCUSDT", order_type="MARKET",
-            side="BUY", quantity=0.001
-        ))
-        asyncio.run(order_tracker.update_order_status(
-            order_id="1", new_status=OrderTrackingStatus.FILLED
-        ))
+        asyncio.run(
+            order_tracker.track_order(
+                order_id="1", symbol="BTCUSDT", order_type="MARKET", side="BUY", quantity=0.001
+            )
+        )
+        asyncio.run(
+            order_tracker.update_order_status(order_id="1", new_status=OrderTrackingStatus.FILLED)
+        )
 
         stats = order_tracker.get_stats()
 
@@ -473,13 +471,14 @@ class TestOrderTracker:
     def test_clear_history(self, order_tracker):
         """Test clearing order history."""
         # Add some completed orders
-        asyncio.run(order_tracker.track_order(
-            order_id="1", symbol="BTCUSDT", order_type="MARKET",
-            side="BUY", quantity=0.001
-        ))
-        asyncio.run(order_tracker.update_order_status(
-            order_id="1", new_status=OrderTrackingStatus.FILLED
-        ))
+        asyncio.run(
+            order_tracker.track_order(
+                order_id="1", symbol="BTCUSDT", order_type="MARKET", side="BUY", quantity=0.001
+            )
+        )
+        asyncio.run(
+            order_tracker.update_order_status(order_id="1", new_status=OrderTrackingStatus.FILLED)
+        )
 
         assert len(order_tracker._completed_orders) == 1
 
@@ -494,17 +493,10 @@ class TestOrderTracker:
 
         # Should not raise exception
         await tracker.track_order(
-            order_id="1",
-            symbol="BTCUSDT",
-            order_type="MARKET",
-            side="BUY",
-            quantity=0.001
+            order_id="1", symbol="BTCUSDT", order_type="MARKET", side="BUY", quantity=0.001
         )
 
-        await tracker.update_order_status(
-            order_id="1",
-            new_status=OrderTrackingStatus.FILLED
-        )
+        await tracker.update_order_status(order_id="1", new_status=OrderTrackingStatus.FILLED)
 
     @pytest.mark.asyncio
     async def test_partially_filled_order(self, order_tracker, sample_order_data):
@@ -516,7 +508,7 @@ class TestOrderTracker:
             order_id="12345",
             new_status=OrderTrackingStatus.PARTIALLY_FILLED,
             filled_quantity=0.0005,
-            average_price=50000.0
+            average_price=50000.0,
         )
 
         order = order_tracker.get_order("12345")
@@ -532,8 +524,7 @@ class TestOrderTracker:
 
         # PENDING → PLACED
         await order_tracker.update_order_status(
-            order_id="12345",
-            new_status=OrderTrackingStatus.PLACED
+            order_id="12345", new_status=OrderTrackingStatus.PLACED
         )
 
         # PLACED → PARTIALLY_FILLED
@@ -541,7 +532,7 @@ class TestOrderTracker:
             order_id="12345",
             new_status=OrderTrackingStatus.PARTIALLY_FILLED,
             filled_quantity=0.0005,
-            average_price=50000.0
+            average_price=50000.0,
         )
 
         # PARTIALLY_FILLED → FILLED
@@ -549,7 +540,7 @@ class TestOrderTracker:
             order_id="12345",
             new_status=OrderTrackingStatus.FILLED,
             filled_quantity=0.001,
-            average_price=50050.0
+            average_price=50050.0,
         )
 
         order = order_tracker.get_order("12345")

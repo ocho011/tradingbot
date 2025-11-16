@@ -2,15 +2,16 @@
 긴급 청산 관리자 테스트.
 """
 
-import pytest
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from src.core.constants import EventType, OrderSide, PositionSide
+from src.core.events import EventBus
+from src.services.exchange.order_executor import OrderExecutor, OrderResponse, OrderStatus
 from src.services.position.emergency_manager import EmergencyManager, EmergencyStatus
 from src.services.position.position_manager import PositionManager
-from src.services.exchange.order_executor import OrderExecutor, OrderResponse, OrderStatus
-from src.core.constants import PositionSide, OrderSide, EventType
-from src.core.events import EventBus
 
 
 @pytest.fixture
@@ -253,9 +254,7 @@ class TestEmergencyManager:
         assert emergency_manager.get_status() == EmergencyStatus.NORMAL
 
     @pytest.mark.asyncio
-    async def test_statistics_tracking(
-        self, emergency_manager, position_manager, order_executor
-    ):
+    async def test_statistics_tracking(self, emergency_manager, position_manager, order_executor):
         """통계 추적 테스트."""
         # 포지션 생성
         await position_manager.open_position(
@@ -307,7 +306,9 @@ class TestEmergencyManager:
         assert stats["orders_blocked"] is True
 
     @pytest.mark.asyncio
-    async def test_event_publishing(self, emergency_manager, event_bus, position_manager, order_executor):
+    async def test_event_publishing(
+        self, emergency_manager, event_bus, position_manager, order_executor
+    ):
         """이벤트 발행 테스트."""
         # 포지션 생성하여 청산 이벤트가 2개 발생하도록 함
         await position_manager.open_position(

@@ -9,14 +9,14 @@ Tests verify:
 
 import pytest
 from fastapi.testclient import TestClient
-from prometheus_client import REGISTRY, CollectorRegistry
+from prometheus_client import CollectorRegistry
 
 from src.api.server import app
 from src.monitoring.metrics import (
-    trading_metrics,
-    record_signal_generated,
     record_order_execution,
-    update_position_pnl
+    record_signal_generated,
+    trading_metrics,
+    update_position_pnl,
 )
 
 
@@ -114,13 +114,10 @@ class TestPrometheusFormat:
         record_signal_generated("Strategy_A", "BTCUSDT", "LONG")
 
         response = client.get("/metrics")
-        lines = response.text.split('\n')
+        lines = response.text.split("\n")
 
         # Filter out empty lines and comments
-        metric_lines = [
-            line for line in lines
-            if line and not line.startswith('#')
-        ]
+        metric_lines = [line for line in lines if line and not line.startswith("#")]
 
         # Each metric line should have format: metric_name{labels} value
         # We just verify that we got some non-comment lines

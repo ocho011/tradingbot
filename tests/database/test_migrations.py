@@ -9,38 +9,35 @@ This module tests:
 - Production safety mechanisms
 """
 
-import pytest
-import os
 import tempfile
-import shutil
-from pathlib import Path
 from datetime import datetime
-from unittest.mock import Mock, patch, AsyncMock
+from pathlib import Path
+from unittest.mock import Mock, patch
 
+import pytest
 from sqlalchemy import text
 
+from src.database.engine import close_db, get_session, init_db
 from src.database.migrations import (
-    init_database,
+    BackupError,
+    MigrationError,
+    ValidationError,
+    backup_database,
+    check_migration_safety,
     create_all_tables,
-    drop_all_tables,
-    initial_data_setup,
-    upgrade_database,
     downgrade_database,
+    drop_all_tables,
     generate_migration,
     get_current_revision,
     get_migration_history,
-    backup_database,
-    restore_database,
+    init_database,
+    initial_data_setup,
     list_backups,
-    validate_schema,
+    restore_database,
     safe_migrate,
-    check_migration_safety,
-    MigrationError,
-    BackupError,
-    ValidationError,
+    upgrade_database,
+    validate_schema,
 )
-from src.database.engine import init_db, close_db, get_session
-from src.database.models import Base, Trade, Position, Statistics, BacktestResult
 
 
 @pytest.fixture
@@ -71,6 +68,7 @@ def temp_backup_dir():
 
         # Patch the backup directory
         with patch("src.database.migrations.get_backup_path") as mock_get_path:
+
             def get_test_backup_path(backup_name=None):
                 if backup_name is None:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -373,8 +371,10 @@ async def test_safe_migrate_creates_backup(test_db, temp_backup_dir):
     """Test safe migration creates backup."""
     await create_all_tables()
 
-    with patch("src.database.migrations.upgrade_database") as mock_upgrade, \
-         patch("src.database.migrations.validate_schema") as mock_validate:
+    with (
+        patch("src.database.migrations.upgrade_database") as mock_upgrade,
+        patch("src.database.migrations.validate_schema") as mock_validate,
+    ):
 
         mock_validate.return_value = {"valid": True}
 
@@ -386,14 +386,16 @@ async def test_safe_migrate_creates_backup(test_db, temp_backup_dir):
 @pytest.mark.asyncio
 async def test_safe_migrate_validates_schema(test_db):
     """Test safe migration performs schema validation."""
-    with patch("src.database.migrations.upgrade_database") as mock_upgrade, \
-         patch("src.database.migrations.validate_schema") as mock_validate, \
-         patch("src.database.migrations.backup_database") as mock_backup:
+    with (
+        patch("src.database.migrations.upgrade_database") as mock_upgrade,
+        patch("src.database.migrations.validate_schema") as mock_validate,
+        patch("src.database.migrations.backup_database") as mock_backup,
+    ):
 
         mock_validate.return_value = {"valid": True}
         mock_backup.return_value = Path("/tmp/backup.db")
 
-        results = await safe_migrate()
+        await safe_migrate()
 
         # Should validate schema
         assert mock_validate.call_count >= 1
@@ -440,6 +442,7 @@ def test_backup_database_non_sqlite():
 
         with pytest.raises(BackupError, match="only supported for SQLite"):
             import asyncio
+
             asyncio.run(backup_database())
 
 
@@ -476,8 +479,8 @@ async def test_backup_restore_workflow(test_db, temp_backup_dir):
     await create_all_tables()
 
     async with get_session() as session:
-        from src.database.models import Trade
         from src.core.constants import TimeFrame
+        from src.database.models import Trade
 
         trade = Trade(
             symbol="BTCUSDT",

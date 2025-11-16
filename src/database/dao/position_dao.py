@@ -5,18 +5,17 @@ This module provides specialized database operations for Position records
 including current position tracking, unrealized P&L updates, and risk management.
 """
 
-from typing import List, Optional, Dict, Any
+import logging
 from datetime import datetime
 from decimal import Decimal
-import logging
+from typing import Dict, List, Optional
 
-from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import Position
 from src.database.dao.base import BaseDAO
-
+from src.database.models import Position
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,7 @@ class PositionDAO(BaseDAO[Position]):
             >>> positions = await position_dao.get_current_positions(strategy='MACD')
         """
         try:
-            query = select(Position).where(Position.status == 'OPEN')
+            query = select(Position).where(Position.status == "OPEN")
 
             if strategy:
                 query = query.where(Position.strategy == strategy)
@@ -96,26 +95,27 @@ class PositionDAO(BaseDAO[Position]):
             ... )
         """
         try:
-            query = select(Position).where(
-                and_(
-                    Position.symbol == symbol,
-                    Position.strategy == strategy,
-                    Position.status == 'OPEN',
+            query = (
+                select(Position)
+                .where(
+                    and_(
+                        Position.symbol == symbol,
+                        Position.strategy == strategy,
+                        Position.status == "OPEN",
+                    )
                 )
-            ).order_by(Position.opened_at.desc()).limit(1)
+                .order_by(Position.opened_at.desc())
+                .limit(1)
+            )
 
             result = await self.session.execute(query)
             position = result.scalar_one_or_none()
 
             if position:
-                logger.debug(
-                    f"Retrieved open position for {symbol} with strategy '{strategy}'"
-                )
+                logger.debug(f"Retrieved open position for {symbol} with strategy '{strategy}'")
             return position
         except SQLAlchemyError as e:
-            logger.error(
-                f"Error getting position for {symbol} with strategy '{strategy}': {e}"
-            )
+            logger.error(f"Error getting position for {symbol} with strategy '{strategy}': {e}")
             raise
 
     async def update_unrealized_pnl(
@@ -145,21 +145,18 @@ class PositionDAO(BaseDAO[Position]):
                 logger.warning(f"Position {position_id} not found for P&L update")
                 return None
 
-            if position.status != 'OPEN':
-                logger.warning(
-                    f"Position {position_id} is not open (status: {position.status})"
-                )
+            if position.status != "OPEN":
+                logger.warning(f"Position {position_id} is not open (status: {position.status})")
                 return position
 
             # Calculate unrealized P&L
             price_diff = current_price - position.entry_price
-            if position.side == 'SHORT':
+            if position.side == "SHORT":
                 price_diff = -price_diff
 
             unrealized_pnl = price_diff * position.size * position.leverage
             unrealized_pnl_percent = (
-                (price_diff / position.entry_price * 100)
-                if position.entry_price else 0
+                (price_diff / position.entry_price * 100) if position.entry_price else 0
             )
 
             # Update position
@@ -209,17 +206,17 @@ class PositionDAO(BaseDAO[Position]):
                 logger.warning(f"Position {position_id} not found for closing")
                 return None
 
-            if position.status != 'OPEN':
+            if position.status != "OPEN":
                 logger.warning(
                     f"Position {position_id} is already closed (status: {position.status})"
                 )
                 return position
 
             # Close position
-            position.status = 'CLOSED'
+            position.status = "CLOSED"
             position.closed_at = closed_at
             position.realized_pnl = realized_pnl
-            position.unrealized_pnl = Decimal('0')
+            position.unrealized_pnl = Decimal("0")
             position.unrealized_pnl_percent = 0.0
 
             await self.session.flush()
@@ -278,8 +275,7 @@ class PositionDAO(BaseDAO[Position]):
             result = await self.session.execute(query)
             positions = result.scalars().all()
             logger.debug(
-                f"Retrieved {len(positions)} positions "
-                f"between {start_date} and {end_date}"
+                f"Retrieved {len(positions)} positions " f"between {start_date} and {end_date}"
             )
             return list(positions)
         except SQLAlchemyError as e:
@@ -308,7 +304,7 @@ class PositionDAO(BaseDAO[Position]):
             >>> print(f"Net exposure: {exposure['net_exposure']}")
         """
         try:
-            query = select(Position).where(Position.status == 'OPEN')
+            query = select(Position).where(Position.status == "OPEN")
 
             if strategy:
                 query = query.where(Position.strategy == strategy)
@@ -316,21 +312,21 @@ class PositionDAO(BaseDAO[Position]):
             result = await self.session.execute(query)
             positions = result.scalars().all()
 
-            long_exposure = Decimal('0')
-            short_exposure = Decimal('0')
+            long_exposure = Decimal("0")
+            short_exposure = Decimal("0")
 
             for pos in positions:
                 position_value = pos.size * pos.entry_price * pos.leverage
-                if pos.side == 'LONG':
+                if pos.side == "LONG":
                     long_exposure += position_value
                 else:
                     short_exposure += position_value
 
             exposure = {
-                'total_long_exposure': long_exposure,
-                'total_short_exposure': short_exposure,
-                'net_exposure': long_exposure - short_exposure,
-                'total_absolute_exposure': long_exposure + short_exposure,
+                "total_long_exposure": long_exposure,
+                "total_short_exposure": short_exposure,
+                "net_exposure": long_exposure - short_exposure,
+                "total_absolute_exposure": long_exposure + short_exposure,
             }
 
             logger.debug(f"Calculated total exposure: {exposure}")
@@ -356,19 +352,22 @@ class PositionDAO(BaseDAO[Position]):
             >>> at_risk = await position_dao.get_positions_at_risk(risk_threshold=-10.0)
         """
         try:
-            query = select(Position).where(
-                and_(
-                    Position.status == 'OPEN',
-                    Position.unrealized_pnl_percent.isnot(None),
-                    Position.unrealized_pnl_percent <= risk_threshold,
+            query = (
+                select(Position)
+                .where(
+                    and_(
+                        Position.status == "OPEN",
+                        Position.unrealized_pnl_percent.isnot(None),
+                        Position.unrealized_pnl_percent <= risk_threshold,
+                    )
                 )
-            ).order_by(Position.unrealized_pnl_percent.asc())
+                .order_by(Position.unrealized_pnl_percent.asc())
+            )
 
             result = await self.session.execute(query)
             positions = result.scalars().all()
             logger.debug(
-                f"Retrieved {len(positions)} positions at risk "
-                f"(threshold: {risk_threshold}%)"
+                f"Retrieved {len(positions)} positions at risk " f"(threshold: {risk_threshold}%)"
             )
             return list(positions)
         except SQLAlchemyError as e:
@@ -402,9 +401,7 @@ class PositionDAO(BaseDAO[Position]):
         try:
             position = await self.get_by_id(position_id)
             if not position:
-                logger.warning(
-                    f"Position {position_id} not found for SL/TP update"
-                )
+                logger.warning(f"Position {position_id} not found for SL/TP update")
                 return None
 
             if stop_loss is not None:
@@ -416,12 +413,9 @@ class PositionDAO(BaseDAO[Position]):
             await self.session.refresh(position)
 
             logger.debug(
-                f"Updated position {position_id} SL/TP: "
-                f"SL={stop_loss}, TP={take_profit}"
+                f"Updated position {position_id} SL/TP: " f"SL={stop_loss}, TP={take_profit}"
             )
             return position
         except SQLAlchemyError as e:
-            logger.error(
-                f"Error updating SL/TP for position {position_id}: {e}"
-            )
+            logger.error(f"Error updating SL/TP for position {position_id}: {e}")
             raise

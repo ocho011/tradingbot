@@ -5,18 +5,17 @@ This module provides specialized database operations for Statistics records
 including daily/monthly aggregations, performance tracking, and trend analysis.
 """
 
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
-from decimal import Decimal
 import logging
+from datetime import datetime
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, and_, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import Statistics
 from src.database.dao.base import BaseDAO
-
+from src.database.models import Statistics
 
 logger = logging.getLogger(__name__)
 
@@ -63,14 +62,18 @@ class StatisticsDAO(BaseDAO[Statistics]):
             ... )
         """
         try:
-            query = select(Statistics).where(
-                and_(
-                    Statistics.strategy == strategy,
-                    Statistics.period_type == 'DAILY',
-                    Statistics.period_start >= start_date,
-                    Statistics.period_start <= end_date,
+            query = (
+                select(Statistics)
+                .where(
+                    and_(
+                        Statistics.strategy == strategy,
+                        Statistics.period_type == "DAILY",
+                        Statistics.period_start >= start_date,
+                        Statistics.period_start <= end_date,
+                    )
                 )
-            ).order_by(Statistics.period_start.asc())
+                .order_by(Statistics.period_start.asc())
+            )
 
             result = await self.session.execute(query)
             stats = result.scalars().all()
@@ -80,9 +83,7 @@ class StatisticsDAO(BaseDAO[Statistics]):
             )
             return list(stats)
         except SQLAlchemyError as e:
-            logger.error(
-                f"Error getting daily stats for strategy '{strategy}': {e}"
-            )
+            logger.error(f"Error getting daily stats for strategy '{strategy}': {e}")
             raise
 
     async def get_monthly_stats(
@@ -110,14 +111,18 @@ class StatisticsDAO(BaseDAO[Statistics]):
             ... )
         """
         try:
-            query = select(Statistics).where(
-                and_(
-                    Statistics.strategy == strategy,
-                    Statistics.period_type == 'MONTHLY',
-                    Statistics.period_start >= start_date,
-                    Statistics.period_start <= end_date,
+            query = (
+                select(Statistics)
+                .where(
+                    and_(
+                        Statistics.strategy == strategy,
+                        Statistics.period_type == "MONTHLY",
+                        Statistics.period_start >= start_date,
+                        Statistics.period_start <= end_date,
+                    )
                 )
-            ).order_by(Statistics.period_start.asc())
+                .order_by(Statistics.period_start.asc())
+            )
 
             result = await self.session.execute(query)
             stats = result.scalars().all()
@@ -127,15 +132,13 @@ class StatisticsDAO(BaseDAO[Statistics]):
             )
             return list(stats)
         except SQLAlchemyError as e:
-            logger.error(
-                f"Error getting monthly stats for strategy '{strategy}': {e}"
-            )
+            logger.error(f"Error getting monthly stats for strategy '{strategy}': {e}")
             raise
 
     async def get_latest_stats(
         self,
         strategy: str,
-        period_type: str = 'DAILY',
+        period_type: str = "DAILY",
         limit: int = 30,
     ) -> List[Statistics]:
         """
@@ -153,24 +156,26 @@ class StatisticsDAO(BaseDAO[Statistics]):
             >>> recent = await stats_dao.get_latest_stats('MACD', limit=7)
         """
         try:
-            query = select(Statistics).where(
-                and_(
-                    Statistics.strategy == strategy,
-                    Statistics.period_type == period_type,
+            query = (
+                select(Statistics)
+                .where(
+                    and_(
+                        Statistics.strategy == strategy,
+                        Statistics.period_type == period_type,
+                    )
                 )
-            ).order_by(Statistics.period_start.desc()).limit(limit)
+                .order_by(Statistics.period_start.desc())
+                .limit(limit)
+            )
 
             result = await self.session.execute(query)
             stats = result.scalars().all()
             logger.debug(
-                f"Retrieved {len(stats)} latest {period_type} stats "
-                f"for strategy '{strategy}'"
+                f"Retrieved {len(stats)} latest {period_type} stats " f"for strategy '{strategy}'"
             )
             return list(stats)
         except SQLAlchemyError as e:
-            logger.error(
-                f"Error getting latest stats for strategy '{strategy}': {e}"
-            )
+            logger.error(f"Error getting latest stats for strategy '{strategy}': {e}")
             raise
 
     async def calculate_daily_stats(
@@ -204,17 +209,13 @@ class StatisticsDAO(BaseDAO[Statistics]):
         # 1. Query all closed trades for the day
         # 2. Calculate all metrics
         # 3. Create or update Statistics record
-        logger.info(
-            f"Calculate daily stats called for strategy '{strategy}' on {date}"
-        )
-        raise NotImplementedError(
-            "calculate_daily_stats requires integration with TradeDAO"
-        )
+        logger.info(f"Calculate daily stats called for strategy '{strategy}' on {date}")
+        raise NotImplementedError("calculate_daily_stats requires integration with TradeDAO")
 
     async def get_strategy_comparison(
         self,
         strategies: List[str],
-        period_type: str = 'DAILY',
+        period_type: str = "DAILY",
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> Dict[str, Dict[str, Any]]:
@@ -265,24 +266,20 @@ class StatisticsDAO(BaseDAO[Statistics]):
                 winning_trades = sum(s.winning_trades for s in stats_list)
 
                 results[strategy] = {
-                    'total_trades': total_trades,
-                    'total_pnl': total_pnl,
-                    'win_rate': (
-                        (winning_trades / total_trades * 100)
-                        if total_trades > 0 else 0.0
+                    "total_trades": total_trades,
+                    "total_pnl": total_pnl,
+                    "win_rate": (
+                        (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
                     ),
-                    'avg_pnl_per_period': (
-                        total_pnl / len(stats_list)
-                        if stats_list else Decimal('0')
+                    "avg_pnl_per_period": (
+                        total_pnl / len(stats_list) if stats_list else Decimal("0")
                     ),
-                    'periods_count': len(stats_list),
-                    'best_sharpe': max(
-                        (s.sharpe_ratio for s in stats_list if s.sharpe_ratio),
-                        default=None
+                    "periods_count": len(stats_list),
+                    "best_sharpe": max(
+                        (s.sharpe_ratio for s in stats_list if s.sharpe_ratio), default=None
                     ),
-                    'max_drawdown': min(
-                        (s.max_drawdown for s in stats_list if s.max_drawdown),
-                        default=None
+                    "max_drawdown": min(
+                        (s.max_drawdown for s in stats_list if s.max_drawdown), default=None
                     ),
                 }
 
@@ -295,8 +292,8 @@ class StatisticsDAO(BaseDAO[Statistics]):
     async def get_best_performing_period(
         self,
         strategy: str,
-        period_type: str = 'DAILY',
-        metric: str = 'total_pnl',
+        period_type: str = "DAILY",
+        metric: str = "total_pnl",
         limit: int = 1,
     ) -> List[Statistics]:
         """
@@ -350,7 +347,7 @@ class StatisticsDAO(BaseDAO[Statistics]):
     async def get_performance_trend(
         self,
         strategy: str,
-        period_type: str = 'DAILY',
+        period_type: str = "DAILY",
         lookback_periods: int = 30,
     ) -> Dict[str, Any]:
         """
@@ -373,19 +370,15 @@ class StatisticsDAO(BaseDAO[Statistics]):
             >>> trend = await stats_dao.get_performance_trend('MACD', lookback_periods=14)
         """
         try:
-            stats = await self.get_latest_stats(
-                strategy,
-                period_type,
-                limit=lookback_periods
-            )
+            stats = await self.get_latest_stats(strategy, period_type, limit=lookback_periods)
 
             if not stats:
                 return {
-                    'periods': [],
-                    'avg_pnl': Decimal('0'),
-                    'pnl_trend': 'stable',
-                    'win_rate_trend': 'stable',
-                    'total_pnl': Decimal('0'),
+                    "periods": [],
+                    "avg_pnl": Decimal("0"),
+                    "pnl_trend": "stable",
+                    "win_rate_trend": "stable",
+                    "total_pnl": Decimal("0"),
                 }
 
             # Reverse to chronological order
@@ -400,9 +393,9 @@ class StatisticsDAO(BaseDAO[Statistics]):
             second_half_pnl = sum(s.total_pnl for s in stats[mid:]) / (len(stats) - mid)
 
             pnl_trend = (
-                'improving' if second_half_pnl > first_half_pnl * Decimal("1.1") else
-                'declining' if second_half_pnl < first_half_pnl * Decimal("0.9") else
-                'stable'
+                "improving"
+                if second_half_pnl > first_half_pnl * Decimal("1.1")
+                else "declining" if second_half_pnl < first_half_pnl * Decimal("0.9") else "stable"
             )
 
             # Win rate trend
@@ -410,25 +403,25 @@ class StatisticsDAO(BaseDAO[Statistics]):
             second_half_wr = sum(s.win_rate or 0 for s in stats[mid:]) / (len(stats) - mid)
 
             win_rate_trend = (
-                'improving' if second_half_wr > first_half_wr * 1.05 else
-                'declining' if second_half_wr < first_half_wr * 0.95 else
-                'stable'
+                "improving"
+                if second_half_wr > first_half_wr * 1.05
+                else "declining" if second_half_wr < first_half_wr * 0.95 else "stable"
             )
 
             result = {
-                'periods': [
+                "periods": [
                     {
-                        'date': s.period_start,
-                        'pnl': s.total_pnl,
-                        'win_rate': s.win_rate,
-                        'trades': s.total_trades,
+                        "date": s.period_start,
+                        "pnl": s.total_pnl,
+                        "win_rate": s.win_rate,
+                        "trades": s.total_trades,
                     }
                     for s in stats
                 ],
-                'avg_pnl': avg_pnl,
-                'pnl_trend': pnl_trend,
-                'win_rate_trend': win_rate_trend,
-                'total_pnl': total_pnl,
+                "avg_pnl": avg_pnl,
+                "pnl_trend": pnl_trend,
+                "win_rate_trend": win_rate_trend,
+                "total_pnl": total_pnl,
             }
 
             logger.debug(

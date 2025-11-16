@@ -9,27 +9,26 @@ Tests for OrderExecutor - 비동기 주문 실행 시스템.
 - 타임스탬프 동기화
 """
 
-import pytest
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from ccxt.base.errors import (
-    NetworkError,
     ExchangeError,
-    InvalidOrder,
     InsufficientFunds,
+    InvalidOrder,
+    NetworkError,
     OrderNotFound,
 )
 
+from src.core.constants import OrderSide, OrderType, PositionSide
+from src.core.events import EventBus, EventType
 from src.services.exchange.order_executor import (
     OrderExecutor,
     OrderRequest,
     OrderResponse,
     OrderStatus,
 )
-from src.core.constants import OrderSide, OrderType, PositionSide
-from src.core.events import EventBus, EventType
-
 
 # ============================================================================
 # Fixtures
@@ -336,9 +335,7 @@ class TestOrderExecutorMarketOrder:
         # 이벤트 발행 확인
         assert event_bus.emit.call_count >= 1
 
-    async def test_execute_market_order_with_position_side(
-        self, order_executor, mock_exchange
-    ):
+    async def test_execute_market_order_with_position_side(self, order_executor, mock_exchange):
         """시장가 주문 실행 - 포지션 방향 지정."""
         mock_exchange.create_order.return_value = {
             "id": "order-456",
@@ -453,9 +450,7 @@ class TestOrderExecutorLimitOrder:
 class TestOrderExecutorStopOrders:
     """손절/익절 주문 실행 테스트."""
 
-    async def test_execute_stop_loss_order_success(
-        self, order_executor, mock_exchange
-    ):
+    async def test_execute_stop_loss_order_success(self, order_executor, mock_exchange):
         """손절 주문 실행 - 성공."""
         mock_exchange.create_order.return_value = {
             "id": "stop-123",
@@ -485,9 +480,7 @@ class TestOrderExecutorStopOrders:
 
         assert params.get("stopPrice") == 28000.0
 
-    async def test_execute_take_profit_order_success(
-        self, order_executor, mock_exchange
-    ):
+    async def test_execute_take_profit_order_success(self, order_executor, mock_exchange):
         """익절 주문 실행 - 성공."""
         mock_exchange.create_order.return_value = {
             "id": "tp-456",
@@ -520,13 +513,9 @@ class TestOrderExecutorStopOrders:
 class TestOrderExecutorErrorHandling:
     """에러 처리 및 재시도 로직 테스트."""
 
-    async def test_invalid_order_raises_immediately(
-        self, order_executor, mock_exchange
-    ):
+    async def test_invalid_order_raises_immediately(self, order_executor, mock_exchange):
         """Invalid order 에러는 즉시 발생 (재시도 없음)."""
-        mock_exchange.create_order.side_effect = InvalidOrder(
-            "Invalid quantity precision"
-        )
+        mock_exchange.create_order.side_effect = InvalidOrder("Invalid quantity precision")
 
         with pytest.raises(InvalidOrder):
             await order_executor.execute_market_order(
@@ -538,9 +527,7 @@ class TestOrderExecutorErrorHandling:
         # 재시도 없이 1회만 호출되어야 함
         assert mock_exchange.create_order.call_count == 1
 
-    async def test_insufficient_funds_raises_immediately(
-        self, order_executor, mock_exchange
-    ):
+    async def test_insufficient_funds_raises_immediately(self, order_executor, mock_exchange):
         """잔고 부족 에러는 즉시 발생 (재시도 없음)."""
         mock_exchange.create_order.side_effect = InsufficientFunds("Not enough balance")
 
@@ -553,9 +540,7 @@ class TestOrderExecutorErrorHandling:
 
         assert mock_exchange.create_order.call_count == 1
 
-    async def test_network_error_retries_then_succeeds(
-        self, order_executor, mock_exchange
-    ):
+    async def test_network_error_retries_then_succeeds(self, order_executor, mock_exchange):
         """네트워크 에러는 재시도 후 성공."""
         # 첫 2회는 에러, 3회째 성공
         mock_exchange.create_order.side_effect = [
@@ -584,9 +569,7 @@ class TestOrderExecutorErrorHandling:
         assert response.order_id == "retry-123"
         assert mock_exchange.create_order.call_count == 3
 
-    async def test_network_error_retries_exhausted_raises(
-        self, order_executor, mock_exchange
-    ):
+    async def test_network_error_retries_exhausted_raises(self, order_executor, mock_exchange):
         """네트워크 에러가 계속되면 최종적으로 예외 발생."""
         mock_exchange.create_order.side_effect = NetworkError("Connection timeout")
 
@@ -600,9 +583,7 @@ class TestOrderExecutorErrorHandling:
         # max_retries=3이므로 3회 시도
         assert mock_exchange.create_order.call_count == 3
 
-    async def test_timestamp_error_triggers_synchronization(
-        self, order_executor, mock_exchange
-    ):
+    async def test_timestamp_error_triggers_synchronization(self, order_executor, mock_exchange):
         """타임스탬프 에러 발생 시 동기화 후 재시도."""
         # 첫 시도: 타임스탬프 에러
         # 두 번째 시도: 성공
@@ -655,9 +636,7 @@ class TestOrderExecutorManagement:
         assert result["status"] == "canceled"
         mock_exchange.cancel_order.assert_called_once_with("order-123", "BTCUSDT")
 
-    async def test_cancel_order_not_found_raises(
-        self, order_executor, mock_exchange
-    ):
+    async def test_cancel_order_not_found_raises(self, order_executor, mock_exchange):
         """존재하지 않는 주문 취소 - 에러."""
         mock_exchange.cancel_order.side_effect = OrderNotFound("Order not found")
 
@@ -719,9 +698,7 @@ class TestOrderExecutorManagement:
 class TestOrderExecutorEvents:
     """이벤트 발행 검증 테스트."""
 
-    async def test_order_placed_event_emitted(
-        self, order_executor, mock_exchange, event_bus
-    ):
+    async def test_order_placed_event_emitted(self, order_executor, mock_exchange, event_bus):
         """ORDER_PLACED 이벤트 발행 확인."""
         mock_exchange.create_order.return_value = {
             "id": "event-123",
@@ -747,9 +724,7 @@ class TestOrderExecutorEvents:
         event_calls = [call[0][0] for call in event_bus.emit.call_args_list]
         assert EventType.ORDER_PLACED in event_calls
 
-    async def test_order_filled_event_emitted(
-        self, order_executor, mock_exchange, event_bus
-    ):
+    async def test_order_filled_event_emitted(self, order_executor, mock_exchange, event_bus):
         """ORDER_FILLED 이벤트 발행 확인."""
         mock_exchange.create_order.return_value = {
             "id": "filled-123",
@@ -774,9 +749,7 @@ class TestOrderExecutorEvents:
         event_calls = [call[0][0] for call in event_bus.emit.call_args_list]
         assert EventType.ORDER_FILLED in event_calls
 
-    async def test_order_cancelled_event_on_error(
-        self, order_executor, mock_exchange, event_bus
-    ):
+    async def test_order_cancelled_event_on_error(self, order_executor, mock_exchange, event_bus):
         """에러 발생 시 ORDER_CANCELLED 이벤트 발행."""
         mock_exchange.create_order.side_effect = InvalidOrder("Invalid parameters")
 

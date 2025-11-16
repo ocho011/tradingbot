@@ -9,43 +9,45 @@ analysis of swing high and low points:
 - Trend change detection with noise filtering
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any, Tuple
-import logging
+from typing import Any, Dict, List, Optional, Tuple
 
-from src.models.candle import Candle
-from src.core.constants import TimeFrame, EventType, MarketStructure
+from src.core.constants import EventType, TimeFrame
 from src.core.events import Event, EventBus
 from src.indicators.liquidity_zone import SwingPoint
-
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 
 
 class TrendPattern(str, Enum):
     """Types of trend patterns detected."""
+
     HIGHER_HIGH = "HIGHER_HIGH"  # HH - New high above previous high
-    HIGHER_LOW = "HIGHER_LOW"    # HL - New low above previous low
-    LOWER_HIGH = "LOWER_HIGH"    # LH - New high below previous high
-    LOWER_LOW = "LOWER_LOW"      # LL - New low below previous low
+    HIGHER_LOW = "HIGHER_LOW"  # HL - New low above previous low
+    LOWER_HIGH = "LOWER_HIGH"  # LH - New high below previous high
+    LOWER_LOW = "LOWER_LOW"  # LL - New low below previous low
 
 
 class TrendDirection(str, Enum):
     """Overall trend direction."""
-    UPTREND = "UPTREND"      # HH/HL pattern dominance
+
+    UPTREND = "UPTREND"  # HH/HL pattern dominance
     DOWNTREND = "DOWNTREND"  # LH/LL pattern dominance
-    RANGING = "RANGING"      # No clear trend
+    RANGING = "RANGING"  # No clear trend
     TRANSITION = "TRANSITION"  # Trend change in progress
 
 
 class TrendStrength(str, Enum):
     """Strength classification of detected trend."""
-    VERY_WEAK = "VERY_WEAK"      # 0-20
-    WEAK = "WEAK"                # 21-40
-    MODERATE = "MODERATE"        # 41-60
-    STRONG = "STRONG"            # 61-80
+
+    VERY_WEAK = "VERY_WEAK"  # 0-20
+    WEAK = "WEAK"  # 21-40
+    MODERATE = "MODERATE"  # 41-60
+    STRONG = "STRONG"  # 61-80
     VERY_STRONG = "VERY_STRONG"  # 81-100
 
 
@@ -79,16 +81,16 @@ class TrendStructure:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
         return {
-            'pattern': self.pattern.value,
-            'price': self.price,
-            'timestamp': self.timestamp,
-            'datetime': datetime.fromtimestamp(self.timestamp / 1000).isoformat(),
-            'candle_index': self.candle_index,
-            'previous_swing_price': self.previous_swing_price,
-            'previous_swing_index': self.previous_swing_index,
-            'swing_length': self.swing_length,
-            'price_change': self.price_change,
-            'price_change_pct': self.price_change_pct
+            "pattern": self.pattern.value,
+            "price": self.price,
+            "timestamp": self.timestamp,
+            "datetime": datetime.fromtimestamp(self.timestamp / 1000).isoformat(),
+            "candle_index": self.candle_index,
+            "previous_swing_price": self.previous_swing_price,
+            "previous_swing_index": self.previous_swing_index,
+            "swing_length": self.swing_length,
+            "price_change": self.price_change,
+            "price_change_pct": self.price_change_pct,
         }
 
 
@@ -130,21 +132,23 @@ class TrendState:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
         return {
-            'direction': self.direction.value,
-            'strength': self.strength,
-            'strength_level': self.strength_level.value,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe.value,
-            'start_timestamp': self.start_timestamp,
-            'start_datetime': datetime.fromtimestamp(self.start_timestamp / 1000).isoformat(),
-            'start_candle_index': self.start_candle_index,
-            'last_update_timestamp': self.last_update_timestamp,
-            'last_update_datetime': datetime.fromtimestamp(self.last_update_timestamp / 1000).isoformat(),
-            'pattern_count': self.pattern_count,
-            'consecutive_patterns': self.consecutive_patterns,
-            'avg_swing_length': self.avg_swing_length,
-            'avg_price_change_pct': self.avg_price_change_pct,
-            'is_confirmed': self.is_confirmed
+            "direction": self.direction.value,
+            "strength": self.strength,
+            "strength_level": self.strength_level.value,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe.value,
+            "start_timestamp": self.start_timestamp,
+            "start_datetime": datetime.fromtimestamp(self.start_timestamp / 1000).isoformat(),
+            "start_candle_index": self.start_candle_index,
+            "last_update_timestamp": self.last_update_timestamp,
+            "last_update_datetime": datetime.fromtimestamp(
+                self.last_update_timestamp / 1000
+            ).isoformat(),
+            "pattern_count": self.pattern_count,
+            "consecutive_patterns": self.consecutive_patterns,
+            "avg_swing_length": self.avg_swing_length,
+            "avg_price_change_pct": self.avg_price_change_pct,
+            "is_confirmed": self.is_confirmed,
         }
 
 
@@ -170,7 +174,7 @@ class TrendRecognitionEngine:
         min_price_change_atr_multiple: float = 0.5,
         atr_period: int = 14,
         transition_threshold: float = 40.0,
-        event_bus: Optional[EventBus] = None
+        event_bus: Optional[EventBus] = None,
     ):
         """
         Initialize Trend Recognition Engine.
@@ -211,9 +215,7 @@ class TrendRecognitionEngine:
         period = period or self.atr_period
 
         if len(candles) < period:
-            self.logger.warning(
-                f"Insufficient candles for ATR. Need {period}, got {len(candles)}"
-            )
+            self.logger.warning(f"Insufficient candles for ATR. Need {period}, got {len(candles)}")
             return 0.0
 
         true_ranges = []
@@ -222,11 +224,7 @@ class TrendRecognitionEngine:
             low = candles[i].low
             prev_close = candles[i - 1].close
 
-            tr = max(
-                high - low,
-                abs(high - prev_close),
-                abs(low - prev_close)
-            )
+            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
             true_ranges.append(tr)
 
         # Use last 'period' true ranges
@@ -234,9 +232,7 @@ class TrendRecognitionEngine:
         return sum(relevant_trs) / len(relevant_trs) if relevant_trs else 0.0
 
     def detect_swing_highs(
-        self,
-        candles: List[Candle],
-        lookback: Optional[int] = None
+        self, candles: List[Candle], lookback: Optional[int] = None
     ) -> List[SwingPoint]:
         """
         Detect swing high points in candle data.
@@ -265,10 +261,7 @@ class TrendRecognitionEngine:
             current_high = candles[i].high
 
             # Check if higher than all previous lookback candles
-            is_swing_high = all(
-                current_high > candles[j].high
-                for j in range(i - lookback, i)
-            )
+            is_swing_high = all(current_high > candles[j].high for j in range(i - lookback, i))
 
             # Check if higher than all following lookback candles
             if is_swing_high:
@@ -278,21 +271,21 @@ class TrendRecognitionEngine:
                 )
 
             if is_swing_high:
-                swing_highs.append(SwingPoint(
-                    price=current_high,
-                    timestamp=candles[i].timestamp,
-                    candle_index=i,
-                    is_high=True,
-                    strength=lookback,
-                    volume=candles[i].volume
-                ))
+                swing_highs.append(
+                    SwingPoint(
+                        price=current_high,
+                        timestamp=candles[i].timestamp,
+                        candle_index=i,
+                        is_high=True,
+                        strength=lookback,
+                        volume=candles[i].volume,
+                    )
+                )
 
         return swing_highs
 
     def detect_swing_lows(
-        self,
-        candles: List[Candle],
-        lookback: Optional[int] = None
+        self, candles: List[Candle], lookback: Optional[int] = None
     ) -> List[SwingPoint]:
         """
         Detect swing low points in candle data.
@@ -321,10 +314,7 @@ class TrendRecognitionEngine:
             current_low = candles[i].low
 
             # Check if lower than all previous lookback candles
-            is_swing_low = all(
-                current_low < candles[j].low
-                for j in range(i - lookback, i)
-            )
+            is_swing_low = all(current_low < candles[j].low for j in range(i - lookback, i))
 
             # Check if lower than all following lookback candles
             if is_swing_low:
@@ -334,22 +324,20 @@ class TrendRecognitionEngine:
                 )
 
             if is_swing_low:
-                swing_lows.append(SwingPoint(
-                    price=current_low,
-                    timestamp=candles[i].timestamp,
-                    candle_index=i,
-                    is_high=False,
-                    strength=lookback,
-                    volume=candles[i].volume
-                ))
+                swing_lows.append(
+                    SwingPoint(
+                        price=current_low,
+                        timestamp=candles[i].timestamp,
+                        candle_index=i,
+                        is_high=False,
+                        strength=lookback,
+                        volume=candles[i].volume,
+                    )
+                )
 
         return swing_lows
 
-    def is_significant_move(
-        self,
-        price_change: float,
-        candles: List[Candle]
-    ) -> bool:
+    def is_significant_move(self, price_change: float, candles: List[Candle]) -> bool:
         """
         Check if price move is significant using ATR filter.
 
@@ -368,9 +356,7 @@ class TrendRecognitionEngine:
         return abs(price_change) >= min_change
 
     def identify_pattern(
-        self,
-        current_swing: SwingPoint,
-        previous_swing: SwingPoint
+        self, current_swing: SwingPoint, previous_swing: SwingPoint
     ) -> Optional[TrendPattern]:
         """
         Identify the trend pattern between two swing points.
@@ -399,8 +385,7 @@ class TrendRecognitionEngine:
         return None
 
     def analyze_trend_patterns(
-        self,
-        candles: List[Candle]
+        self, candles: List[Candle]
     ) -> Tuple[List[TrendStructure], TrendDirection]:
         """
         Analyze candles to detect HH/HL/LH/LL patterns.
@@ -427,9 +412,7 @@ class TrendRecognitionEngine:
         swing_highs = self.detect_swing_highs(candles)
         swing_lows = self.detect_swing_lows(candles)
 
-        self.logger.info(
-            f"Found {len(swing_highs)} swing highs and {len(swing_lows)} swing lows"
-        )
+        self.logger.info(f"Found {len(swing_highs)} swing highs and {len(swing_lows)} swing lows")
 
         # Store for later use
         self._swing_highs = swing_highs
@@ -461,7 +444,7 @@ class TrendRecognitionEngine:
                     previous_swing_index=previous.candle_index,
                     swing_length=swing_length,
                     price_change=price_change,
-                    price_change_pct=price_change_pct
+                    price_change_pct=price_change_pct,
                 )
                 high_patterns.append(structure)
 
@@ -491,15 +474,12 @@ class TrendRecognitionEngine:
                     previous_swing_index=previous.candle_index,
                     swing_length=swing_length,
                     price_change=price_change,
-                    price_change_pct=price_change_pct
+                    price_change_pct=price_change_pct,
                 )
                 low_patterns.append(structure)
 
         # Combine and sort by candle index
-        all_structures = sorted(
-            high_patterns + low_patterns,
-            key=lambda s: s.candle_index
-        )
+        all_structures = sorted(high_patterns + low_patterns, key=lambda s: s.candle_index)
 
         self._trend_structures = all_structures
 
@@ -513,10 +493,7 @@ class TrendRecognitionEngine:
 
         return all_structures, direction
 
-    def _determine_trend_direction(
-        self,
-        structures: List[TrendStructure]
-    ) -> TrendDirection:
+    def _determine_trend_direction(self, structures: List[TrendStructure]) -> TrendDirection:
         """
         Determine overall trend direction from pattern structures.
 
@@ -536,7 +513,7 @@ class TrendRecognitionEngine:
         ll_count = sum(1 for s in structures if s.pattern == TrendPattern.LOWER_LOW)
 
         bullish_patterns = hh_count + hl_count
-        bearish_patterns = lh_count + ll_count
+        lh_count + ll_count
 
         total_patterns = len(structures)
         bullish_ratio = bullish_patterns / total_patterns if total_patterns > 0 else 0
@@ -545,11 +522,13 @@ class TrendRecognitionEngine:
         recent_count = min(5, len(structures))
         recent_structures = structures[-recent_count:]
         recent_bullish = sum(
-            1 for s in recent_structures
+            1
+            for s in recent_structures
             if s.pattern in (TrendPattern.HIGHER_HIGH, TrendPattern.HIGHER_LOW)
         )
         recent_bearish = sum(
-            1 for s in recent_structures
+            1
+            for s in recent_structures
             if s.pattern in (TrendPattern.LOWER_HIGH, TrendPattern.LOWER_LOW)
         )
 
@@ -564,9 +543,7 @@ class TrendRecognitionEngine:
             return TrendDirection.TRANSITION
 
     def calculate_trend_strength(
-        self,
-        structures: List[TrendStructure],
-        direction: TrendDirection
+        self, structures: List[TrendStructure], direction: TrendDirection
     ) -> Tuple[float, TrendStrength]:
         """
         Calculate trend strength score.
@@ -590,12 +567,14 @@ class TrendRecognitionEngine:
         # Pattern consistency score (0-35 points)
         if direction == TrendDirection.UPTREND:
             aligned_patterns = [
-                s for s in structures
+                s
+                for s in structures
                 if s.pattern in (TrendPattern.HIGHER_HIGH, TrendPattern.HIGHER_LOW)
             ]
         elif direction == TrendDirection.DOWNTREND:
             aligned_patterns = [
-                s for s in structures
+                s
+                for s in structures
                 if s.pattern in (TrendPattern.LOWER_HIGH, TrendPattern.LOWER_LOW)
             ]
         else:
@@ -609,16 +588,27 @@ class TrendRecognitionEngine:
         consecutive_score = min(30, max_consecutive * 6)
 
         # Average price change score (0-25 points)
-        avg_price_change = sum(abs(s.price_change_pct) for s in aligned_patterns) / len(aligned_patterns) if aligned_patterns else 0
+        avg_price_change = (
+            sum(abs(s.price_change_pct) for s in aligned_patterns) / len(aligned_patterns)
+            if aligned_patterns
+            else 0
+        )
         price_change_score = min(25, avg_price_change * 5)
 
         # Recent momentum score (0-10 points)
         recent_count = min(3, len(structures))
         recent = structures[-recent_count:]
         recent_aligned = sum(
-            1 for s in recent
-            if (direction == TrendDirection.UPTREND and s.pattern in (TrendPattern.HIGHER_HIGH, TrendPattern.HIGHER_LOW)) or
-               (direction == TrendDirection.DOWNTREND and s.pattern in (TrendPattern.LOWER_HIGH, TrendPattern.LOWER_LOW))
+            1
+            for s in recent
+            if (
+                direction == TrendDirection.UPTREND
+                and s.pattern in (TrendPattern.HIGHER_HIGH, TrendPattern.HIGHER_LOW)
+            )
+            or (
+                direction == TrendDirection.DOWNTREND
+                and s.pattern in (TrendPattern.LOWER_HIGH, TrendPattern.LOWER_LOW)
+            )
         )
         momentum_score = (recent_aligned / recent_count * 10) if recent_count > 0 else 0
 
@@ -641,9 +631,7 @@ class TrendRecognitionEngine:
         return total_score, strength_level
 
     def _count_max_consecutive(
-        self,
-        structures: List[TrendStructure],
-        direction: TrendDirection
+        self, structures: List[TrendStructure], direction: TrendDirection
     ) -> int:
         """
         Count maximum consecutive patterns in trend direction.
@@ -663,7 +651,10 @@ class TrendRecognitionEngine:
 
         for structure in structures:
             if direction == TrendDirection.UPTREND:
-                is_aligned = structure.pattern in (TrendPattern.HIGHER_HIGH, TrendPattern.HIGHER_LOW)
+                is_aligned = structure.pattern in (
+                    TrendPattern.HIGHER_HIGH,
+                    TrendPattern.HIGHER_LOW,
+                )
             elif direction == TrendDirection.DOWNTREND:
                 is_aligned = structure.pattern in (TrendPattern.LOWER_HIGH, TrendPattern.LOWER_LOW)
             else:
@@ -677,10 +668,7 @@ class TrendRecognitionEngine:
 
         return max_count
 
-    def detect_trend_change(
-        self,
-        candles: List[Candle]
-    ) -> Optional[TrendState]:
+    def detect_trend_change(self, candles: List[Candle]) -> Optional[TrendState]:
         """
         Detect if a trend change has occurred.
 
@@ -713,12 +701,12 @@ class TrendRecognitionEngine:
         if is_change:
             # Calculate statistics
             avg_swing_length = (
-                sum(s.swing_length for s in structures) / len(structures)
-                if structures else 0
+                sum(s.swing_length for s in structures) / len(structures) if structures else 0
             )
             avg_price_change_pct = (
                 sum(abs(s.price_change_pct) for s in structures) / len(structures)
-                if structures else 0.0
+                if structures
+                else 0.0
             )
 
             new_trend = TrendState(
@@ -734,7 +722,7 @@ class TrendRecognitionEngine:
                 consecutive_patterns=self._count_max_consecutive(structures, direction),
                 avg_swing_length=int(avg_swing_length),
                 avg_price_change_pct=avg_price_change_pct,
-                is_confirmed=len(structures) >= self.min_patterns_for_confirmation
+                is_confirmed=len(structures) >= self.min_patterns_for_confirmation,
             )
 
             self._current_trend = new_trend
@@ -767,11 +755,12 @@ class TrendRecognitionEngine:
             event_type=EventType.MARKET_STRUCTURE_CHANGE,
             timestamp=datetime.now(),
             data=trend_state.to_dict(),
-            source="TrendRecognitionEngine"
+            source="TrendRecognitionEngine",
         )
 
         # Publish asynchronously
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():

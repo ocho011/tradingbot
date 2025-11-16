@@ -10,17 +10,14 @@ Tests Task 11.3 implementation:
 """
 
 import asyncio
+
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.core.background_tasks import (
     BackgroundTaskManager,
     TaskConfig,
     TaskPriority,
     TaskState,
-    TaskMetrics,
-    ManagedTask
 )
 
 
@@ -30,7 +27,7 @@ def task_manager():
     manager = BackgroundTaskManager(
         enable_health_monitoring=False,  # Disable for most tests
         enable_auto_recovery=True,
-        health_check_interval=1.0
+        health_check_interval=1.0,
     )
     return manager
 
@@ -38,10 +35,7 @@ def task_manager():
 @pytest.fixture
 async def started_task_manager():
     """Create and start a BackgroundTaskManager."""
-    manager = BackgroundTaskManager(
-        enable_health_monitoring=False,
-        enable_auto_recovery=True
-    )
+    manager = BackgroundTaskManager(enable_health_monitoring=False, enable_auto_recovery=True)
     await manager.start_all()
     yield manager
     await manager.stop_all()
@@ -50,6 +44,7 @@ async def started_task_manager():
 @pytest.fixture
 def simple_task_config():
     """Create a simple task configuration."""
+
     async def simple_coroutine():
         await asyncio.sleep(0.1)
         return "success"
@@ -58,13 +53,14 @@ def simple_task_config():
         name="simple_test_task",
         coroutine_func=simple_coroutine,
         priority=TaskPriority.MEDIUM,
-        auto_restart=False
+        auto_restart=False,
     )
 
 
 @pytest.fixture
 def failing_task_config():
     """Create a task configuration that fails."""
+
     async def failing_coroutine():
         await asyncio.sleep(0.05)
         raise ValueError("Test failure")
@@ -74,7 +70,7 @@ def failing_task_config():
         coroutine_func=failing_coroutine,
         priority=TaskPriority.HIGH,
         auto_restart=True,
-        max_restart_attempts=3
+        max_restart_attempts=3,
     )
 
 
@@ -91,7 +87,7 @@ def loop_task_config():
         name="loop_test_task",
         coroutine_func=loop_coroutine,
         priority=TaskPriority.LOW,
-        auto_restart=True
+        auto_restart=True,
     )
     config.counter = counter  # Attach for verification
     return config
@@ -102,13 +98,12 @@ class TestTaskConfig:
 
     def test_task_config_creation(self):
         """Test creating a valid task configuration."""
+
         async def dummy_coro():
             pass
 
         config = TaskConfig(
-            name="test_task",
-            coroutine_func=dummy_coro,
-            priority=TaskPriority.CRITICAL
+            name="test_task", coroutine_func=dummy_coro, priority=TaskPriority.CRITICAL
         )
 
         assert config.name == "test_task"
@@ -144,10 +139,7 @@ class TestBackgroundTaskManager:
     @pytest.mark.asyncio
     async def test_add_task(self, started_task_manager, simple_task_config):
         """Test adding a task to the manager."""
-        await started_task_manager.add_task(
-            simple_task_config,
-            start_immediately=False
-        )
+        await started_task_manager.add_task(simple_task_config, start_immediately=False)
 
         assert "simple_test_task" in started_task_manager._tasks
         task = started_task_manager._tasks["simple_test_task"]
@@ -157,10 +149,7 @@ class TestBackgroundTaskManager:
     @pytest.mark.asyncio
     async def test_add_task_auto_start(self, started_task_manager, simple_task_config):
         """Test adding a task with auto-start."""
-        await started_task_manager.add_task(
-            simple_task_config,
-            start_immediately=True
-        )
+        await started_task_manager.add_task(simple_task_config, start_immediately=True)
 
         await asyncio.sleep(0.05)
 
@@ -227,6 +216,7 @@ class TestTaskRecovery:
     @pytest.mark.asyncio
     async def test_exponential_backoff(self, started_task_manager):
         """Test exponential backoff delay calculation."""
+
         async def quick_fail():
             raise RuntimeError("Quick fail")
 
@@ -237,7 +227,7 @@ class TestTaskRecovery:
             auto_restart=True,
             max_restart_attempts=5,
             restart_delay_seconds=0.1,
-            max_restart_delay_seconds=1.0
+            max_restart_delay_seconds=1.0,
         )
 
         await started_task_manager.add_task(config, start_immediately=True)
@@ -256,6 +246,7 @@ class TestTaskRecovery:
     @pytest.mark.asyncio
     async def test_max_restart_attempts(self, started_task_manager):
         """Test that tasks stop recovering after max attempts."""
+
         async def always_fail():
             raise RuntimeError("Always fails")
 
@@ -265,7 +256,7 @@ class TestTaskRecovery:
             priority=TaskPriority.LOW,
             auto_restart=True,
             max_restart_attempts=2,
-            restart_delay_seconds=0.05
+            restart_delay_seconds=0.05,
         )
 
         await started_task_manager.add_task(config, start_immediately=True)
@@ -285,10 +276,7 @@ class TestHealthMonitoring:
     @pytest.mark.asyncio
     async def test_health_monitoring_enabled(self):
         """Test that health monitoring starts when enabled."""
-        manager = BackgroundTaskManager(
-            enable_health_monitoring=True,
-            health_check_interval=0.1
-        )
+        manager = BackgroundTaskManager(enable_health_monitoring=True, health_check_interval=0.1)
 
         await manager.start_all()
 
@@ -353,18 +341,14 @@ class TestMultipleTaskManagement:
         """Test managing multiple tasks concurrently."""
         # Create multiple tasks
         for i in range(3):
+
             async def dummy():
                 await asyncio.sleep(0.1)
 
             config = TaskConfig(
-                name=f"concurrent_task_{i}",
-                coroutine_func=dummy,
-                priority=TaskPriority.MEDIUM
+                name=f"concurrent_task_{i}", coroutine_func=dummy, priority=TaskPriority.MEDIUM
             )
-            await started_task_manager.add_task(
-                config,
-                start_immediately=True
-            )
+            await started_task_manager.add_task(config, start_immediately=True)
 
         await asyncio.sleep(0.05)
 
@@ -386,14 +370,9 @@ class TestMultipleTaskManagement:
                     await asyncio.sleep(0.05)
 
             config = TaskConfig(
-                name=f"stop_all_task_{i}",
-                coroutine_func=loop_func,
-                priority=TaskPriority.LOW
+                name=f"stop_all_task_{i}", coroutine_func=loop_func, priority=TaskPriority.LOW
             )
-            await started_task_manager.add_task(
-                config,
-                start_immediately=True
-            )
+            await started_task_manager.add_task(config, start_immediately=True)
 
         await asyncio.sleep(0.1)
         await started_task_manager.stop_all()
@@ -414,18 +393,15 @@ class TestTaskPriority:
             TaskPriority.CRITICAL,
             TaskPriority.HIGH,
             TaskPriority.MEDIUM,
-            TaskPriority.LOW
+            TaskPriority.LOW,
         ]
 
         for i, priority in enumerate(priorities):
+
             async def dummy():
                 await asyncio.sleep(0.1)
 
-            config = TaskConfig(
-                name=f"priority_task_{i}",
-                coroutine_func=dummy,
-                priority=priority
-            )
+            config = TaskConfig(name=f"priority_task_{i}", coroutine_func=dummy, priority=priority)
             await started_task_manager.add_task(config, start_immediately=False)
 
         # Verify priorities are set correctly

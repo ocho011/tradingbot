@@ -9,33 +9,35 @@ Calculates take profit levels using:
 """
 
 import logging
-from typing import Dict, Any, Optional, List, Tuple
-from decimal import Decimal, ROUND_DOWN
-from enum import Enum
 from dataclasses import dataclass
+from decimal import ROUND_DOWN, Decimal
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
-from src.indicators.liquidity_zone import LiquidityLevel, LiquidityType, LiquidityState
 from src.core.constants import PositionSide
+from src.indicators.liquidity_zone import LiquidityLevel, LiquidityState, LiquidityType
 
 logger = logging.getLogger(__name__)
 
 
 class TakeProfitCalculationError(Exception):
     """Raised when take profit calculation fails."""
-    pass
+
 
 
 class TakeProfitStrategy(str, Enum):
     """Strategy for determining take profit placement."""
+
     LIQUIDITY_SWEEP = "LIQUIDITY_SWEEP"  # Target liquidity sweep zones
-    FIXED_RR = "FIXED_RR"                # Fixed risk-reward ratio
-    SCALED = "SCALED"                    # Multiple partial take-profit levels
-    AUTO = "AUTO"                        # Automatically select best strategy
+    FIXED_RR = "FIXED_RR"  # Fixed risk-reward ratio
+    SCALED = "SCALED"  # Multiple partial take-profit levels
+    AUTO = "AUTO"  # Automatically select best strategy
 
 
 @dataclass
 class PartialTakeProfit:
     """Represents a partial take-profit level."""
+
     price: float
     percentage: float  # Percentage of position to close
     liquidity_level: Optional[LiquidityLevel] = None
@@ -44,10 +46,10 @@ class PartialTakeProfit:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
         return {
-            'price': self.price,
-            'percentage': self.percentage,
-            'liquidity_level': self.liquidity_level.to_dict() if self.liquidity_level else None,
-            'risk_reward_ratio': self.risk_reward_ratio
+            "price": self.price,
+            "percentage": self.percentage,
+            "liquidity_level": self.liquidity_level.to_dict() if self.liquidity_level else None,
+            "risk_reward_ratio": self.risk_reward_ratio,
         }
 
 
@@ -76,7 +78,7 @@ class TakeProfitCalculator:
         partial_tp_percentages: Optional[List[Tuple[float, float]]] = None,
         min_distance_pct: float = 0.5,
         max_distance_pct: float = 10.0,
-        precision: int = 8
+        precision: int = 8,
     ):
         """
         Initialize take profit calculator.
@@ -109,20 +111,19 @@ class TakeProfitCalculator:
         # Default partial TP: 25% at 1.5RR, 25% at 2.0RR, 25% at 2.5RR, 25% at 3.0RR
         if partial_tp_percentages is None:
             self.partial_tp_percentages = [
-                (Decimal('1.5'), Decimal('25')),  # 25% at 1.5x risk
-                (Decimal('2.0'), Decimal('25')),  # 25% at 2.0x risk
-                (Decimal('2.5'), Decimal('25')),  # 25% at 2.5x risk
-                (Decimal('3.0'), Decimal('25'))   # 25% at 3.0x risk
+                (Decimal("1.5"), Decimal("25")),  # 25% at 1.5x risk
+                (Decimal("2.0"), Decimal("25")),  # 25% at 2.0x risk
+                (Decimal("2.5"), Decimal("25")),  # 25% at 2.5x risk
+                (Decimal("3.0"), Decimal("25")),  # 25% at 3.0x risk
             ]
         else:
             self.partial_tp_percentages = [
-                (Decimal(str(mult)), Decimal(str(pct)))
-                for mult, pct in partial_tp_percentages
+                (Decimal(str(mult)), Decimal(str(pct))) for mult, pct in partial_tp_percentages
             ]
 
         # Validate partial percentages sum to 100%
         total_pct = sum(pct for _, pct in self.partial_tp_percentages)
-        if abs(total_pct - Decimal('100')) > Decimal('0.01'):
+        if abs(total_pct - Decimal("100")) > Decimal("0.01"):
             raise ValueError(f"Partial TP percentages must sum to 100%, got {float(total_pct)}%")
 
         logger.info(
@@ -137,7 +138,7 @@ class TakeProfitCalculator:
         liquidity_levels: List[LiquidityLevel],
         entry_price: float,
         position_side: PositionSide,
-        count: int = 4
+        count: int = 4,
     ) -> List[LiquidityLevel]:
         """
         Find target liquidity levels for take profit placement.
@@ -156,7 +157,8 @@ class TakeProfitCalculator:
 
         # Filter active liquidity levels
         active_levels = [
-            level for level in liquidity_levels
+            level
+            for level in liquidity_levels
             if level.state in (LiquidityState.ACTIVE, LiquidityState.PARTIAL)
         ]
 
@@ -169,7 +171,8 @@ class TakeProfitCalculator:
         if position_side == PositionSide.LONG:
             # For long positions, target buy-side liquidity above entry (where longs take profit)
             relevant_levels = [
-                level for level in active_levels
+                level
+                for level in active_levels
                 if level.type == LiquidityType.BUY_SIDE and level.price > entry_price
             ]
             # Sort by distance from entry (closest first, then farther)
@@ -177,14 +180,17 @@ class TakeProfitCalculator:
         else:  # SHORT
             # For short positions, target sell-side liquidity below entry (where shorts take profit)
             relevant_levels = [
-                level for level in active_levels
+                level
+                for level in active_levels
                 if level.type == LiquidityType.SELL_SIDE and level.price < entry_price
             ]
             # Sort by distance from entry (closest first, then farther)
             relevant_levels.sort(key=lambda level: level.price, reverse=True)
 
         if not relevant_levels:
-            logger.debug(f"No relevant {position_side.value} liquidity levels found for take profit")
+            logger.debug(
+                f"No relevant {position_side.value} liquidity levels found for take profit"
+            )
             return []
 
         # Return up to 'count' levels, preferring higher strength levels
@@ -193,11 +199,7 @@ class TakeProfitCalculator:
 
         return relevant_levels[:count]
 
-    def _calculate_risk_distance(
-        self,
-        entry_price: float,
-        stop_loss_price: float
-    ) -> Decimal:
+    def _calculate_risk_distance(self, entry_price: float, stop_loss_price: float) -> Decimal:
         """
         Calculate the risk distance (entry to stop loss).
 
@@ -218,7 +220,7 @@ class TakeProfitCalculator:
         entry_price: float,
         stop_loss_price: float,
         risk_reward_ratio: float,
-        position_side: PositionSide
+        position_side: PositionSide,
     ) -> float:
         """
         Calculate take profit price based on risk-reward ratio.
@@ -257,10 +259,7 @@ class TakeProfitCalculator:
         return float(tp_price)
 
     def _validate_tp_distance(
-        self,
-        entry_price: float,
-        tp_price: float,
-        position_side: PositionSide
+        self, entry_price: float, tp_price: float, position_side: PositionSide
     ) -> bool:
         """
         Validate that take profit distance is within acceptable range.
@@ -278,11 +277,9 @@ class TakeProfitCalculator:
 
         # Calculate distance percentage
         distance = abs(entry_decimal - tp_decimal)
-        distance_pct = (distance / entry_decimal) * Decimal('100')
+        distance_pct = (distance / entry_decimal) * Decimal("100")
 
-        is_valid = (
-            self.min_distance_pct <= distance_pct <= self.max_distance_pct
-        )
+        is_valid = self.min_distance_pct <= distance_pct <= self.max_distance_pct
 
         if not is_valid:
             logger.warning(
@@ -308,7 +305,7 @@ class TakeProfitCalculator:
             Rounded take profit price
         """
         price_decimal = Decimal(str(price))
-        quantize_value = Decimal('1') / Decimal(10 ** self.precision)
+        quantize_value = Decimal("1") / Decimal(10**self.precision)
         rounded = price_decimal.quantize(quantize_value, rounding=ROUND_DOWN)
 
         if rounded != price_decimal:
@@ -321,7 +318,7 @@ class TakeProfitCalculator:
         entry_price: float,
         stop_loss_price: float,
         position_side: PositionSide,
-        liquidity_levels: Optional[List[LiquidityLevel]] = None
+        liquidity_levels: Optional[List[LiquidityLevel]] = None,
     ) -> List[PartialTakeProfit]:
         """
         Calculate multiple partial take-profit levels.
@@ -358,16 +355,13 @@ class TakeProfitCalculator:
                     liquidity_levels,
                     entry_price,
                     position_side,
-                    count=len(self.partial_tp_percentages)
+                    count=len(self.partial_tp_percentages),
                 )
 
             for i, (rr_multiplier, close_percentage) in enumerate(self.partial_tp_percentages):
                 # Calculate TP price based on RR
                 tp_price = self._calculate_tp_price_from_rr(
-                    entry_price,
-                    stop_loss_price,
-                    float(rr_multiplier),
-                    position_side
+                    entry_price, stop_loss_price, float(rr_multiplier), position_side
                 )
 
                 # Try to align with liquidity level if available
@@ -378,15 +372,13 @@ class TakeProfitCalculator:
                     price_diff_pct = abs(
                         (Decimal(str(tp_price)) - Decimal(str(liquidity_level.price)))
                         / Decimal(str(entry_price))
-                    ) * Decimal('100')
+                    ) * Decimal("100")
 
                     # If within 1% of RR-based price, use liquidity level
-                    if price_diff_pct <= Decimal('1.0'):
+                    if price_diff_pct <= Decimal("1.0"):
                         tp_price = liquidity_level.price
                         aligned_level = liquidity_level
-                        logger.debug(
-                            f"Aligned TP level {i+1} with liquidity at {tp_price:.8f}"
-                        )
+                        logger.debug(f"Aligned TP level {i+1} with liquidity at {tp_price:.8f}")
 
                 # Validate distance
                 if not self._validate_tp_distance(entry_price, tp_price, position_side):
@@ -403,7 +395,7 @@ class TakeProfitCalculator:
                     price=tp_price,
                     percentage=float(close_percentage),
                     liquidity_level=aligned_level,
-                    risk_reward_ratio=float(rr_multiplier)
+                    risk_reward_ratio=float(rr_multiplier),
                 )
 
                 partial_tps.append(partial_tp)
@@ -430,7 +422,7 @@ class TakeProfitCalculator:
         stop_loss_price: float,
         position_side: PositionSide,
         liquidity_levels: Optional[List[LiquidityLevel]] = None,
-        strategy: TakeProfitStrategy = TakeProfitStrategy.AUTO
+        strategy: TakeProfitStrategy = TakeProfitStrategy.AUTO,
     ) -> Dict[str, Any]:
         """
         Calculate take profit levels based on strategy.
@@ -473,10 +465,7 @@ class TakeProfitCalculator:
 
             # Calculate partial take profits
             partial_tps = self.calculate_partial_take_profits(
-                entry_price,
-                stop_loss_price,
-                position_side,
-                liquidity_levels
+                entry_price, stop_loss_price, position_side, liquidity_levels
             )
 
             if not partial_tps:
@@ -507,19 +496,19 @@ class TakeProfitCalculator:
             trailing_stop_enabled = trailing_activation_price is not None
 
             result = {
-                'partial_take_profits': [tp.to_dict() for tp in partial_tps],
-                'final_target': final_target,
-                'min_risk_reward_ratio': float(self.min_risk_reward_ratio),
-                'actual_risk_reward_ratio': float(actual_rr),
-                'risk_distance': float(risk_distance),
-                'reward_distance': float(reward_distance),
-                'trailing_stop_enabled': trailing_stop_enabled,
-                'trailing_activation_price': trailing_activation_price,
-                'strategy_used': strategy.value,
-                'valid': meets_min_rr,
-                'entry_price': entry_price,
-                'stop_loss_price': stop_loss_price,
-                'position_side': position_side.value
+                "partial_take_profits": [tp.to_dict() for tp in partial_tps],
+                "final_target": final_target,
+                "min_risk_reward_ratio": float(self.min_risk_reward_ratio),
+                "actual_risk_reward_ratio": float(actual_rr),
+                "risk_distance": float(risk_distance),
+                "reward_distance": float(reward_distance),
+                "trailing_stop_enabled": trailing_stop_enabled,
+                "trailing_activation_price": trailing_activation_price,
+                "strategy_used": strategy.value,
+                "valid": meets_min_rr,
+                "entry_price": entry_price,
+                "stop_loss_price": stop_loss_price,
+                "position_side": position_side.value,
             }
 
             logger.info(
@@ -543,9 +532,9 @@ class TakeProfitCalculator:
         current_price: float,
         entry_price: float,
         highest_price: float,  # For LONG positions
-        lowest_price: float,   # For SHORT positions
+        lowest_price: float,  # For SHORT positions
         position_side: PositionSide,
-        trailing_pct: float = 1.0
+        trailing_pct: float = 1.0,
     ) -> Optional[float]:
         """
         Calculate trailing stop price based on current market conditions.
@@ -565,7 +554,7 @@ class TakeProfitCalculator:
             TakeProfitCalculationError: If calculation fails
         """
         try:
-            trailing_decimal = Decimal(str(trailing_pct)) / Decimal('100')
+            trailing_decimal = Decimal(str(trailing_pct)) / Decimal("100")
 
             if position_side == PositionSide.LONG:
                 # Trail from highest price
@@ -613,14 +602,13 @@ class TakeProfitCalculator:
             Dictionary with current parameters
         """
         return {
-            'min_risk_reward_ratio': float(self.min_risk_reward_ratio),
-            'partial_tp_percentages': [
-                (float(mult), float(pct))
-                for mult, pct in self.partial_tp_percentages
+            "min_risk_reward_ratio": float(self.min_risk_reward_ratio),
+            "partial_tp_percentages": [
+                (float(mult), float(pct)) for mult, pct in self.partial_tp_percentages
             ],
-            'min_distance_pct': float(self.min_distance_pct),
-            'max_distance_pct': float(self.max_distance_pct),
-            'precision': self.precision
+            "min_distance_pct": float(self.min_distance_pct),
+            "max_distance_pct": float(self.max_distance_pct),
+            "precision": self.precision,
         }
 
     def update_parameters(
@@ -628,7 +616,7 @@ class TakeProfitCalculator:
         min_risk_reward_ratio: Optional[float] = None,
         partial_tp_percentages: Optional[List[Tuple[float, float]]] = None,
         min_distance_pct: Optional[float] = None,
-        max_distance_pct: Optional[float] = None
+        max_distance_pct: Optional[float] = None,
     ) -> None:
         """
         Update take profit calculator parameters.
@@ -650,12 +638,13 @@ class TakeProfitCalculator:
 
         if partial_tp_percentages is not None:
             new_percentages = [
-                (Decimal(str(mult)), Decimal(str(pct)))
-                for mult, pct in partial_tp_percentages
+                (Decimal(str(mult)), Decimal(str(pct))) for mult, pct in partial_tp_percentages
             ]
             total_pct = sum(pct for _, pct in new_percentages)
-            if abs(total_pct - Decimal('100')) > Decimal('0.01'):
-                raise ValueError(f"Partial TP percentages must sum to 100%, got {float(total_pct)}%")
+            if abs(total_pct - Decimal("100")) > Decimal("0.01"):
+                raise ValueError(
+                    f"Partial TP percentages must sum to 100%, got {float(total_pct)}%"
+                )
             self.partial_tp_percentages = new_percentages
             logger.info(f"Partial TP percentages updated to {len(new_percentages)} levels")
 

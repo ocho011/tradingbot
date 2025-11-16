@@ -2,10 +2,10 @@
 
 from src.models.candle import Candle
 from src.models.strategy_config import (
-    StrategyConfig,
-    StrategyParameters,
     FilterConfiguration,
     PriorityConfiguration,
+    StrategyConfig,
+    StrategyParameters,
     StrategyType,
 )
 

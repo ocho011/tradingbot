@@ -4,12 +4,11 @@ Signal Event Publishing System
 Provides event-driven architecture for signal generation and tracking.
 """
 
-from typing import Callable, List, Optional, Dict, Any
+import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from enum import Enum
-import logging
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable, Dict, List, Optional
 
 from src.services.strategy.signal import Signal
 
@@ -18,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class SignalEventType(Enum):
     """Types of signal events"""
+
     SIGNAL_GENERATED = "signal_generated"
     SIGNAL_VALIDATED = "signal_validated"
     SIGNAL_REJECTED = "signal_rejected"
@@ -47,10 +47,10 @@ class SignalEvent:
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization"""
         return {
-            'event_type': self.event_type.value,
-            'signal': self.signal.to_dict(),
-            'metadata': self.metadata,
-            'timestamp': self.timestamp.isoformat(),
+            "event_type": self.event_type.value,
+            "signal": self.signal.to_dict(),
+            "metadata": self.metadata,
+            "timestamp": self.timestamp.isoformat(),
         }
 
     def __repr__(self) -> str:
@@ -187,7 +187,7 @@ class SignalEventPublisher:
             except Exception as e:
                 logger.error(
                     f"Error in listener {callback.__name__} for {event.event_type.value}: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
 
     def _publish_async(self, event: SignalEvent, listeners: List[Callable]):
@@ -215,7 +215,7 @@ class SignalEventPublisher:
         except Exception as e:
             logger.error(
                 f"Error in async listener {callback.__name__} for {event.event_type.value}: {e}",
-                exc_info=True
+                exc_info=True,
             )
 
     def _add_to_history(self, event: SignalEvent):
@@ -229,7 +229,7 @@ class SignalEventPublisher:
 
         # Trim history if it exceeds max size
         if len(self._event_history) > self._max_history:
-            self._event_history = self._event_history[-self._max_history:]
+            self._event_history = self._event_history[-self._max_history :]
 
     def get_event_history(
         self,

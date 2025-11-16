@@ -4,6 +4,7 @@ Loads environment variables and provides typed configuration access.
 """
 
 from typing import Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -70,9 +71,7 @@ class TradingConfig(BaseSettings):
 
     mode: str = Field("paper", description="Trading mode: paper or live")
     default_leverage: int = Field(10, description="Default leverage for positions")
-    max_position_size_usdt: float = Field(
-        1000.0, description="Maximum position size in USDT"
-    )
+    max_position_size_usdt: float = Field(1000.0, description="Maximum position size in USDT")
     risk_per_trade_percent: float = Field(
         1.0, description="Risk per trade as percentage of capital"
     )
@@ -112,9 +111,7 @@ class APIConfig(BaseSettings):
 class ICTConfig(BaseSettings):
     """ICT indicator configuration."""
 
-    fvg_min_size_percent: float = Field(
-        0.1, description="Minimum FVG size as percentage of price"
-    )
+    fvg_min_size_percent: float = Field(0.1, description="Minimum FVG size as percentage of price")
     ob_lookback_periods: int = Field(100, description="Lookback periods for Order Blocks")
     liquidity_sweep_threshold: float = Field(
         0.5, description="Threshold for liquidity sweep detection"

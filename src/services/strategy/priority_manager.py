@@ -6,28 +6,29 @@ Scores signals based on confidence, strategy type, and market conditions,
 then selects the optimal signal for execution.
 """
 
-from typing import List, Optional, Dict, Any, Tuple
-from dataclasses import dataclass, field
-from decimal import Decimal
-from enum import Enum
 import heapq
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
-from src.services.strategy.signal import Signal, SignalDirection
+from src.services.strategy.signal import Signal
 
 logger = logging.getLogger(__name__)
 
 
 class StrategyType(Enum):
     """Strategy type for priority weighting"""
+
     CONSERVATIVE = "CONSERVATIVE"  # Strategy A
-    AGGRESSIVE = "AGGRESSIVE"      # Strategy B
-    HYBRID = "HYBRID"              # Strategy C
+    AGGRESSIVE = "AGGRESSIVE"  # Strategy B
+    HYBRID = "HYBRID"  # Strategy C
 
 
 class MarketCondition(Enum):
     """Market condition for priority adjustment"""
+
     TRENDING_UP = "TRENDING_UP"
     TRENDING_DOWN = "TRENDING_DOWN"
     RANGING = "RANGING"
@@ -50,20 +51,24 @@ class PriorityConfig:
     risk_reward_weight: float = 0.1
 
     # Strategy type multipliers (applied to strategy_type_weight)
-    strategy_multipliers: Dict[str, float] = field(default_factory=lambda: {
-        'Strategy_A': 1.0,  # Conservative - baseline
-        'Strategy_B': 1.2,  # Aggressive - slight preference
-        'Strategy_C': 1.1,  # Hybrid - balanced preference
-    })
+    strategy_multipliers: Dict[str, float] = field(
+        default_factory=lambda: {
+            "Strategy_A": 1.0,  # Conservative - baseline
+            "Strategy_B": 1.2,  # Aggressive - slight preference
+            "Strategy_C": 1.1,  # Hybrid - balanced preference
+        }
+    )
 
     # Market condition multipliers (applied to market_condition_weight)
-    market_condition_multipliers: Dict[MarketCondition, float] = field(default_factory=lambda: {
-        MarketCondition.TRENDING_UP: 1.2,
-        MarketCondition.TRENDING_DOWN: 1.1,
-        MarketCondition.RANGING: 0.9,
-        MarketCondition.VOLATILE: 0.8,
-        MarketCondition.STABLE: 1.0,
-    })
+    market_condition_multipliers: Dict[MarketCondition, float] = field(
+        default_factory=lambda: {
+            MarketCondition.TRENDING_UP: 1.2,
+            MarketCondition.TRENDING_DOWN: 1.1,
+            MarketCondition.RANGING: 0.9,
+            MarketCondition.VOLATILE: 0.8,
+            MarketCondition.STABLE: 1.0,
+        }
+    )
 
     # Minimum acceptable confidence for signal execution
     min_confidence_threshold: float = 50.0
@@ -74,10 +79,10 @@ class PriorityConfig:
     def __post_init__(self):
         """Validate configuration"""
         total_weight = (
-            self.confidence_weight +
-            self.strategy_type_weight +
-            self.market_condition_weight +
-            self.risk_reward_weight
+            self.confidence_weight
+            + self.strategy_type_weight
+            + self.market_condition_weight
+            + self.risk_reward_weight
         )
         if abs(total_weight - 1.0) > 0.01:
             logger.warning(
@@ -98,6 +103,7 @@ class PrioritizedSignal:
 
     Uses negative score for max-heap behavior (highest priority first).
     """
+
     score: float
     signal: Signal
     timestamp: datetime = field(default_factory=datetime.utcnow)
@@ -147,10 +153,10 @@ class SignalPriorityManager:
 
         # Metrics
         self.metrics = {
-            'signals_scored': 0,
-            'signals_selected': 0,
-            'signals_cancelled': 0,
-            'total_score': 0.0,
+            "signals_scored": 0,
+            "signals_selected": 0,
+            "signals_cancelled": 0,
+            "total_score": 0.0,
         }
 
         logger.info(
@@ -186,19 +192,13 @@ class SignalPriorityManager:
         confidence_score = signal.confidence / 100.0
 
         # Component 2: Strategy type score
-        strategy_multiplier = self.config.strategy_multipliers.get(
-            signal.strategy_name,
-            1.0
-        )
+        strategy_multiplier = self.config.strategy_multipliers.get(signal.strategy_name, 1.0)
         strategy_score = strategy_multiplier
 
         # Component 3: Market condition score
         market_score = 1.0  # Default neutral
         if market_condition:
-            market_multiplier = self.config.market_condition_multipliers.get(
-                market_condition,
-                1.0
-            )
+            market_multiplier = self.config.market_condition_multipliers.get(market_condition, 1.0)
             market_score = market_multiplier
 
         # Component 4: Risk-reward ratio score
@@ -208,29 +208,29 @@ class SignalPriorityManager:
 
         # Calculate weighted final score
         final_score = (
-            self.config.confidence_weight * confidence_score +
-            self.config.strategy_type_weight * strategy_score +
-            self.config.market_condition_weight * market_score +
-            self.config.risk_reward_weight * rr_score
+            self.config.confidence_weight * confidence_score
+            + self.config.strategy_type_weight * strategy_score
+            + self.config.market_condition_weight * market_score
+            + self.config.risk_reward_weight * rr_score
         ) * 100  # Scale to 0-100
 
         # Track scoring details
         scoring_details = {
-            'confidence_score': confidence_score,
-            'confidence_contribution': self.config.confidence_weight * confidence_score * 100,
-            'strategy_multiplier': strategy_multiplier,
-            'strategy_contribution': self.config.strategy_type_weight * strategy_score * 100,
-            'market_condition': market_condition.value if market_condition else None,
-            'market_score': market_score,
-            'market_contribution': self.config.market_condition_weight * market_score * 100,
-            'risk_reward_ratio': signal.risk_reward_ratio,
-            'rr_score': rr_score,
-            'rr_contribution': self.config.risk_reward_weight * rr_score * 100,
-            'final_score': final_score,
+            "confidence_score": confidence_score,
+            "confidence_contribution": self.config.confidence_weight * confidence_score * 100,
+            "strategy_multiplier": strategy_multiplier,
+            "strategy_contribution": self.config.strategy_type_weight * strategy_score * 100,
+            "market_condition": market_condition.value if market_condition else None,
+            "market_score": market_score,
+            "market_contribution": self.config.market_condition_weight * market_score * 100,
+            "risk_reward_ratio": signal.risk_reward_ratio,
+            "rr_score": rr_score,
+            "rr_contribution": self.config.risk_reward_weight * rr_score * 100,
+            "final_score": final_score,
         }
 
-        self.metrics['signals_scored'] += 1
-        self.metrics['total_score'] += final_score
+        self.metrics["signals_scored"] += 1
+        self.metrics["total_score"] += final_score
 
         logger.debug(
             f"Calculated priority score for {signal.signal_id[:8]}...: "
@@ -274,13 +274,14 @@ class SignalPriorityManager:
         if len(self.signal_queue) > self.max_concurrent_signals:
             # Since __lt__ is inverted for max-heap, heappop would remove highest priority
             # Instead, find and remove the actual lowest priority signal (min score)
-            lowest_idx = min(range(len(self.signal_queue)),
-                           key=lambda i: self.signal_queue[i].score)
+            lowest_idx = min(
+                range(len(self.signal_queue)), key=lambda i: self.signal_queue[i].score
+            )
             removed = self.signal_queue.pop(lowest_idx)
             # Rebuild heap after manual removal
             heapq.heapify(self.signal_queue)
 
-            self.metrics['signals_cancelled'] += 1
+            self.metrics["signals_cancelled"] += 1
             logger.info(
                 f"Queue full, removed lowest priority signal: {removed.signal.signal_id[:8]}... "
                 f"(score={removed.score:.2f})"
@@ -312,7 +313,7 @@ class SignalPriorityManager:
 
         if remove:
             prioritized = heapq.heappop(self.signal_queue)
-            self.metrics['signals_selected'] += 1
+            self.metrics["signals_selected"] += 1
             logger.info(
                 f"Selected highest priority signal: {prioritized.signal.signal_id[:8]}... "
                 f"(score={prioritized.score:.2f})"
@@ -380,20 +381,24 @@ class SignalPriorityManager:
         best_score, best_signal, best_details = scored_signals[0]
 
         selection_details = {
-            'selected_signal_id': best_signal.signal_id,
-            'selected_score': best_score,
-            'total_candidates': len(signals),
-            'valid_candidates': len(scored_signals),
-            'rejected_count': len(signals) - len(scored_signals),
-            'scoring_details': best_details,
-            'runner_ups': [
-                {
-                    'signal_id': sig.signal_id,
-                    'strategy': sig.strategy_name,
-                    'score': score,
-                }
-                for score, sig, _ in scored_signals[1:3]  # Top 2 runner-ups
-            ] if len(scored_signals) > 1 else [],
+            "selected_signal_id": best_signal.signal_id,
+            "selected_score": best_score,
+            "total_candidates": len(signals),
+            "valid_candidates": len(scored_signals),
+            "rejected_count": len(signals) - len(scored_signals),
+            "scoring_details": best_details,
+            "runner_ups": (
+                [
+                    {
+                        "signal_id": sig.signal_id,
+                        "strategy": sig.strategy_name,
+                        "score": score,
+                    }
+                    for score, sig, _ in scored_signals[1:3]  # Top 2 runner-ups
+                ]
+                if len(scored_signals) > 1
+                else []
+            ),
         }
 
         logger.info(
@@ -429,7 +434,7 @@ class SignalPriorityManager:
         self.signal_queue = new_queue
         heapq.heapify(self.signal_queue)
 
-        self.metrics['signals_cancelled'] += cancelled_count
+        self.metrics["signals_cancelled"] += cancelled_count
 
         return cancelled_count
 
@@ -437,7 +442,7 @@ class SignalPriorityManager:
         """Clear all signals from queue"""
         count = len(self.signal_queue)
         self.signal_queue.clear()
-        self.metrics['signals_cancelled'] += count
+        self.metrics["signals_cancelled"] += count
         logger.info(f"Cleared priority queue ({count} signals removed)")
 
     def get_queue_snapshot(self) -> List[Dict[str, Any]]:
@@ -454,15 +459,15 @@ class SignalPriorityManager:
 
         return [
             {
-                'rank': idx + 1,
-                'signal_id': p.signal.signal_id,
-                'strategy': p.signal.strategy_name,
-                'symbol': p.signal.symbol,
-                'direction': p.signal.direction.value,
-                'confidence': p.signal.confidence,
-                'priority_score': p.score,
-                'market_condition': p.market_condition.value if p.market_condition else None,
-                'timestamp': p.timestamp.isoformat(),
+                "rank": idx + 1,
+                "signal_id": p.signal.signal_id,
+                "strategy": p.signal.strategy_name,
+                "symbol": p.signal.symbol,
+                "direction": p.signal.direction.value,
+                "confidence": p.signal.confidence,
+                "priority_score": p.score,
+                "market_condition": p.market_condition.value if p.market_condition else None,
+                "timestamp": p.timestamp.isoformat(),
             }
             for idx, p in enumerate(sorted_queue)
         ]
@@ -470,17 +475,18 @@ class SignalPriorityManager:
     def get_metrics(self) -> Dict[str, Any]:
         """Get priority manager metrics"""
         avg_score = (
-            self.metrics['total_score'] / self.metrics['signals_scored']
-            if self.metrics['signals_scored'] > 0 else 0.0
+            self.metrics["total_score"] / self.metrics["signals_scored"]
+            if self.metrics["signals_scored"] > 0
+            else 0.0
         )
 
         return {
-            'signals_scored': self.metrics['signals_scored'],
-            'signals_selected': self.metrics['signals_selected'],
-            'signals_cancelled': self.metrics['signals_cancelled'],
-            'average_score': avg_score,
-            'queue_size': len(self.signal_queue),
-            'queue_capacity': self.max_concurrent_signals,
+            "signals_scored": self.metrics["signals_scored"],
+            "signals_selected": self.metrics["signals_selected"],
+            "signals_cancelled": self.metrics["signals_cancelled"],
+            "average_score": avg_score,
+            "queue_size": len(self.signal_queue),
+            "queue_capacity": self.max_concurrent_signals,
         }
 
     def update_config(self, **kwargs):

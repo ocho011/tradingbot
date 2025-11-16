@@ -14,7 +14,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 from uuid import uuid4
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from pydantic import BaseModel, Field
 
 from src.core.constants import EventType
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # Message Types and Models
 # ============================================================================
+
 
 class MessageType(str, Enum):
     """WebSocket message types."""
@@ -73,7 +74,9 @@ class SubscribeMessage(BaseModel):
 
     type: MessageType = Field(MessageType.SUBSCRIBE)
     topics: List[SubscriptionTopic] = Field(..., description="Topics to subscribe to")
-    filters: Optional[Dict[str, Any]] = Field(None, description="Optional filters (e.g., specific symbols)")
+    filters: Optional[Dict[str, Any]] = Field(
+        None, description="Optional filters (e.g., specific symbols)"
+    )
 
 
 class UnsubscribeMessage(BaseModel):
@@ -86,6 +89,7 @@ class UnsubscribeMessage(BaseModel):
 # ============================================================================
 # Connection Management
 # ============================================================================
+
 
 class WebSocketConnection:
     """
@@ -135,10 +139,7 @@ class WebSocketConnection:
             error: Error message
             detail: Optional error details
         """
-        message = WebSocketMessage(
-            type=MessageType.ERROR,
-            data={"error": error, "detail": detail}
-        )
+        message = WebSocketMessage(type=MessageType.ERROR, data={"error": error, "detail": detail})
         await self.send_message(message)
 
     def is_subscribed(self, topic: SubscriptionTopic) -> bool:
@@ -194,6 +195,7 @@ class WebSocketConnection:
 # ============================================================================
 # WebSocket Manager
 # ============================================================================
+
 
 class WebSocketManager:
     """
@@ -292,14 +294,16 @@ class WebSocketManager:
         self.logger.info(f"WebSocket connected: {connection_id}")
 
         # Send welcome message
-        await connection.send_message(WebSocketMessage(
-            type=MessageType.SYSTEM_STATUS,
-            data={
-                "status": "connected",
-                "connection_id": connection_id,
-                "server_time": datetime.now().isoformat(),
-            }
-        ))
+        await connection.send_message(
+            WebSocketMessage(
+                type=MessageType.SYSTEM_STATUS,
+                data={
+                    "status": "connected",
+                    "connection_id": connection_id,
+                    "server_time": datetime.now().isoformat(),
+                },
+            )
+        )
 
         return connection_id
 
@@ -348,7 +352,9 @@ class WebSocketManager:
             self.logger.error(f"Error handling message from {connection_id}: {e}", exc_info=True)
             await connection.send_error("Internal error", str(e))
 
-    async def _handle_subscribe(self, connection: WebSocketConnection, data: Dict[str, Any]) -> None:
+    async def _handle_subscribe(
+        self, connection: WebSocketConnection, data: Dict[str, Any]
+    ) -> None:
         """Handle subscribe request."""
         try:
             topics = [SubscriptionTopic(topic) for topic in data.get("topics", [])]
@@ -357,21 +363,25 @@ class WebSocketManager:
             connection.subscriptions.update(topics)
             connection.filters.update(filters)
 
-            await connection.send_message(WebSocketMessage(
-                type=MessageType.SUBSCRIPTIONS,
-                data={
-                    "subscribed": [topic.value for topic in topics],
-                    "all_subscriptions": [topic.value for topic in connection.subscriptions],
-                    "filters": connection.filters,
-                }
-            ))
+            await connection.send_message(
+                WebSocketMessage(
+                    type=MessageType.SUBSCRIPTIONS,
+                    data={
+                        "subscribed": [topic.value for topic in topics],
+                        "all_subscriptions": [topic.value for topic in connection.subscriptions],
+                        "filters": connection.filters,
+                    },
+                )
+            )
 
             self.logger.debug(f"Connection {connection.connection_id} subscribed to {topics}")
 
         except ValueError as e:
             await connection.send_error("Invalid topic", str(e))
 
-    async def _handle_unsubscribe(self, connection: WebSocketConnection, data: Dict[str, Any]) -> None:
+    async def _handle_unsubscribe(
+        self, connection: WebSocketConnection, data: Dict[str, Any]
+    ) -> None:
         """Handle unsubscribe request."""
         try:
             topics = [SubscriptionTopic(topic) for topic in data.get("topics", [])]
@@ -379,13 +389,15 @@ class WebSocketManager:
             for topic in topics:
                 connection.subscriptions.discard(topic)
 
-            await connection.send_message(WebSocketMessage(
-                type=MessageType.SUBSCRIPTIONS,
-                data={
-                    "unsubscribed": [topic.value for topic in topics],
-                    "all_subscriptions": [topic.value for topic in connection.subscriptions],
-                }
-            ))
+            await connection.send_message(
+                WebSocketMessage(
+                    type=MessageType.SUBSCRIPTIONS,
+                    data={
+                        "unsubscribed": [topic.value for topic in topics],
+                        "all_subscriptions": [topic.value for topic in connection.subscriptions],
+                    },
+                )
+            )
 
             self.logger.debug(f"Connection {connection.connection_id} unsubscribed from {topics}")
 
@@ -395,20 +407,23 @@ class WebSocketManager:
     async def _handle_ping(self, connection: WebSocketConnection) -> None:
         """Handle ping request."""
         connection.last_ping = datetime.now()
-        await connection.send_message(WebSocketMessage(
-            type=MessageType.PONG,
-            data={"server_time": datetime.now().isoformat()}
-        ))
+        await connection.send_message(
+            WebSocketMessage(
+                type=MessageType.PONG, data={"server_time": datetime.now().isoformat()}
+            )
+        )
 
     async def _handle_get_subscriptions(self, connection: WebSocketConnection) -> None:
         """Handle get subscriptions request."""
-        await connection.send_message(WebSocketMessage(
-            type=MessageType.SUBSCRIPTIONS,
-            data={
-                "subscriptions": [topic.value for topic in connection.subscriptions],
-                "filters": connection.filters,
-            }
-        ))
+        await connection.send_message(
+            WebSocketMessage(
+                type=MessageType.SUBSCRIPTIONS,
+                data={
+                    "subscriptions": [topic.value for topic in connection.subscriptions],
+                    "filters": connection.filters,
+                },
+            )
+        )
 
     async def broadcast(
         self,
@@ -489,6 +504,7 @@ class WebSocketManager:
 # Event Handler for Broadcasting
 # ============================================================================
 
+
 class WebSocketEventHandler(EventHandler):
     """
     Event handler that broadcasts system events to WebSocket clients.
@@ -509,23 +525,31 @@ class WebSocketEventHandler(EventHandler):
             # Candle events → CANDLES topic
             EventType.CANDLE_RECEIVED: (MessageType.CANDLE_UPDATE, SubscriptionTopic.CANDLES),
             EventType.CANDLE_CLOSED: (MessageType.CANDLE_UPDATE, SubscriptionTopic.CANDLES),
-
             # Indicator events → INDICATORS topic
             EventType.FVG_DETECTED: (MessageType.INDICATOR_UPDATE, SubscriptionTopic.INDICATORS),
-            EventType.ORDER_BLOCK_DETECTED: (MessageType.INDICATOR_UPDATE, SubscriptionTopic.INDICATORS),
-            EventType.LIQUIDITY_SWEEP_DETECTED: (MessageType.INDICATOR_UPDATE, SubscriptionTopic.INDICATORS),
-            EventType.MARKET_STRUCTURE_CHANGE: (MessageType.INDICATOR_UPDATE, SubscriptionTopic.INDICATORS),
-            EventType.INDICATORS_UPDATED: (MessageType.INDICATOR_UPDATE, SubscriptionTopic.INDICATORS),
-
+            EventType.ORDER_BLOCK_DETECTED: (
+                MessageType.INDICATOR_UPDATE,
+                SubscriptionTopic.INDICATORS,
+            ),
+            EventType.LIQUIDITY_SWEEP_DETECTED: (
+                MessageType.INDICATOR_UPDATE,
+                SubscriptionTopic.INDICATORS,
+            ),
+            EventType.MARKET_STRUCTURE_CHANGE: (
+                MessageType.INDICATOR_UPDATE,
+                SubscriptionTopic.INDICATORS,
+            ),
+            EventType.INDICATORS_UPDATED: (
+                MessageType.INDICATOR_UPDATE,
+                SubscriptionTopic.INDICATORS,
+            ),
             # Signal events → SIGNALS topic
             EventType.SIGNAL_GENERATED: (MessageType.SIGNAL, SubscriptionTopic.SIGNALS),
-
             # Order events → ORDERS topic
             EventType.ORDER_PLACED: (MessageType.ORDER_UPDATE, SubscriptionTopic.ORDERS),
             EventType.ORDER_FILLED: (MessageType.ORDER_UPDATE, SubscriptionTopic.ORDERS),
             EventType.ORDER_CANCELLED: (MessageType.ORDER_UPDATE, SubscriptionTopic.ORDERS),
             EventType.ORDER_FAILED: (MessageType.ORDER_UPDATE, SubscriptionTopic.ORDERS),
-
             # Position events → POSITIONS topic
             EventType.POSITION_OPENED: (MessageType.POSITION_UPDATE, SubscriptionTopic.POSITIONS),
             EventType.POSITION_CLOSED: (MessageType.POSITION_UPDATE, SubscriptionTopic.POSITIONS),

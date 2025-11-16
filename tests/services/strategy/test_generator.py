@@ -2,10 +2,11 @@
 Tests for Signal Generator Base Class
 """
 
-import pytest
 from decimal import Decimal
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import pytest
 
 from src.services.strategy.generator import (
     SignalGenerator,
@@ -13,19 +14,18 @@ from src.services.strategy.generator import (
     StrategyBGenerator,
     StrategyCGenerator,
 )
-from src.services.strategy.signal import Signal, SignalDirection
 
 
 @pytest.fixture
 def sample_candles():
     """Create sample candle data for testing"""
-    dates = pd.date_range(start='2024-01-01', periods=100, freq='1H')
+    dates = pd.date_range(start="2024-01-01", periods=100, freq="1H")
     data = {
-        'open': np.random.uniform(49000, 51000, 100),
-        'high': np.random.uniform(50000, 52000, 100),
-        'low': np.random.uniform(48000, 50000, 100),
-        'close': np.random.uniform(49000, 51000, 100),
-        'volume': np.random.uniform(100, 1000, 100),
+        "open": np.random.uniform(49000, 51000, 100),
+        "high": np.random.uniform(50000, 52000, 100),
+        "low": np.random.uniform(48000, 50000, 100),
+        "close": np.random.uniform(49000, 51000, 100),
+        "volume": np.random.uniform(100, 1000, 100),
     }
     return pd.DataFrame(data, index=dates)
 
@@ -72,11 +72,13 @@ class TestSignalGeneratorBase:
         generator = StrategyAGenerator()
 
         # Create dataframe with missing columns
-        df = pd.DataFrame({
-            'open': [50000, 50100],
-            'high': [50200, 50300],
-            # Missing 'low', 'close', 'volume'
-        })
+        df = pd.DataFrame(
+            {
+                "open": [50000, 50100],
+                "high": [50200, 50300],
+                # Missing 'low', 'close', 'volume'
+            }
+        )
 
         is_valid = generator.validate_market_conditions(df)
 
@@ -88,7 +90,7 @@ class TestSignalGeneratorBase:
 
         # Introduce null values
         candles_with_nulls = sample_candles.copy()
-        candles_with_nulls.loc[0, 'close'] = np.nan
+        candles_with_nulls.loc[0, "close"] = np.nan
 
         is_valid = generator.validate_market_conditions(candles_with_nulls)
 
@@ -118,8 +120,8 @@ class TestStrategyAGenerator:
         generator = StrategyAGenerator()
 
         signal = generator.generate_signal(
-            symbol='BTCUSDT',
-            current_price=Decimal('50000'),
+            symbol="BTCUSDT",
+            current_price=Decimal("50000"),
             candles=sample_candles,
         )
 
@@ -131,28 +133,28 @@ class TestStrategyAGenerator:
         generator = StrategyAGenerator()
 
         stop_loss = generator.calculate_stop_loss(
-            entry_price=Decimal('50000'),
-            direction='LONG',
+            entry_price=Decimal("50000"),
+            direction="LONG",
             candles=sample_candles,
         )
 
         # Should return a valid stop loss price
         assert isinstance(stop_loss, Decimal)
-        assert stop_loss < Decimal('50000')  # LONG stop loss should be below entry
+        assert stop_loss < Decimal("50000")  # LONG stop loss should be below entry
 
     def test_calculate_take_profit(self, sample_candles):
         """Test take profit calculation"""
         generator = StrategyAGenerator()
 
         take_profit = generator.calculate_take_profit(
-            entry_price=Decimal('50000'),
-            direction='LONG',
+            entry_price=Decimal("50000"),
+            direction="LONG",
             candles=sample_candles,
         )
 
         # Should return a valid take profit price
         assert isinstance(take_profit, Decimal)
-        assert take_profit > Decimal('50000')  # LONG take profit should be above entry
+        assert take_profit > Decimal("50000")  # LONG take profit should be above entry
 
     def test_calculate_confidence(self, sample_candles):
         """Test confidence calculation"""
@@ -180,8 +182,8 @@ class TestStrategyBGenerator:
         generator = StrategyBGenerator()
 
         signal = generator.generate_signal(
-            symbol='BTCUSDT',
-            current_price=Decimal('50000'),
+            symbol="BTCUSDT",
+            current_price=Decimal("50000"),
             candles=sample_candles,
         )
 
@@ -193,10 +195,10 @@ class TestStrategyBGenerator:
         strategy_a = StrategyAGenerator()
         strategy_b = StrategyBGenerator()
 
-        entry = Decimal('50000')
+        entry = Decimal("50000")
 
-        sl_a = strategy_a.calculate_stop_loss(entry, 'LONG', sample_candles)
-        sl_b = strategy_b.calculate_stop_loss(entry, 'LONG', sample_candles)
+        sl_a = strategy_a.calculate_stop_loss(entry, "LONG", sample_candles)
+        sl_b = strategy_b.calculate_stop_loss(entry, "LONG", sample_candles)
 
         # Strategy B should have wider stop loss (further from entry)
         assert abs(entry - sl_b) > abs(entry - sl_a)
@@ -206,10 +208,10 @@ class TestStrategyBGenerator:
         strategy_a = StrategyAGenerator()
         strategy_b = StrategyBGenerator()
 
-        entry = Decimal('50000')
+        entry = Decimal("50000")
 
-        tp_a = strategy_a.calculate_take_profit(entry, 'LONG', sample_candles)
-        tp_b = strategy_b.calculate_take_profit(entry, 'LONG', sample_candles)
+        tp_a = strategy_a.calculate_take_profit(entry, "LONG", sample_candles)
+        tp_b = strategy_b.calculate_take_profit(entry, "LONG", sample_candles)
 
         # Strategy B should have higher take profit
         assert abs(tp_b - entry) > abs(tp_a - entry)
@@ -230,8 +232,8 @@ class TestStrategyCGenerator:
         generator = StrategyCGenerator()
 
         signal = generator.generate_signal(
-            symbol='BTCUSDT',
-            current_price=Decimal('50000'),
+            symbol="BTCUSDT",
+            current_price=Decimal("50000"),
             candles=sample_candles,
         )
 
@@ -244,12 +246,12 @@ class TestStrategyCGenerator:
         strategy_b = StrategyBGenerator()
         strategy_c = StrategyCGenerator()
 
-        entry = Decimal('50000')
+        entry = Decimal("50000")
 
         # Get stop losses
-        sl_a = strategy_a.calculate_stop_loss(entry, 'LONG', sample_candles)
-        sl_b = strategy_b.calculate_stop_loss(entry, 'LONG', sample_candles)
-        sl_c = strategy_c.calculate_stop_loss(entry, 'LONG', sample_candles)
+        sl_a = strategy_a.calculate_stop_loss(entry, "LONG", sample_candles)
+        sl_b = strategy_b.calculate_stop_loss(entry, "LONG", sample_candles)
+        sl_c = strategy_c.calculate_stop_loss(entry, "LONG", sample_candles)
 
         # Strategy C should be between A and B
         risk_a = abs(entry - sl_a)
@@ -281,21 +283,21 @@ class TestGeneratorRepr:
         generator = StrategyAGenerator()
         repr_str = repr(generator)
 
-        assert 'StrategyAGenerator' in repr_str
-        assert 'Strategy_A_Conservative' in repr_str
+        assert "StrategyAGenerator" in repr_str
+        assert "Strategy_A_Conservative" in repr_str
 
     def test_repr_strategy_b(self):
         """Test Strategy B string representation"""
         generator = StrategyBGenerator()
         repr_str = repr(generator)
 
-        assert 'StrategyBGenerator' in repr_str
-        assert 'Strategy_B_Aggressive' in repr_str
+        assert "StrategyBGenerator" in repr_str
+        assert "Strategy_B_Aggressive" in repr_str
 
     def test_repr_strategy_c(self):
         """Test Strategy C string representation"""
         generator = StrategyCGenerator()
         repr_str = repr(generator)
 
-        assert 'StrategyCGenerator' in repr_str
-        assert 'Strategy_C_Hybrid' in repr_str
+        assert "StrategyCGenerator" in repr_str
+        assert "Strategy_C_Hybrid" in repr_str

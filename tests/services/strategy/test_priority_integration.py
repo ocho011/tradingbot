@@ -2,17 +2,17 @@
 Integration tests for Signal Priority Management with Strategy Integration Layer
 """
 
-import pytest
 from decimal import Decimal
-import pandas as pd
 
-from src.services.strategy.signal import Signal, SignalDirection
-from src.services.strategy.priority_manager import (
-    SignalPriorityManager,
-    PriorityConfig,
-    MarketCondition,
-)
+import pandas as pd
+import pytest
+
 from src.services.strategy.integration_layer import StrategyIntegrationLayer
+from src.services.strategy.priority_manager import (
+    MarketCondition,
+    SignalPriorityManager,
+)
+from src.services.strategy.signal import Signal, SignalDirection
 from src.services.strategy.signal_filter import FilterConfig
 
 
@@ -22,14 +22,16 @@ class TestPriorityIntegration:
     @pytest.fixture
     def candles(self):
         """Create sample candle data"""
-        return pd.DataFrame({
-            'timestamp': pd.date_range('2024-01-01', periods=100, freq='1h'),
-            'open': [50000.0] * 100,
-            'high': [51000.0] * 100,
-            'low': [49000.0] * 100,
-            'close': [50500.0] * 100,
-            'volume': [100.0] * 100,
-        })
+        return pd.DataFrame(
+            {
+                "timestamp": pd.date_range("2024-01-01", periods=100, freq="1h"),
+                "open": [50000.0] * 100,
+                "high": [51000.0] * 100,
+                "low": [49000.0] * 100,
+                "close": [50500.0] * 100,
+                "volume": [100.0] * 100,
+            }
+        )
 
     @pytest.fixture
     def integration_layer(self):
@@ -52,10 +54,7 @@ class TestPriorityIntegration:
         return SignalPriorityManager()
 
     def test_priority_selection_from_multiple_strategies(
-        self,
-        integration_layer,
-        priority_manager,
-        candles
+        self, integration_layer, priority_manager, candles
     ):
         """Test selecting highest priority signal from multiple strategies"""
         # Generate signals from all strategies
@@ -68,8 +67,7 @@ class TestPriorityIntegration:
         # If we got multiple signals, test priority selection
         if len(signals) > 1:
             result = priority_manager.select_best_signal(
-                signals,
-                market_condition=MarketCondition.TRENDING_UP
+                signals, market_condition=MarketCondition.TRENDING_UP
             )
 
             assert result is not None
@@ -77,14 +75,11 @@ class TestPriorityIntegration:
 
             # Verify selection was made
             assert best_signal in signals
-            assert details['total_candidates'] == len(signals)
-            assert details['selected_signal_id'] == best_signal.signal_id
+            assert details["total_candidates"] == len(signals)
+            assert details["selected_signal_id"] == best_signal.signal_id
 
     def test_priority_queue_with_filtered_signals(
-        self,
-        integration_layer,
-        priority_manager,
-        candles
+        self, integration_layer, priority_manager, candles
     ):
         """Test priority queue with signals after filtering"""
         # Generate signals (will be filtered by integration layer)
@@ -96,10 +91,7 @@ class TestPriorityIntegration:
 
         # Add filtered signals to priority queue
         for signal in signals:
-            priority_manager.add_signal(
-                signal,
-                market_condition=MarketCondition.TRENDING_UP
-            )
+            priority_manager.add_signal(signal, market_condition=MarketCondition.TRENDING_UP)
 
         # If signals were generated, verify they were added correctly
         if signals:
@@ -148,16 +140,15 @@ class TestPriorityIntegration:
 
         # Select best signal
         result = priority_manager.select_best_signal(
-            signals,
-            market_condition=MarketCondition.TRENDING_UP
+            signals, market_condition=MarketCondition.TRENDING_UP
         )
 
         assert result is not None
         best_signal, details = result
 
         # Verify all signals were candidates
-        assert details['total_candidates'] == 3
-        assert details['valid_candidates'] >= 1
+        assert details["total_candidates"] == 3
+        assert details["valid_candidates"] >= 1
 
         # Best signal should be one of our signals
         assert best_signal in signals
@@ -176,18 +167,15 @@ class TestPriorityIntegration:
 
         # Score in different market conditions
         score_trending, _ = priority_manager.calculate_priority_score(
-            signal,
-            MarketCondition.TRENDING_UP
+            signal, MarketCondition.TRENDING_UP
         )
 
         score_volatile, _ = priority_manager.calculate_priority_score(
-            signal,
-            MarketCondition.VOLATILE
+            signal, MarketCondition.VOLATILE
         )
 
         score_ranging, _ = priority_manager.calculate_priority_score(
-            signal,
-            MarketCondition.RANGING
+            signal, MarketCondition.RANGING
         )
 
         # Trending should score highest
@@ -237,7 +225,7 @@ class TestPriorityIntegration:
 
         # Only Strategy C should pass both thresholds
         assert best_signal.strategy_name == "Strategy_C"
-        assert details['rejected_count'] == 2
+        assert details["rejected_count"] == 2
 
     def test_priority_queue_capacity_management(self, priority_manager):
         """Test queue capacity enforcement with integration"""
@@ -270,7 +258,7 @@ class TestPriorityIntegration:
         # The top 5 signals by confidence should be: 95, 90, 85, 80, 75
         if snapshot:
             # At least 4 of top 5 should have confidence >= 75 (allowing for small variance)
-            high_conf_count = sum(1 for item in snapshot if item['confidence'] >= 75.0)
+            high_conf_count = sum(1 for item in snapshot if item["confidence"] >= 75.0)
             assert high_conf_count >= 4  # At least 4 of top 5 should be high confidence
 
     def test_signal_cancellation_workflow(self, priority_manager):
@@ -299,7 +287,7 @@ class TestPriorityIntegration:
 
         # Verify correct signals remain
         snapshot = priority_manager.get_queue_snapshot()
-        remaining_ids = {item['signal_id'] for item in snapshot}
+        remaining_ids = {item["signal_id"] for item in snapshot}
         assert signals[0].signal_id in remaining_ids
         assert signals[1].signal_id not in remaining_ids
         assert signals[2].signal_id in remaining_ids
@@ -329,10 +317,10 @@ class TestPriorityIntegration:
         # Check metrics
         metrics = priority_manager.get_metrics()
 
-        assert metrics['signals_scored'] == 3
-        assert metrics['signals_selected'] == 1
-        assert metrics['queue_size'] == 2
-        assert metrics['average_score'] > 0
+        assert metrics["signals_scored"] == 3
+        assert metrics["signals_selected"] == 1
+        assert metrics["queue_size"] == 2
+        assert metrics["average_score"] > 0
 
     def test_config_update_during_runtime(self, priority_manager):
         """Test updating priority configuration at runtime"""
@@ -383,14 +371,16 @@ class TestStrategyPriorityCoordination:
         integration = StrategyIntegrationLayer(filter_config=filter_config)
         priority_mgr = SignalPriorityManager()
 
-        candles = pd.DataFrame({
-            'timestamp': pd.date_range('2024-01-01', periods=100, freq='1h'),
-            'open': [50000.0] * 100,
-            'high': [51000.0] * 100,
-            'low': [49000.0] * 100,
-            'close': [50500.0] * 100,
-            'volume': [100.0] * 100,
-        })
+        candles = pd.DataFrame(
+            {
+                "timestamp": pd.date_range("2024-01-01", periods=100, freq="1h"),
+                "open": [50000.0] * 100,
+                "high": [51000.0] * 100,
+                "low": [49000.0] * 100,
+                "close": [50500.0] * 100,
+                "volume": [100.0] * 100,
+            }
+        )
 
         # Generate signals through integration layer (includes filtering)
         validated_signals = integration.generate_signals(
@@ -403,8 +393,7 @@ class TestStrategyPriorityCoordination:
         if validated_signals:
             # Select best signal using priority manager
             result = priority_mgr.select_best_signal(
-                validated_signals,
-                market_condition=MarketCondition.TRENDING_UP
+                validated_signals, market_condition=MarketCondition.TRENDING_UP
             )
 
             if result is not None:
@@ -413,7 +402,7 @@ class TestStrategyPriorityCoordination:
                 # Verify complete workflow
                 assert best_signal is not None
                 assert best_signal in validated_signals
-                assert details['selected_signal_id'] == best_signal.signal_id
+                assert details["selected_signal_id"] == best_signal.signal_id
 
                 # Verify signal passed all validations
                 assert best_signal.confidence > 0

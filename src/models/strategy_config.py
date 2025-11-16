@@ -5,16 +5,16 @@ This module defines configuration structures for managing trading strategies,
 including strategy-specific parameters, filter settings, and priority configurations.
 """
 
-from dataclasses import dataclass, field, asdict
-from datetime import datetime
-from decimal import Decimal
-from enum import Enum
-from typing import Dict, Any, Optional
 import json
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict
 
 
 class StrategyType(str, Enum):
     """Strategy type enumeration"""
+
     STRATEGY_A = "Strategy_A"  # Conservative
     STRATEGY_B = "Strategy_B"  # Aggressive
     STRATEGY_C = "Strategy_C"  # Hybrid
@@ -34,6 +34,7 @@ class StrategyParameters:
         enabled: Whether strategy is active
         custom_params: Additional strategy-specific parameters
     """
+
     confidence_threshold: float = 70.0
     min_risk_reward: float = 2.0
     max_position_size: float = 2.0  # % of capital
@@ -51,9 +52,13 @@ class StrategyParameters:
         if not (0 < self.max_position_size <= 100):
             raise ValueError(f"max_position_size must be 0-100%, got {self.max_position_size}")
         if self.time_window_minutes < 0:
-            raise ValueError(f"time_window_minutes must be positive, got {self.time_window_minutes}")
+            raise ValueError(
+                f"time_window_minutes must be positive, got {self.time_window_minutes}"
+            )
         if self.price_threshold_pct < 0:
-            raise ValueError(f"price_threshold_pct must be positive, got {self.price_threshold_pct}")
+            raise ValueError(
+                f"price_threshold_pct must be positive, got {self.price_threshold_pct}"
+            )
         return True
 
     def to_dict(self) -> Dict[str, Any]:
@@ -61,7 +66,7 @@ class StrategyParameters:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'StrategyParameters':
+    def from_dict(cls, data: Dict[str, Any]) -> "StrategyParameters":
         """Create from dictionary"""
         return cls(**data)
 
@@ -78,6 +83,7 @@ class FilterConfiguration:
         enable_position_conflict_check: Check for position conflicts
         enabled: Whether filtering is active
     """
+
     time_window_minutes: int = 5
     price_threshold_pct: float = 1.0
     max_signals_per_window: int = 3
@@ -87,11 +93,17 @@ class FilterConfiguration:
     def validate(self) -> bool:
         """Validate filter configuration"""
         if self.time_window_minutes < 0:
-            raise ValueError(f"time_window_minutes must be positive, got {self.time_window_minutes}")
+            raise ValueError(
+                f"time_window_minutes must be positive, got {self.time_window_minutes}"
+            )
         if self.price_threshold_pct < 0:
-            raise ValueError(f"price_threshold_pct must be positive, got {self.price_threshold_pct}")
+            raise ValueError(
+                f"price_threshold_pct must be positive, got {self.price_threshold_pct}"
+            )
         if self.max_signals_per_window < 1:
-            raise ValueError(f"max_signals_per_window must be >= 1, got {self.max_signals_per_window}")
+            raise ValueError(
+                f"max_signals_per_window must be >= 1, got {self.max_signals_per_window}"
+            )
         return True
 
     def to_dict(self) -> Dict[str, Any]:
@@ -99,7 +111,7 @@ class FilterConfiguration:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'FilterConfiguration':
+    def from_dict(cls, data: Dict[str, Any]) -> "FilterConfiguration":
         """Create from dictionary"""
         return cls(**data)
 
@@ -119,15 +131,18 @@ class PriorityConfiguration:
         min_risk_reward_ratio: Minimum R:R for selection
         max_concurrent_signals: Maximum signals in queue
     """
+
     confidence_weight: float = 0.4
     strategy_type_weight: float = 0.2
     market_condition_weight: float = 0.2
     risk_reward_weight: float = 0.2
-    strategy_multipliers: Dict[str, float] = field(default_factory=lambda: {
-        "Strategy_A": 1.0,
-        "Strategy_B": 1.2,
-        "Strategy_C": 1.1,
-    })
+    strategy_multipliers: Dict[str, float] = field(
+        default_factory=lambda: {
+            "Strategy_A": 1.0,
+            "Strategy_B": 1.2,
+            "Strategy_C": 1.1,
+        }
+    )
     min_confidence_threshold: float = 60.0
     min_risk_reward_ratio: float = 1.5
     max_concurrent_signals: int = 10
@@ -136,28 +151,38 @@ class PriorityConfiguration:
         """Validate priority configuration"""
         # Check weights sum to ~1.0
         total_weight = (
-            self.confidence_weight +
-            self.strategy_type_weight +
-            self.market_condition_weight +
-            self.risk_reward_weight
+            self.confidence_weight
+            + self.strategy_type_weight
+            + self.market_condition_weight
+            + self.risk_reward_weight
         )
         if not (0.95 <= total_weight <= 1.05):
             raise ValueError(f"Weights must sum to ~1.0, got {total_weight}")
 
         # Check individual weights
-        for weight_name in ['confidence_weight', 'strategy_type_weight',
-                           'market_condition_weight', 'risk_reward_weight']:
+        for weight_name in [
+            "confidence_weight",
+            "strategy_type_weight",
+            "market_condition_weight",
+            "risk_reward_weight",
+        ]:
             weight = getattr(self, weight_name)
             if not (0 <= weight <= 1):
                 raise ValueError(f"{weight_name} must be 0-1, got {weight}")
 
         # Check thresholds
         if not (0 <= self.min_confidence_threshold <= 100):
-            raise ValueError(f"min_confidence_threshold must be 0-100, got {self.min_confidence_threshold}")
+            raise ValueError(
+                f"min_confidence_threshold must be 0-100, got {self.min_confidence_threshold}"
+            )
         if self.min_risk_reward_ratio < 0:
-            raise ValueError(f"min_risk_reward_ratio must be positive, got {self.min_risk_reward_ratio}")
+            raise ValueError(
+                f"min_risk_reward_ratio must be positive, got {self.min_risk_reward_ratio}"
+            )
         if self.max_concurrent_signals < 1:
-            raise ValueError(f"max_concurrent_signals must be >= 1, got {self.max_concurrent_signals}")
+            raise ValueError(
+                f"max_concurrent_signals must be >= 1, got {self.max_concurrent_signals}"
+            )
 
         return True
 
@@ -166,7 +191,7 @@ class PriorityConfiguration:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'PriorityConfiguration':
+    def from_dict(cls, data: Dict[str, Any]) -> "PriorityConfiguration":
         """Create from dictionary"""
         return cls(**data)
 
@@ -188,23 +213,26 @@ class StrategyConfig:
         updated_at: Last update timestamp
         metadata: Additional metadata
     """
-    strategies: Dict[str, StrategyParameters] = field(default_factory=lambda: {
-        StrategyType.STRATEGY_A.value: StrategyParameters(
-            confidence_threshold=75.0,
-            min_risk_reward=2.5,
-            max_position_size=1.5,
-        ),
-        StrategyType.STRATEGY_B.value: StrategyParameters(
-            confidence_threshold=65.0,
-            min_risk_reward=2.0,
-            max_position_size=2.0,
-        ),
-        StrategyType.STRATEGY_C.value: StrategyParameters(
-            confidence_threshold=70.0,
-            min_risk_reward=2.2,
-            max_position_size=1.8,
-        ),
-    })
+
+    strategies: Dict[str, StrategyParameters] = field(
+        default_factory=lambda: {
+            StrategyType.STRATEGY_A.value: StrategyParameters(
+                confidence_threshold=75.0,
+                min_risk_reward=2.5,
+                max_position_size=1.5,
+            ),
+            StrategyType.STRATEGY_B.value: StrategyParameters(
+                confidence_threshold=65.0,
+                min_risk_reward=2.0,
+                max_position_size=2.0,
+            ),
+            StrategyType.STRATEGY_C.value: StrategyParameters(
+                confidence_threshold=70.0,
+                min_risk_reward=2.2,
+                max_position_size=1.8,
+            ),
+        }
+    )
     filter_config: FilterConfiguration = field(default_factory=FilterConfiguration)
     priority_config: PriorityConfiguration = field(default_factory=PriorityConfiguration)
     global_enabled: bool = True
@@ -270,24 +298,22 @@ class StrategyConfig:
     def get_enabled_strategies(self) -> list[str]:
         """Get list of enabled strategy names"""
         return [
-            name for name, params in self.strategies.items()
+            name
+            for name, params in self.strategies.items()
             if params.enabled and self.global_enabled
         ]
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
         return {
-            'strategies': {
-                name: params.to_dict()
-                for name, params in self.strategies.items()
-            },
-            'filter_config': self.filter_config.to_dict(),
-            'priority_config': self.priority_config.to_dict(),
-            'global_enabled': self.global_enabled,
-            'version': self.version,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
-            'metadata': self.metadata,
+            "strategies": {name: params.to_dict() for name, params in self.strategies.items()},
+            "filter_config": self.filter_config.to_dict(),
+            "priority_config": self.priority_config.to_dict(),
+            "global_enabled": self.global_enabled,
+            "version": self.version,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "metadata": self.metadata,
         }
 
     def to_json(self, indent: int = 2) -> str:
@@ -295,41 +321,45 @@ class StrategyConfig:
         return json.dumps(self.to_dict(), indent=indent)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'StrategyConfig':
+    def from_dict(cls, data: Dict[str, Any]) -> "StrategyConfig":
         """Create from dictionary"""
         # Parse strategies
         strategies = {
             name: StrategyParameters.from_dict(params)
-            for name, params in data.get('strategies', {}).items()
+            for name, params in data.get("strategies", {}).items()
         }
 
         # Parse filter config
-        filter_config = FilterConfiguration.from_dict(
-            data.get('filter_config', {})
-        )
+        filter_config = FilterConfiguration.from_dict(data.get("filter_config", {}))
 
         # Parse priority config
-        priority_config = PriorityConfiguration.from_dict(
-            data.get('priority_config', {})
-        )
+        priority_config = PriorityConfiguration.from_dict(data.get("priority_config", {}))
 
         # Parse timestamps
-        created_at = datetime.fromisoformat(data['created_at']) if 'created_at' in data else datetime.utcnow()
-        updated_at = datetime.fromisoformat(data['updated_at']) if 'updated_at' in data else datetime.utcnow()
+        created_at = (
+            datetime.fromisoformat(data["created_at"])
+            if "created_at" in data
+            else datetime.utcnow()
+        )
+        updated_at = (
+            datetime.fromisoformat(data["updated_at"])
+            if "updated_at" in data
+            else datetime.utcnow()
+        )
 
         return cls(
             strategies=strategies,
             filter_config=filter_config,
             priority_config=priority_config,
-            global_enabled=data.get('global_enabled', True),
-            version=data.get('version', '1.0.0'),
+            global_enabled=data.get("global_enabled", True),
+            version=data.get("version", "1.0.0"),
             created_at=created_at,
             updated_at=updated_at,
-            metadata=data.get('metadata', {}),
+            metadata=data.get("metadata", {}),
         )
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'StrategyConfig':
+    def from_json(cls, json_str: str) -> "StrategyConfig":
         """Create from JSON string"""
         data = json.loads(json_str)
         return cls.from_dict(data)

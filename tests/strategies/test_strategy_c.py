@@ -4,12 +4,13 @@ Unit tests for Strategy C (Hybrid Trading Strategy).
 Tests multi-condition signal generation with weighted confidence scoring.
 """
 
-import pytest
 from datetime import datetime
 
+import pytest
+
 from src.core.constants import PositionSide, TimeFrame
-from src.strategies.strategy_c import StrategyC
 from src.strategies.base_strategy import TradingSignal
+from src.strategies.strategy_c import StrategyC
 
 
 class TestStrategyCInitialization:
@@ -183,9 +184,7 @@ class TestStrategyCTrendCondition:
                     "strength_level": "MODERATE",
                     "is_confirmed": True,
                 },
-                "market_structure": {
-                    "breaks": [{"new_structure": "BULLISH", "strength": 0.7}]
-                },
+                "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.7}]},
             }
         }
 
@@ -368,9 +367,7 @@ class TestStrategyCLiquidityCondition:
             }
         }
 
-        result = strategy._analyze_liquidity_condition(
-            indicators, 50000, PositionSide.LONG
-        )
+        result = strategy._analyze_liquidity_condition(indicators, 50000, PositionSide.LONG)
 
         assert result["score"] >= strategy.min_liquidity_score
         assert result["nearby_levels_count"] > 0
@@ -398,9 +395,7 @@ class TestStrategyCLiquidityCondition:
             }
         }
 
-        result = strategy._analyze_liquidity_condition(
-            indicators, 50000, PositionSide.SHORT
-        )
+        result = strategy._analyze_liquidity_condition(indicators, 50000, PositionSide.SHORT)
 
         assert result["score"] >= strategy.min_liquidity_score
         assert result["nearby_levels_count"] > 0
@@ -429,9 +424,7 @@ class TestStrategyCLiquidityCondition:
             }
         }
 
-        result = strategy._analyze_liquidity_condition(
-            indicators, 50000, PositionSide.LONG
-        )
+        result = strategy._analyze_liquidity_condition(indicators, 50000, PositionSide.LONG)
 
         assert result["has_sweep_support"] is True
         # Score should be higher with sweep support
@@ -442,9 +435,7 @@ class TestStrategyCLiquidityCondition:
 
         indicators = {"15m": {"liquidity_levels": []}}
 
-        result = strategy._analyze_liquidity_condition(
-            indicators, 50000, PositionSide.LONG
-        )
+        result = strategy._analyze_liquidity_condition(indicators, 50000, PositionSide.LONG)
 
         assert result["score"] < strategy.min_liquidity_score
 
@@ -466,9 +457,7 @@ class TestStrategyCLiquidityCondition:
         }
 
         # LONG with SELL liquidity ABOVE is not ideal - score should be low
-        result = strategy._analyze_liquidity_condition(
-            indicators, 50000, PositionSide.LONG
-        )
+        result = strategy._analyze_liquidity_condition(indicators, 50000, PositionSide.LONG)
 
         # Score will be 0 because SELL liquidity is above price (not below)
         assert result["score"] == 0.0
@@ -487,15 +476,9 @@ class TestStrategyCTimingCondition:
             "zone_high": 50000,
             "zone_low": 49900,
         }
-        indicators = {
-            "1m": {
-                "market_structure": {"recent_events": [{"type": "structure_break"}]}
-            }
-        }
+        indicators = {"1m": {"market_structure": {"recent_events": [{"type": "structure_break"}]}}}
 
-        result = strategy._analyze_timing_condition(
-            indicators, 49950, entry_zone_analysis
-        )
+        result = strategy._analyze_timing_condition(indicators, 49950, entry_zone_analysis)
 
         assert result["score"] > 0
         assert result["price_in_zone"] is True
@@ -512,9 +495,7 @@ class TestStrategyCTimingCondition:
         }
         indicators = {"1m": {"market_structure": {"recent_events": []}}}
 
-        result = strategy._analyze_timing_condition(
-            indicators, 50100, entry_zone_analysis
-        )
+        result = strategy._analyze_timing_condition(indicators, 50100, entry_zone_analysis)
 
         assert result["price_in_zone"] is False
         assert result["score"] == 0.3
@@ -539,9 +520,7 @@ class TestStrategyCTimingCondition:
             }
         }
 
-        result = strategy._analyze_timing_condition(
-            indicators, 49950, entry_zone_analysis
-        )
+        result = strategy._analyze_timing_condition(indicators, 49950, entry_zone_analysis)
 
         assert result["has_1m_confirmation"] is True
         # Score should be higher with confirmation
@@ -553,9 +532,7 @@ class TestStrategyCTimingCondition:
         entry_zone_analysis = {"entry_zone": None}
         indicators = {"1m": {}}
 
-        result = strategy._analyze_timing_condition(
-            indicators, 50000, entry_zone_analysis
-        )
+        result = strategy._analyze_timing_condition(indicators, 50000, entry_zone_analysis)
 
         assert result["score"] == 0.5
 
@@ -652,9 +629,7 @@ class TestStrategyCSignalGeneration:
                         "strength_level": "STRONG",
                         "is_confirmed": True,
                     },
-                    "market_structure": {
-                        "breaks": [{"new_structure": "BULLISH", "strength": 0.8}]
-                    },
+                    "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.8}]},
                 },
                 "15m": {
                     "fvg": [
@@ -677,9 +652,7 @@ class TestStrategyCSignalGeneration:
                     ],
                     "liquidity_sweeps": [],
                 },
-                "1m": {
-                    "market_structure": {"recent_events": [{"type": "confirmation"}]}
-                },
+                "1m": {"market_structure": {"recent_events": [{"type": "confirmation"}]}},
             },
         }
 
@@ -733,9 +706,7 @@ class TestStrategyCSignalGeneration:
                     ],
                     "liquidity_sweeps": [],
                 },
-                "1m": {
-                    "market_structure": {"recent_events": [{"type": "structure_break"}]}
-                },
+                "1m": {"market_structure": {"recent_events": [{"type": "structure_break"}]}},
             },
         }
 
@@ -796,9 +767,7 @@ class TestStrategyCSignalGeneration:
                         "strength_level": "STRONG",
                         "is_confirmed": True,
                     },
-                    "market_structure": {
-                        "breaks": [{"new_structure": "BULLISH", "strength": 0.8}]
-                    },
+                    "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.8}]},
                 },
                 "15m": {
                     "fvg": [],  # No FVG
@@ -827,9 +796,7 @@ class TestStrategyCSignalGeneration:
                         "strength_level": "MODERATE",
                         "is_confirmed": False,
                     },
-                    "market_structure": {
-                        "breaks": [{"new_structure": "BULLISH", "strength": 0.6}]
-                    },
+                    "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.6}]},
                 },
                 "15m": {
                     "fvg": [
@@ -842,9 +809,7 @@ class TestStrategyCSignalGeneration:
                         }
                     ],
                     "order_blocks": [],
-                    "liquidity_levels": [
-                        {"price": 49800, "side": "SELL", "strength": 0.5}
-                    ],
+                    "liquidity_levels": [{"price": 49800, "side": "SELL", "strength": 0.5}],
                 },
                 "1m": {"market_structure": {"recent_events": []}},
             },
@@ -869,9 +834,7 @@ class TestStrategyCSignalGeneration:
                         "strength_level": "STRONG",
                         "is_confirmed": True,
                     },
-                    "market_structure": {
-                        "breaks": [{"new_structure": "BULLISH", "strength": 0.8}]
-                    },
+                    "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.8}]},
                 },
                 "15m": {
                     "fvg": [
@@ -883,9 +846,7 @@ class TestStrategyCSignalGeneration:
                             "mitigated": False,
                         }
                     ],
-                    "liquidity_levels": [
-                        {"price": 49800, "side": "SELL", "strength": 0.7}
-                    ],
+                    "liquidity_levels": [{"price": 49800, "side": "SELL", "strength": 0.7}],
                 },
                 "1m": {"market_structure": {"recent_events": [{"type": "confirmation"}]}},
             },
@@ -1085,9 +1046,7 @@ class TestStrategyCMultiConditionCombinations:
                         "strength_level": "STRONG",
                         "is_confirmed": True,
                     },
-                    "market_structure": {
-                        "breaks": [{"new_structure": "BULLISH", "strength": 0.9}]
-                    },
+                    "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.9}]},
                 },
                 "15m": {
                     "fvg": [
@@ -1099,9 +1058,7 @@ class TestStrategyCMultiConditionCombinations:
                             "mitigated": False,
                         }
                     ],
-                    "liquidity_levels": [
-                        {"price": 49800, "side": "SELL", "strength": 0.4}  # Weak
-                    ],
+                    "liquidity_levels": [{"price": 49800, "side": "SELL", "strength": 0.4}],  # Weak
                 },
                 "1m": {"market_structure": {"recent_events": []}},
             },
@@ -1128,9 +1085,7 @@ class TestStrategyCMultiConditionCombinations:
                         "strength_level": "STRONG",
                         "is_confirmed": True,
                     },
-                    "market_structure": {
-                        "breaks": [{"new_structure": "BULLISH", "strength": 0.7}]
-                    },
+                    "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.7}]},
                 },
                 "15m": {
                     "order_blocks": [],
@@ -1144,14 +1099,10 @@ class TestStrategyCMultiConditionCombinations:
                             "mitigated": False,
                         }
                     ],
-                    "liquidity_levels": [
-                        {"price": 49800, "side": "SELL", "strength": 0.7}
-                    ],
+                    "liquidity_levels": [{"price": 49800, "side": "SELL", "strength": 0.7}],
                     "liquidity_sweeps": [],
                 },
-                "1m": {
-                    "market_structure": {"recent_events": [{"type": "confirmation"}]}
-                },
+                "1m": {"market_structure": {"recent_events": [{"type": "confirmation"}]}},
             },
         }
 

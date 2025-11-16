@@ -8,10 +8,9 @@ RetryManager 클래스를 제공합니다.
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, List, Optional, Type, TypeVar
-from datetime import datetime
-
 
 logger = logging.getLogger(__name__)
 
@@ -285,9 +284,7 @@ class RetryManager:
                 delay = self.config.custom_delays[attempt - 1]
             else:
                 # 사용자 정의 지연 시간이 부족한 경우 마지막 값 사용
-                delay = (
-                    self.config.custom_delays[-1] if self.config.custom_delays else 1.0
-                )
+                delay = self.config.custom_delays[-1] if self.config.custom_delays else 1.0
 
         else:
             delay = self.config.base_delay

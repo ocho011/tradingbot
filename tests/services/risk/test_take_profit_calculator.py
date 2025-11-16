@@ -11,19 +11,18 @@ Tests cover:
 - Edge cases and error handling
 """
 
-import pytest
-from decimal import Decimal
-from unittest.mock import Mock
 from datetime import datetime
+from decimal import Decimal
 
-from src.services.risk.take_profit_calculator import (
-    TakeProfitCalculator,
-    TakeProfitCalculationError,
-    TakeProfitStrategy,
-    PartialTakeProfit
-)
-from src.indicators.liquidity_zone import LiquidityLevel, LiquidityType, LiquidityState
+import pytest
+
 from src.core.constants import PositionSide, TimeFrame
+from src.indicators.liquidity_zone import LiquidityLevel, LiquidityState, LiquidityType
+from src.services.risk.take_profit_calculator import (
+    PartialTakeProfit,
+    TakeProfitCalculationError,
+    TakeProfitCalculator,
+)
 
 
 class TestTakeProfitCalculatorInitialization:
@@ -36,23 +35,23 @@ class TestTakeProfitCalculatorInitialization:
             partial_tp_percentages=[(1.5, 50), (2.5, 50)],
             min_distance_pct=0.5,
             max_distance_pct=10.0,
-            precision=8
+            precision=8,
         )
 
-        assert calculator.min_risk_reward_ratio == Decimal('1.5')
+        assert calculator.min_risk_reward_ratio == Decimal("1.5")
         assert len(calculator.partial_tp_percentages) == 2
-        assert calculator.min_distance_pct == Decimal('0.5')
-        assert calculator.max_distance_pct == Decimal('10.0')
+        assert calculator.min_distance_pct == Decimal("0.5")
+        assert calculator.max_distance_pct == Decimal("10.0")
         assert calculator.precision == 8
 
     def test_initialization_with_defaults(self):
         """Test initialization uses default values correctly."""
         calculator = TakeProfitCalculator()
 
-        assert calculator.min_risk_reward_ratio == Decimal('1.5')
+        assert calculator.min_risk_reward_ratio == Decimal("1.5")
         assert len(calculator.partial_tp_percentages) == 4  # Default 4 levels
-        assert calculator.min_distance_pct == Decimal('0.5')
-        assert calculator.max_distance_pct == Decimal('10.0')
+        assert calculator.min_distance_pct == Decimal("0.5")
+        assert calculator.max_distance_pct == Decimal("10.0")
         assert calculator.precision == 8
 
     def test_invalid_min_rr_ratio(self):
@@ -63,10 +62,7 @@ class TestTakeProfitCalculatorInitialization:
     def test_invalid_distance_range(self):
         """Test initialization fails with invalid distance range."""
         with pytest.raises(ValueError, match="Invalid distance range"):
-            TakeProfitCalculator(
-                min_distance_pct=10.0,
-                max_distance_pct=5.0
-            )
+            TakeProfitCalculator(min_distance_pct=10.0, max_distance_pct=5.0)
 
     def test_invalid_precision(self):
         """Test initialization fails with negative precision."""
@@ -76,9 +72,7 @@ class TestTakeProfitCalculatorInitialization:
     def test_partial_tp_percentages_not_summing_to_100(self):
         """Test initialization fails when partial TP percentages don't sum to 100%."""
         with pytest.raises(ValueError, match="must sum to 100%"):
-            TakeProfitCalculator(
-                partial_tp_percentages=[(1.5, 30), (2.0, 40)]  # Only 70%
-            )
+            TakeProfitCalculator(partial_tp_percentages=[(1.5, 30), (2.0, 40)])  # Only 70%
 
 
 class TestLiquidityLevelDetection:
@@ -101,7 +95,7 @@ class TestLiquidityLevelDetection:
                 touch_count=1,
                 strength=0.8,
                 volume_profile=1000000.0,
-                state=LiquidityState.ACTIVE
+                state=LiquidityState.ACTIVE,
             ),
             LiquidityLevel(
                 type=LiquidityType.BUY_SIDE,
@@ -113,7 +107,7 @@ class TestLiquidityLevelDetection:
                 touch_count=1,
                 strength=0.9,
                 volume_profile=1500000.0,
-                state=LiquidityState.ACTIVE
+                state=LiquidityState.ACTIVE,
             ),
             LiquidityLevel(
                 type=LiquidityType.SELL_SIDE,
@@ -125,15 +119,12 @@ class TestLiquidityLevelDetection:
                 touch_count=1,
                 strength=0.7,
                 volume_profile=800000.0,
-                state=LiquidityState.ACTIVE
-            )
+                state=LiquidityState.ACTIVE,
+            ),
         ]
 
         result = calculator._find_target_liquidity_levels(
-            liquidity_levels,
-            entry_price,
-            PositionSide.LONG,
-            count=2
+            liquidity_levels, entry_price, PositionSide.LONG, count=2
         )
 
         # Should only find buy-side liquidity above entry
@@ -157,7 +148,7 @@ class TestLiquidityLevelDetection:
                 touch_count=1,
                 strength=0.8,
                 volume_profile=1000000.0,
-                state=LiquidityState.ACTIVE
+                state=LiquidityState.ACTIVE,
             ),
             LiquidityLevel(
                 type=LiquidityType.SELL_SIDE,
@@ -169,7 +160,7 @@ class TestLiquidityLevelDetection:
                 touch_count=1,
                 strength=0.9,
                 volume_profile=1500000.0,
-                state=LiquidityState.ACTIVE
+                state=LiquidityState.ACTIVE,
             ),
             LiquidityLevel(
                 type=LiquidityType.BUY_SIDE,
@@ -181,15 +172,12 @@ class TestLiquidityLevelDetection:
                 touch_count=1,
                 strength=0.7,
                 volume_profile=800000.0,
-                state=LiquidityState.ACTIVE
-            )
+                state=LiquidityState.ACTIVE,
+            ),
         ]
 
         result = calculator._find_target_liquidity_levels(
-            liquidity_levels,
-            entry_price,
-            PositionSide.SHORT,
-            count=2
+            liquidity_levels, entry_price, PositionSide.SHORT, count=2
         )
 
         # Should only find sell-side liquidity below entry
@@ -214,15 +202,12 @@ class TestLiquidityLevelDetection:
                 touch_count=1,
                 strength=0.8,
                 volume_profile=1000000.0,
-                state=LiquidityState.ACTIVE
+                state=LiquidityState.ACTIVE,
             )
         ]
 
         result = calculator._find_target_liquidity_levels(
-            liquidity_levels,
-            entry_price,
-            PositionSide.LONG,
-            count=2
+            liquidity_levels, entry_price, PositionSide.LONG, count=2
         )
 
         assert len(result) == 0
@@ -240,7 +225,7 @@ class TestRiskRewardCalculation:
 
         risk_distance = calculator._calculate_risk_distance(entry_price, stop_loss_price)
 
-        assert risk_distance == Decimal('500.0')
+        assert risk_distance == Decimal("500.0")
 
     def test_calculate_tp_price_from_rr_long(self):
         """Test TP price calculation for LONG position."""
@@ -251,10 +236,7 @@ class TestRiskRewardCalculation:
         rr_ratio = 2.0
 
         tp_price = calculator._calculate_tp_price_from_rr(
-            entry_price,
-            stop_loss_price,
-            rr_ratio,
-            PositionSide.LONG
+            entry_price, stop_loss_price, rr_ratio, PositionSide.LONG
         )
 
         # Expected: entry + (risk * RR) = 50000 + (500 * 2) = 51000
@@ -269,10 +251,7 @@ class TestRiskRewardCalculation:
         rr_ratio = 2.0
 
         tp_price = calculator._calculate_tp_price_from_rr(
-            entry_price,
-            stop_loss_price,
-            rr_ratio,
-            PositionSide.SHORT
+            entry_price, stop_loss_price, rr_ratio, PositionSide.SHORT
         )
 
         # Expected: entry - (risk * RR) = 50000 - (500 * 2) = 49000
@@ -284,17 +263,13 @@ class TestPartialTakeProfitCalculation:
 
     def test_calculate_partial_take_profits_long(self):
         """Test calculating partial TP levels for LONG position."""
-        calculator = TakeProfitCalculator(
-            partial_tp_percentages=[(1.5, 50), (2.5, 50)]
-        )
+        calculator = TakeProfitCalculator(partial_tp_percentages=[(1.5, 50), (2.5, 50)])
 
         entry_price = 50000.0
         stop_loss_price = 49500.0  # 500 risk
 
         partial_tps = calculator.calculate_partial_take_profits(
-            entry_price,
-            stop_loss_price,
-            PositionSide.LONG
+            entry_price, stop_loss_price, PositionSide.LONG
         )
 
         assert len(partial_tps) == 2
@@ -311,17 +286,13 @@ class TestPartialTakeProfitCalculation:
 
     def test_calculate_partial_take_profits_short(self):
         """Test calculating partial TP levels for SHORT position."""
-        calculator = TakeProfitCalculator(
-            partial_tp_percentages=[(1.5, 50), (2.5, 50)]
-        )
+        calculator = TakeProfitCalculator(partial_tp_percentages=[(1.5, 50), (2.5, 50)])
 
         entry_price = 50000.0
         stop_loss_price = 50500.0  # 500 risk
 
         partial_tps = calculator.calculate_partial_take_profits(
-            entry_price,
-            stop_loss_price,
-            PositionSide.SHORT
+            entry_price, stop_loss_price, PositionSide.SHORT
         )
 
         assert len(partial_tps) == 2
@@ -336,9 +307,7 @@ class TestPartialTakeProfitCalculation:
 
     def test_partial_tp_with_liquidity_alignment(self):
         """Test partial TP alignment with liquidity levels."""
-        calculator = TakeProfitCalculator(
-            partial_tp_percentages=[(1.5, 50), (2.5, 50)]
-        )
+        calculator = TakeProfitCalculator(partial_tp_percentages=[(1.5, 50), (2.5, 50)])
 
         entry_price = 50000.0
         stop_loss_price = 49500.0  # 500 risk
@@ -355,15 +324,12 @@ class TestPartialTakeProfitCalculation:
                 touch_count=1,
                 strength=0.9,
                 volume_profile=1500000.0,
-                state=LiquidityState.ACTIVE
+                state=LiquidityState.ACTIVE,
             )
         ]
 
         partial_tps = calculator.calculate_partial_take_profits(
-            entry_price,
-            stop_loss_price,
-            PositionSide.LONG,
-            liquidity_levels
+            entry_price, stop_loss_price, PositionSide.LONG, liquidity_levels
         )
 
         # First TP should align with liquidity level
@@ -377,53 +343,41 @@ class TestTakeProfitCalculation:
     def test_calculate_take_profit_long(self):
         """Test complete TP calculation for LONG position."""
         calculator = TakeProfitCalculator(
-            min_risk_reward_ratio=1.5,
-            partial_tp_percentages=[(1.5, 50), (2.5, 50)]
+            min_risk_reward_ratio=1.5, partial_tp_percentages=[(1.5, 50), (2.5, 50)]
         )
 
         entry_price = 50000.0
         stop_loss_price = 49500.0  # 500 risk
 
-        result = calculator.calculate_take_profit(
-            entry_price,
-            stop_loss_price,
-            PositionSide.LONG
-        )
+        result = calculator.calculate_take_profit(entry_price, stop_loss_price, PositionSide.LONG)
 
-        assert result['valid'] is True
-        assert result['min_risk_reward_ratio'] == 1.5
-        assert result['actual_risk_reward_ratio'] >= 1.5
-        assert result['final_target'] == pytest.approx(51250.0, rel=1e-6)
-        assert len(result['partial_take_profits']) == 2
-        assert result['trailing_stop_enabled'] is True
-        assert result['trailing_activation_price'] is not None
+        assert result["valid"] is True
+        assert result["min_risk_reward_ratio"] == 1.5
+        assert result["actual_risk_reward_ratio"] >= 1.5
+        assert result["final_target"] == pytest.approx(51250.0, rel=1e-6)
+        assert len(result["partial_take_profits"]) == 2
+        assert result["trailing_stop_enabled"] is True
+        assert result["trailing_activation_price"] is not None
 
     def test_calculate_take_profit_short(self):
         """Test complete TP calculation for SHORT position."""
         calculator = TakeProfitCalculator(
-            min_risk_reward_ratio=1.5,
-            partial_tp_percentages=[(1.5, 50), (2.5, 50)]
+            min_risk_reward_ratio=1.5, partial_tp_percentages=[(1.5, 50), (2.5, 50)]
         )
 
         entry_price = 50000.0
         stop_loss_price = 50500.0  # 500 risk
 
-        result = calculator.calculate_take_profit(
-            entry_price,
-            stop_loss_price,
-            PositionSide.SHORT
-        )
+        result = calculator.calculate_take_profit(entry_price, stop_loss_price, PositionSide.SHORT)
 
-        assert result['valid'] is True
-        assert result['actual_risk_reward_ratio'] >= 1.5
-        assert result['final_target'] == pytest.approx(48750.0, rel=1e-6)
-        assert len(result['partial_take_profits']) == 2
+        assert result["valid"] is True
+        assert result["actual_risk_reward_ratio"] >= 1.5
+        assert result["final_target"] == pytest.approx(48750.0, rel=1e-6)
+        assert len(result["partial_take_profits"]) == 2
 
     def test_calculate_take_profit_with_liquidity_levels(self):
         """Test TP calculation with liquidity level integration."""
-        calculator = TakeProfitCalculator(
-            partial_tp_percentages=[(1.5, 50), (2.5, 50)]
-        )
+        calculator = TakeProfitCalculator(partial_tp_percentages=[(1.5, 50), (2.5, 50)])
 
         entry_price = 50000.0
         stop_loss_price = 49500.0
@@ -439,20 +393,17 @@ class TestTakeProfitCalculation:
                 touch_count=1,
                 strength=0.9,
                 volume_profile=1500000.0,
-                state=LiquidityState.ACTIVE
+                state=LiquidityState.ACTIVE,
             )
         ]
 
         result = calculator.calculate_take_profit(
-            entry_price,
-            stop_loss_price,
-            PositionSide.LONG,
-            liquidity_levels
+            entry_price, stop_loss_price, PositionSide.LONG, liquidity_levels
         )
 
-        assert result['valid'] is True
+        assert result["valid"] is True
         # Some TPs might be aligned with liquidity
-        assert len(result['partial_take_profits']) == 2
+        assert len(result["partial_take_profits"]) == 2
 
 
 class TestTrailingStopCalculation:
@@ -473,7 +424,7 @@ class TestTrailingStopCalculation:
             highest_price,
             lowest_price,
             PositionSide.LONG,
-            trailing_pct=1.0
+            trailing_pct=1.0,
         )
 
         # Expected: highest - (highest * 1%) = 51500 - 515 = 50985
@@ -494,7 +445,7 @@ class TestTrailingStopCalculation:
             highest_price,
             lowest_price,
             PositionSide.SHORT,
-            trailing_pct=1.0
+            trailing_pct=1.0,
         )
 
         # Expected: lowest + (lowest * 1%) = 48500 + 485 = 48985
@@ -515,7 +466,7 @@ class TestTrailingStopCalculation:
             highest_price,
             lowest_price,
             PositionSide.LONG,
-            trailing_pct=1.0
+            trailing_pct=1.0,
         )
 
         # Calculated: 50300 - 503 = 49797, but should be at entry minimum
@@ -536,7 +487,7 @@ class TestTrailingStopCalculation:
             highest_price,
             lowest_price,
             PositionSide.SHORT,
-            trailing_pct=1.0
+            trailing_pct=1.0,
         )
 
         # Calculated: 49700 + 497 = 50197, but should be at entry maximum
@@ -548,55 +499,34 @@ class TestDistanceValidation:
 
     def test_validate_tp_distance_valid(self):
         """Test TP distance validation passes for valid distance."""
-        calculator = TakeProfitCalculator(
-            min_distance_pct=0.5,
-            max_distance_pct=10.0
-        )
+        calculator = TakeProfitCalculator(min_distance_pct=0.5, max_distance_pct=10.0)
 
         entry_price = 50000.0
         tp_price = 51000.0  # 2% distance
 
-        is_valid = calculator._validate_tp_distance(
-            entry_price,
-            tp_price,
-            PositionSide.LONG
-        )
+        is_valid = calculator._validate_tp_distance(entry_price, tp_price, PositionSide.LONG)
 
         assert is_valid is True
 
     def test_validate_tp_distance_too_close(self):
         """Test TP distance validation fails for too close TP."""
-        calculator = TakeProfitCalculator(
-            min_distance_pct=1.0,
-            max_distance_pct=10.0
-        )
+        calculator = TakeProfitCalculator(min_distance_pct=1.0, max_distance_pct=10.0)
 
         entry_price = 50000.0
         tp_price = 50100.0  # 0.2% distance (too close)
 
-        is_valid = calculator._validate_tp_distance(
-            entry_price,
-            tp_price,
-            PositionSide.LONG
-        )
+        is_valid = calculator._validate_tp_distance(entry_price, tp_price, PositionSide.LONG)
 
         assert is_valid is False
 
     def test_validate_tp_distance_too_far(self):
         """Test TP distance validation fails for too far TP."""
-        calculator = TakeProfitCalculator(
-            min_distance_pct=0.5,
-            max_distance_pct=5.0
-        )
+        calculator = TakeProfitCalculator(min_distance_pct=0.5, max_distance_pct=5.0)
 
         entry_price = 50000.0
         tp_price = 54000.0  # 8% distance (too far)
 
-        is_valid = calculator._validate_tp_distance(
-            entry_price,
-            tp_price,
-            PositionSide.LONG
-        )
+        is_valid = calculator._validate_tp_distance(entry_price, tp_price, PositionSide.LONG)
 
         assert is_valid is False
 
@@ -607,17 +537,16 @@ class TestParameterManagement:
     def test_get_parameters(self):
         """Test getting current parameters."""
         calculator = TakeProfitCalculator(
-            min_risk_reward_ratio=2.0,
-            partial_tp_percentages=[(1.5, 50), (2.5, 50)]
+            min_risk_reward_ratio=2.0, partial_tp_percentages=[(1.5, 50), (2.5, 50)]
         )
 
         params = calculator.get_parameters()
 
-        assert params['min_risk_reward_ratio'] == 2.0
-        assert len(params['partial_tp_percentages']) == 2
-        assert params['min_distance_pct'] == 0.5
-        assert params['max_distance_pct'] == 10.0
-        assert params['precision'] == 8
+        assert params["min_risk_reward_ratio"] == 2.0
+        assert len(params["partial_tp_percentages"]) == 2
+        assert params["min_distance_pct"] == 0.5
+        assert params["max_distance_pct"] == 10.0
+        assert params["precision"] == 8
 
     def test_update_min_rr_ratio(self):
         """Test updating minimum RR ratio."""
@@ -625,7 +554,7 @@ class TestParameterManagement:
 
         calculator.update_parameters(min_risk_reward_ratio=2.0)
 
-        assert calculator.min_risk_reward_ratio == Decimal('2.0')
+        assert calculator.min_risk_reward_ratio == Decimal("2.0")
 
     def test_update_partial_tp_percentages(self):
         """Test updating partial TP percentages."""
@@ -635,19 +564,16 @@ class TestParameterManagement:
         calculator.update_parameters(partial_tp_percentages=new_percentages)
 
         assert len(calculator.partial_tp_percentages) == 1
-        assert calculator.partial_tp_percentages[0] == (Decimal('2.0'), Decimal('100'))
+        assert calculator.partial_tp_percentages[0] == (Decimal("2.0"), Decimal("100"))
 
     def test_update_distance_parameters(self):
         """Test updating distance parameters."""
         calculator = TakeProfitCalculator()
 
-        calculator.update_parameters(
-            min_distance_pct=1.0,
-            max_distance_pct=15.0
-        )
+        calculator.update_parameters(min_distance_pct=1.0, max_distance_pct=15.0)
 
-        assert calculator.min_distance_pct == Decimal('1.0')
-        assert calculator.max_distance_pct == Decimal('15.0')
+        assert calculator.min_distance_pct == Decimal("1.0")
+        assert calculator.max_distance_pct == Decimal("15.0")
 
     def test_update_invalid_rr_ratio(self):
         """Test updating with invalid RR ratio fails."""
@@ -661,9 +587,7 @@ class TestParameterManagement:
         calculator = TakeProfitCalculator()
 
         with pytest.raises(ValueError, match="must sum to 100%"):
-            calculator.update_parameters(
-                partial_tp_percentages=[(1.5, 30), (2.0, 40)]
-            )
+            calculator.update_parameters(partial_tp_percentages=[(1.5, 30), (2.0, 40)])
 
 
 class TestEdgeCases:
@@ -672,17 +596,13 @@ class TestEdgeCases:
     def test_no_partial_tps_calculated(self):
         """Test error when no partial TPs can be calculated."""
         # Create calculator with valid percentages first
-        calculator = TakeProfitCalculator(
-            partial_tp_percentages=[(1.5, 100)]
-        )
+        calculator = TakeProfitCalculator(partial_tp_percentages=[(1.5, 100)])
         # Then manually set to empty to simulate edge case
         calculator.partial_tp_percentages = []
 
         with pytest.raises(TakeProfitCalculationError):
             calculator.calculate_take_profit(
-                entry_price=50000.0,
-                stop_loss_price=49500.0,
-                position_side=PositionSide.LONG
+                entry_price=50000.0, stop_loss_price=49500.0, position_side=PositionSide.LONG
             )
 
     def test_rounding_precision(self):
@@ -706,19 +626,16 @@ class TestEdgeCases:
             touch_count=1,
             strength=0.9,
             volume_profile=1500000.0,
-            state=LiquidityState.ACTIVE
+            state=LiquidityState.ACTIVE,
         )
 
         partial_tp = PartialTakeProfit(
-            price=51000.0,
-            percentage=25.0,
-            liquidity_level=liquidity_level,
-            risk_reward_ratio=1.5
+            price=51000.0, percentage=25.0, liquidity_level=liquidity_level, risk_reward_ratio=1.5
         )
 
         result = partial_tp.to_dict()
 
-        assert result['price'] == 51000.0
-        assert result['percentage'] == 25.0
-        assert result['liquidity_level'] is not None
-        assert result['risk_reward_ratio'] == 1.5
+        assert result["price"] == 51000.0
+        assert result["percentage"] == 25.0
+        assert result["liquidity_level"] is not None
+        assert result["risk_reward_ratio"] == 1.5

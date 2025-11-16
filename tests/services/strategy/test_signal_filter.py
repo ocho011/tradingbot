@@ -4,12 +4,13 @@ Tests for Signal Filtering System
 Comprehensive test suite for duplicate signal detection and filtering.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from src.services.strategy.signal import Signal, SignalDirection
-from src.services.strategy.signal_filter import SignalFilter, FilterConfig
+from src.services.strategy.signal_filter import FilterConfig, SignalFilter
 
 
 class TestFilterConfig:
@@ -49,16 +50,16 @@ class TestFilterConfig:
     def test_price_threshold_decimal(self):
         """Test price_threshold_decimal conversion"""
         config = FilterConfig(price_threshold_pct=2.5)
-        assert config.price_threshold_decimal == Decimal('0.025')
+        assert config.price_threshold_decimal == Decimal("0.025")
 
     def test_to_dict(self):
         """Test configuration serialization"""
         config = FilterConfig(time_window_minutes=10, price_threshold_pct=2.0)
         config_dict = config.to_dict()
 
-        assert config_dict['time_window_minutes'] == 10
-        assert config_dict['price_threshold_pct'] == 2.0
-        assert config_dict['enabled'] is True
+        assert config_dict["time_window_minutes"] == 10
+        assert config_dict["price_threshold_pct"] == 2.0
+        assert config_dict["enabled"] is True
 
 
 class TestSignalFilter:
@@ -73,13 +74,13 @@ class TestSignalFilter:
     def sample_signal(self):
         """Create a sample signal for testing"""
         return Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
 
     def test_initialization(self, filter_instance):
@@ -102,26 +103,26 @@ class TestSignalFilter:
         """Test signals within 5min window should be filtered"""
         # Create first signal
         signal1 = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
             timestamp=datetime.utcnow(),
         )
         filter_instance.add_signal(signal1)
 
         # Create second signal 3 minutes later (within window)
         signal2 = Signal(
-            entry_price=Decimal('50100.00'),  # Within 1% price threshold
+            entry_price=Decimal("50100.00"),  # Within 1% price threshold
             direction=SignalDirection.LONG,
             confidence=80.0,
-            stop_loss=Decimal('49100.00'),
-            take_profit=Decimal('52100.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_B_Aggressive',
+            stop_loss=Decimal("49100.00"),
+            take_profit=Decimal("52100.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_B_Aggressive",
             timestamp=datetime.utcnow() + timedelta(minutes=3),
         )
 
@@ -135,26 +136,26 @@ class TestSignalFilter:
         """Test signals exactly at window boundary"""
         # Create first signal
         signal1 = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
             timestamp=datetime.utcnow(),
         )
         filter_instance.add_signal(signal1)
 
         # Create signal 6 minutes later (outside 5-min window)
         signal2 = Signal(
-            entry_price=Decimal('50100.00'),
+            entry_price=Decimal("50100.00"),
             direction=SignalDirection.LONG,
             confidence=80.0,
-            stop_loss=Decimal('49100.00'),
-            take_profit=Decimal('52100.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49100.00"),
+            take_profit=Decimal("52100.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
             timestamp=datetime.utcnow() + timedelta(minutes=6),
         )
 
@@ -167,25 +168,25 @@ class TestSignalFilter:
         """Test signals with <1% price difference should be filtered"""
         # Create first signal at $50,000
         signal1 = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
         filter_instance.add_signal(signal1)
 
         # Create signal at $50,400 (0.8% difference - within 1% threshold)
         signal2 = Signal(
-            entry_price=Decimal('50400.00'),
+            entry_price=Decimal("50400.00"),
             direction=SignalDirection.LONG,
             confidence=80.0,
-            stop_loss=Decimal('49400.00'),
-            take_profit=Decimal('52400.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_B_Aggressive',
+            stop_loss=Decimal("49400.00"),
+            take_profit=Decimal("52400.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_B_Aggressive",
         )
 
         result = filter_instance.add_signal(signal2)
@@ -197,25 +198,25 @@ class TestSignalFilter:
         """Test signals with >1% price difference should not be filtered"""
         # Create first signal at $50,000
         signal1 = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
         filter_instance.add_signal(signal1)
 
         # Create signal at $50,600 (1.2% difference - outside threshold)
         signal2 = Signal(
-            entry_price=Decimal('50600.00'),
+            entry_price=Decimal("50600.00"),
             direction=SignalDirection.LONG,
             confidence=80.0,
-            stop_loss=Decimal('49600.00'),
-            take_profit=Decimal('52600.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_B_Aggressive',
+            stop_loss=Decimal("49600.00"),
+            take_profit=Decimal("52600.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_B_Aggressive",
         )
 
         result = filter_instance.add_signal(signal2)
@@ -227,25 +228,25 @@ class TestSignalFilter:
         """Test opposite direction signals should NOT be filtered"""
         # Create LONG signal
         signal1 = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
         filter_instance.add_signal(signal1)
 
         # Create SHORT signal at similar price
         signal2 = Signal(
-            entry_price=Decimal('50100.00'),
+            entry_price=Decimal("50100.00"),
             direction=SignalDirection.SHORT,
             confidence=80.0,
-            stop_loss=Decimal('51100.00'),
-            take_profit=Decimal('48100.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_B_Aggressive',
+            stop_loss=Decimal("51100.00"),
+            take_profit=Decimal("48100.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_B_Aggressive",
         )
 
         result = filter_instance.add_signal(signal2)
@@ -257,25 +258,25 @@ class TestSignalFilter:
         """Test different symbols should NOT be filtered"""
         # Create signal for BTCUSDT
         signal1 = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
         filter_instance.add_signal(signal1)
 
         # Create signal for ETHUSDT
         signal2 = Signal(
-            entry_price=Decimal('3000.00'),
+            entry_price=Decimal("3000.00"),
             direction=SignalDirection.LONG,
             confidence=80.0,
-            stop_loss=Decimal('2950.00'),
-            take_profit=Decimal('3100.00'),
-            symbol='ETHUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("2950.00"),
+            take_profit=Decimal("3100.00"),
+            symbol="ETHUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
 
         result = filter_instance.add_signal(signal2)
@@ -290,25 +291,25 @@ class TestSignalFilter:
 
         # Strategy A signal
         signal1 = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
         filter_instance.add_signal(signal1)
 
         # Strategy B signal (different strategy, but similar conditions)
         signal2 = Signal(
-            entry_price=Decimal('50100.00'),
+            entry_price=Decimal("50100.00"),
             direction=SignalDirection.LONG,
             confidence=80.0,
-            stop_loss=Decimal('49100.00'),
-            take_profit=Decimal('52100.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_B_Aggressive',
+            stop_loss=Decimal("49100.00"),
+            take_profit=Decimal("52100.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_B_Aggressive",
         )
 
         result = filter_instance.add_signal(signal2)
@@ -323,25 +324,25 @@ class TestSignalFilter:
 
         # Strategy A signal
         signal1 = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
         filter_instance.add_signal(signal1)
 
         # Strategy B signal (different strategy)
         signal2 = Signal(
-            entry_price=Decimal('50100.00'),
+            entry_price=Decimal("50100.00"),
             direction=SignalDirection.LONG,
             confidence=80.0,
-            stop_loss=Decimal('49100.00'),
-            take_profit=Decimal('52100.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_B_Aggressive',
+            stop_loss=Decimal("49100.00"),
+            take_profit=Decimal("52100.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_B_Aggressive",
         )
 
         result = filter_instance.add_signal(signal2)
@@ -353,9 +354,9 @@ class TestSignalFilter:
         """Test position conflict detection"""
         active_positions = [
             {
-                'symbol': 'BTCUSDT',
-                'direction': 'LONG',
-                'entry_price': Decimal('49500.00'),
+                "symbol": "BTCUSDT",
+                "direction": "LONG",
+                "entry_price": Decimal("49500.00"),
             }
         ]
 
@@ -364,13 +365,13 @@ class TestSignalFilter:
 
         # Create LONG signal (conflicts with active LONG position)
         signal = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
 
         result = filter_instance.add_signal(signal)
@@ -386,13 +387,13 @@ class TestSignalFilter:
         # Add multiple identical signals
         for i in range(5):
             signal = Signal(
-                entry_price=Decimal('50000.00'),
+                entry_price=Decimal("50000.00"),
                 direction=SignalDirection.LONG,
                 confidence=75.0,
-                stop_loss=Decimal('49000.00'),
-                take_profit=Decimal('52000.00'),
-                symbol='BTCUSDT',
-                strategy_name='Strategy_A_Conservative',
+                stop_loss=Decimal("49000.00"),
+                take_profit=Decimal("52000.00"),
+                symbol="BTCUSDT",
+                strategy_name="Strategy_A_Conservative",
             )
             result = filter_instance.add_signal(signal)
             assert result is True  # All should be accepted
@@ -410,13 +411,13 @@ class TestSignalFilter:
         filter_instance = SignalFilter(config=config)
 
         signal1 = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
             timestamp=datetime.utcnow(),
         )
         filter_instance.add_signal(signal1)
@@ -425,13 +426,13 @@ class TestSignalFilter:
         # Would be filtered with default config (5min, 1%)
         # Should be accepted with current config (10min, 2%)
         signal2 = Signal(
-            entry_price=Decimal('50750.00'),  # 1.5% difference
+            entry_price=Decimal("50750.00"),  # 1.5% difference
             direction=SignalDirection.LONG,
             confidence=80.0,
-            stop_loss=Decimal('49750.00'),
-            take_profit=Decimal('52750.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_B_Aggressive',
+            stop_loss=Decimal("49750.00"),
+            take_profit=Decimal("52750.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_B_Aggressive",
             timestamp=datetime.utcnow() + timedelta(minutes=8),
         )
 
@@ -443,10 +444,7 @@ class TestSignalFilter:
 
     def test_update_config_runtime(self, filter_instance):
         """Test runtime configuration updates"""
-        filter_instance.update_config(
-            time_window_minutes=10,
-            price_threshold_pct=2.0
-        )
+        filter_instance.update_config(time_window_minutes=10, price_threshold_pct=2.0)
 
         assert filter_instance.config.time_window_minutes == 10
         assert filter_instance.config.price_threshold_pct == 2.0
@@ -457,13 +455,13 @@ class TestSignalFilter:
         filter_instance.add_signal(sample_signal)
 
         duplicate_signal = Signal(
-            entry_price=Decimal('50100.00'),
+            entry_price=Decimal("50100.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49100.00'),
-            take_profit=Decimal('52100.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_B_Aggressive',
+            stop_loss=Decimal("49100.00"),
+            take_profit=Decimal("52100.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_B_Aggressive",
         )
 
         filter_instance.add_signal(duplicate_signal)
@@ -471,35 +469,35 @@ class TestSignalFilter:
 
         stats = filter_instance.get_statistics()
 
-        assert stats['total_processed'] == 3
-        assert stats['filtered_count'] == 2
-        assert stats['accepted_count'] == 1
-        assert stats['filter_rate_pct'] == pytest.approx(66.67, rel=0.1)
+        assert stats["total_processed"] == 3
+        assert stats["filtered_count"] == 2
+        assert stats["accepted_count"] == 1
+        assert stats["filter_rate_pct"] == pytest.approx(66.67, rel=0.1)
 
     def test_cache_cleanup(self, filter_instance):
         """Test old signals are removed from cache"""
         # Create old signal (7 minutes ago)
         old_signal = Signal(
-            entry_price=Decimal('50000.00'),
+            entry_price=Decimal("50000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000.00'),
-            take_profit=Decimal('52000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("49000.00"),
+            take_profit=Decimal("52000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
             timestamp=datetime.utcnow() - timedelta(minutes=7),
         )
         filter_instance.recent_signals.append(old_signal)
 
         # Add new signal (triggers cleanup)
         new_signal = Signal(
-            entry_price=Decimal('51000.00'),
+            entry_price=Decimal("51000.00"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('50000.00'),
-            take_profit=Decimal('53000.00'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A_Conservative',
+            stop_loss=Decimal("50000.00"),
+            take_profit=Decimal("53000.00"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A_Conservative",
         )
         filter_instance.add_signal(new_signal)
 

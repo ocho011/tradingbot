@@ -14,17 +14,18 @@ Task 11.3 implementation.
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Set
 from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Coroutine, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
 
 
 class TaskState(Enum):
     """State of a background task."""
+
     CREATED = "created"
     RUNNING = "running"
     PAUSED = "paused"
@@ -35,15 +36,17 @@ class TaskState(Enum):
 
 class TaskPriority(Enum):
     """Priority levels for background tasks."""
+
     CRITICAL = 1  # Must always run (e.g., health checks)
-    HIGH = 2      # Important business logic (e.g., data processing)
-    MEDIUM = 3    # Standard operations (e.g., metrics collection)
-    LOW = 4       # Nice-to-have (e.g., cleanup tasks)
+    HIGH = 2  # Important business logic (e.g., data processing)
+    MEDIUM = 3  # Standard operations (e.g., metrics collection)
+    LOW = 4  # Nice-to-have (e.g., cleanup tasks)
 
 
 @dataclass
 class TaskMetrics:
     """Metrics for a background task."""
+
     start_time: Optional[datetime] = None
     stop_time: Optional[datetime] = None
     last_run_time: Optional[datetime] = None
@@ -59,9 +62,7 @@ class TaskMetrics:
         self.last_run_time = datetime.now()
         self.run_count += 1
         self.total_runtime_seconds += duration_seconds
-        self.avg_iteration_time_seconds = (
-            self.total_runtime_seconds / self.run_count
-        )
+        self.avg_iteration_time_seconds = self.total_runtime_seconds / self.run_count
 
     def record_error(self, error: Exception) -> None:
         """Record a task error."""
@@ -80,6 +81,7 @@ class TaskMetrics:
 @dataclass
 class TaskConfig:
     """Configuration for a background task."""
+
     name: str
     coroutine_func: Callable[[], Coroutine]
     priority: TaskPriority = TaskPriority.MEDIUM
@@ -95,6 +97,7 @@ class TaskConfig:
 @dataclass
 class ManagedTask:
     """A managed background task with state and metrics."""
+
     config: TaskConfig
     task: Optional[asyncio.Task] = None
     state: TaskState = TaskState.CREATED
@@ -104,11 +107,7 @@ class ManagedTask:
 
     def is_running(self) -> bool:
         """Check if task is currently running."""
-        return (
-            self.state == TaskState.RUNNING and
-            self.task is not None and
-            not self.task.done()
-        )
+        return self.state == TaskState.RUNNING and self.task is not None and not self.task.done()
 
     def is_healthy(self) -> bool:
         """Check if task is in a healthy state."""
@@ -124,8 +123,7 @@ class ManagedTask:
             self.current_restart_delay = self.config.restart_delay_seconds
         else:
             self.current_restart_delay = min(
-                self.current_restart_delay * 2,
-                self.config.max_restart_delay_seconds
+                self.current_restart_delay * 2, self.config.max_restart_delay_seconds
             )
         return self.current_restart_delay
 
@@ -171,7 +169,7 @@ class BackgroundTaskManager:
         self,
         enable_health_monitoring: bool = True,
         health_check_interval: float = 30.0,
-        enable_auto_recovery: bool = True
+        enable_auto_recovery: bool = True,
     ):
         """
         Initialize background task manager.
@@ -201,10 +199,7 @@ class BackgroundTaskManager:
         )
 
     async def add_task(
-        self,
-        config: TaskConfig,
-        group: Optional[str] = None,
-        start_immediately: bool = False
+        self, config: TaskConfig, group: Optional[str] = None, start_immediately: bool = False
     ) -> None:
         """
         Add a new background task.
@@ -227,8 +222,7 @@ class BackgroundTaskManager:
             self._task_groups[group].add(config.name)
 
         logger.info(
-            f"Added task '{config.name}' "
-            f"(priority={config.priority.name}, group={group})"
+            f"Added task '{config.name}' " f"(priority={config.priority.name}, group={group})"
         )
 
         if start_immediately:
@@ -251,19 +245,13 @@ class BackgroundTaskManager:
             raise RuntimeError(f"Task '{task_name}' is already running")
 
         # Create and start task
-        managed_task.task = asyncio.create_task(
-            self._run_task_with_monitoring(managed_task)
-        )
+        managed_task.task = asyncio.create_task(self._run_task_with_monitoring(managed_task))
         managed_task.state = TaskState.RUNNING
         managed_task.metrics.start_time = datetime.now()
 
         logger.info(f"Started task '{task_name}'")
 
-    async def stop_task(
-        self,
-        task_name: str,
-        timeout: Optional[float] = 5.0
-    ) -> None:
+    async def stop_task(self, task_name: str, timeout: Optional[float] = 5.0) -> None:
         """
         Stop a specific task.
 
@@ -286,9 +274,7 @@ class BackgroundTaskManager:
         try:
             await asyncio.wait_for(managed_task.task, timeout=timeout)
         except asyncio.TimeoutError:
-            logger.warning(
-                f"Task '{task_name}' did not stop within {timeout}s timeout"
-            )
+            logger.warning(f"Task '{task_name}' did not stop within {timeout}s timeout")
         except asyncio.CancelledError:
             pass
 
@@ -323,11 +309,7 @@ class BackgroundTaskManager:
         Args:
             group: Optional group name to start
         """
-        task_names = (
-            self._task_groups[group]
-            if group
-            else self._tasks.keys()
-        )
+        task_names = self._task_groups[group] if group else self._tasks.keys()
 
         for task_name in task_names:
             managed_task = self._tasks[task_name]
@@ -338,20 +320,11 @@ class BackgroundTaskManager:
 
         # Start health monitoring
         if self._enable_health_monitoring and not self._health_monitor_task:
-            self._health_monitor_task = asyncio.create_task(
-                self._health_monitor_loop()
-            )
+            self._health_monitor_task = asyncio.create_task(self._health_monitor_loop())
 
-        logger.info(
-            f"Started {len(task_names)} tasks"
-            + (f" in group '{group}'" if group else "")
-        )
+        logger.info(f"Started {len(task_names)} tasks" + (f" in group '{group}'" if group else ""))
 
-    async def stop_all(
-        self,
-        group: Optional[str] = None,
-        timeout: Optional[float] = 10.0
-    ) -> None:
+    async def stop_all(self, group: Optional[str] = None, timeout: Optional[float] = 10.0) -> None:
         """
         Stop all tasks or tasks in a specific group.
 
@@ -359,11 +332,7 @@ class BackgroundTaskManager:
             group: Optional group name to stop
             timeout: Maximum time to wait for each task
         """
-        task_names = (
-            self._task_groups[group]
-            if group
-            else self._tasks.keys()
-        )
+        task_names = self._task_groups[group] if group else self._tasks.keys()
 
         # Stop tasks
         for task_name in task_names:
@@ -383,15 +352,9 @@ class BackgroundTaskManager:
 
         self._running = False
 
-        logger.info(
-            f"Stopped {len(task_names)} tasks"
-            + (f" in group '{group}'" if group else "")
-        )
+        logger.info(f"Stopped {len(task_names)} tasks" + (f" in group '{group}'" if group else ""))
 
-    async def _run_task_with_monitoring(
-        self,
-        managed_task: ManagedTask
-    ) -> None:
+    async def _run_task_with_monitoring(self, managed_task: ManagedTask) -> None:
         """
         Run task with monitoring and error handling.
 
@@ -406,23 +369,18 @@ class BackgroundTaskManager:
                 iteration_start = datetime.now()
                 await asyncio.wait_for(
                     managed_task.config.coroutine_func(),
-                    timeout=managed_task.config.timeout_seconds
+                    timeout=managed_task.config.timeout_seconds,
                 )
-                iteration_duration = (
-                    datetime.now() - iteration_start
-                ).total_seconds()
+                iteration_duration = (datetime.now() - iteration_start).total_seconds()
                 managed_task.metrics.record_run(iteration_duration)
             else:
                 iteration_start = datetime.now()
                 await managed_task.config.coroutine_func()
-                iteration_duration = (
-                    datetime.now() - iteration_start
-                ).total_seconds()
+                iteration_duration = (datetime.now() - iteration_start).total_seconds()
                 managed_task.metrics.record_run(iteration_duration)
 
             logger.debug(
-                f"Task '{task_name}' completed iteration "
-                f"(duration={iteration_duration:.2f}s)"
+                f"Task '{task_name}' completed iteration " f"(duration={iteration_duration:.2f}s)"
             )
 
         except asyncio.CancelledError:
@@ -431,8 +389,7 @@ class BackgroundTaskManager:
 
         except asyncio.TimeoutError:
             logger.error(
-                f"Task '{task_name}' timed out after "
-                f"{managed_task.config.timeout_seconds}s"
+                f"Task '{task_name}' timed out after " f"{managed_task.config.timeout_seconds}s"
             )
             managed_task.metrics.record_error(
                 TimeoutError(f"Task timeout after {managed_task.config.timeout_seconds}s")
@@ -444,10 +401,7 @@ class BackgroundTaskManager:
                 await self._schedule_recovery(managed_task)
 
         except Exception as e:
-            logger.error(
-                f"Task '{task_name}' failed: {e}",
-                exc_info=True
-            )
+            logger.error(f"Task '{task_name}' failed: {e}", exc_info=True)
             managed_task.metrics.record_error(e)
             managed_task.state = TaskState.FAILED
 
@@ -486,16 +440,10 @@ class BackgroundTaskManager:
         )
 
         # Create recovery task
-        recovery_task = asyncio.create_task(
-            self._recover_task(managed_task, delay)
-        )
+        recovery_task = asyncio.create_task(self._recover_task(managed_task, delay))
         self._recovery_tasks[task_name] = recovery_task
 
-    async def _recover_task(
-        self,
-        managed_task: ManagedTask,
-        delay: float
-    ) -> None:
+    async def _recover_task(self, managed_task: ManagedTask, delay: float) -> None:
         """
         Recover a failed task after delay.
 
@@ -542,16 +490,15 @@ class BackgroundTaskManager:
         for task_name, managed_task in self._tasks.items():
             if not managed_task.is_healthy():
                 logger.warning(
-                    f"Unhealthy task detected: '{task_name}' "
-                    f"(state={managed_task.state.value})"
+                    f"Unhealthy task detected: '{task_name}' " f"(state={managed_task.state.value})"
                 )
 
                 # Attempt recovery if not already recovering
                 if (
-                    self._enable_auto_recovery and
-                    managed_task.config.auto_restart and
-                    not managed_task.state == TaskState.RECOVERING and
-                    task_name not in self._recovery_tasks
+                    self._enable_auto_recovery
+                    and managed_task.config.auto_restart
+                    and not managed_task.state == TaskState.RECOVERING
+                    and task_name not in self._recovery_tasks
                 ):
                     await self._schedule_recovery(managed_task)
 
@@ -591,14 +538,18 @@ class BackgroundTaskManager:
                     if managed_task.metrics.last_run_time
                     else None
                 ),
-                "last_error": str(managed_task.metrics.last_error) if managed_task.metrics.last_error else None,
+                "last_error": (
+                    str(managed_task.metrics.last_error)
+                    if managed_task.metrics.last_error
+                    else None
+                ),
                 "last_error_time": (
                     managed_task.metrics.last_error_time.isoformat()
                     if managed_task.metrics.last_error_time
                     else None
-                )
+                ),
             },
-            "metadata": managed_task.config.metadata
+            "metadata": managed_task.config.metadata,
         }
 
     def get_all_status(self) -> Dict[str, Any]:
@@ -611,26 +562,14 @@ class BackgroundTaskManager:
         return {
             "manager_running": self._running,
             "total_tasks": len(self._tasks),
-            "running_tasks": sum(
-                1 for t in self._tasks.values() if t.is_running()
-            ),
-            "healthy_tasks": sum(
-                1 for t in self._tasks.values() if t.is_healthy()
-            ),
-            "failed_tasks": sum(
-                1 for t in self._tasks.values() if t.state == TaskState.FAILED
-            ),
+            "running_tasks": sum(1 for t in self._tasks.values() if t.is_running()),
+            "healthy_tasks": sum(1 for t in self._tasks.values() if t.is_healthy()),
+            "failed_tasks": sum(1 for t in self._tasks.values() if t.state == TaskState.FAILED),
             "recovering_tasks": sum(
                 1 for t in self._tasks.values() if t.state == TaskState.RECOVERING
             ),
-            "tasks": {
-                name: self.get_task_status(name)
-                for name in self._tasks.keys()
-            },
-            "groups": {
-                group: list(task_names)
-                for group, task_names in self._task_groups.items()
-            }
+            "tasks": {name: self.get_task_status(name) for name in self._tasks.keys()},
+            "groups": {group: list(task_names) for group, task_names in self._task_groups.items()},
         }
 
     def get_health_status(self) -> Dict[str, Any]:
@@ -640,32 +579,23 @@ class BackgroundTaskManager:
         Returns:
             Health status dictionary with boolean 'healthy' field
         """
-        all_healthy = all(
-            task.is_healthy()
-            for task in self._tasks.values()
-        )
+        all_healthy = all(task.is_healthy() for task in self._tasks.values())
 
         failed_tasks = [
-            name
-            for name, task in self._tasks.items()
-            if task.state == TaskState.FAILED
+            name for name, task in self._tasks.items() if task.state == TaskState.FAILED
         ]
 
         recovering_tasks = [
-            name
-            for name, task in self._tasks.items()
-            if task.state == TaskState.RECOVERING
+            name for name, task in self._tasks.items() if task.state == TaskState.RECOVERING
         ]
 
         return {
             "healthy": all_healthy and self._running,
             "manager_running": self._running,
             "total_tasks": len(self._tasks),
-            "healthy_tasks": sum(
-                1 for t in self._tasks.values() if t.is_healthy()
-            ),
+            "healthy_tasks": sum(1 for t in self._tasks.values() if t.is_healthy()),
             "failed_tasks": failed_tasks,
             "recovering_tasks": recovering_tasks,
             "health_monitoring_enabled": self._enable_health_monitoring,
-            "auto_recovery_enabled": self._enable_auto_recovery
+            "auto_recovery_enabled": self._enable_auto_recovery,
         }

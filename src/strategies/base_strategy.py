@@ -76,7 +76,6 @@ class BaseStrategy(ABC):
         Returns:
             TradingSignal if conditions are met, None otherwise
         """
-        pass
 
     @abstractmethod
     def validate_signal(self, signal: TradingSignal) -> bool:
@@ -89,7 +88,6 @@ class BaseStrategy(ABC):
         Returns:
             True if signal is valid, False otherwise
         """
-        pass
 
     def calculate_stop_loss(
         self, entry_price: float, direction: PositionSide, reference_level: float

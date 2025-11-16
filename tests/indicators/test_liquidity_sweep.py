@@ -2,23 +2,20 @@
 Unit tests for Liquidity Sweep detection.
 """
 
-import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 
+import pytest
+
+from src.core.constants import TimeFrame
 from src.indicators.liquidity_sweep import (
-    LiquiditySweepDetector,
     LiquiditySweep,
+    LiquiditySweepDetector,
+    SweepCandidate,
     SweepDirection,
     SweepState,
-    SweepCandidate
 )
-from src.indicators.liquidity_zone import (
-    LiquidityLevel,
-    LiquidityType,
-    LiquidityState
-)
+from src.indicators.liquidity_zone import LiquidityLevel, LiquidityState, LiquidityType
 from src.models.candle import Candle
-from src.core.constants import TimeFrame
 
 
 class TestLiquiditySweep:
@@ -33,7 +30,7 @@ class TestLiquiditySweep:
             origin_candle_index=10,
             symbol="EURUSD",
             timeframe=TimeFrame.M1,
-            strength=50.0
+            strength=50.0,
         )
 
         sweep = LiquiditySweep(
@@ -45,7 +42,7 @@ class TestLiquiditySweep:
             reversal_strength=65.0,
             symbol="EURUSD",
             timeframe=TimeFrame.M1,
-            is_valid=True
+            is_valid=True,
         )
 
         assert sweep.liquidity_level == level
@@ -63,7 +60,7 @@ class TestLiquiditySweep:
             origin_timestamp=1000000,
             origin_candle_index=10,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         sweep = LiquiditySweep(
@@ -72,16 +69,16 @@ class TestLiquiditySweep:
             breach_timestamp=1001000,
             breach_candle_index=15,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         sweep_dict = sweep.to_dict()
 
-        assert sweep_dict['direction'] == 'BULLISH'
-        assert sweep_dict['breach_candle_index'] == 15
-        assert sweep_dict['symbol'] == 'EURUSD'
-        assert 'liquidity_level' in sweep_dict
-        assert sweep_dict['liquidity_level']['price'] == 1.0900
+        assert sweep_dict["direction"] == "BULLISH"
+        assert sweep_dict["breach_candle_index"] == 15
+        assert sweep_dict["symbol"] == "EURUSD"
+        assert "liquidity_level" in sweep_dict
+        assert sweep_dict["liquidity_level"]["price"] == 1.0900
 
 
 class TestSweepCandidate:
@@ -95,7 +92,7 @@ class TestSweepCandidate:
             origin_timestamp=1000000,
             origin_candle_index=10,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         candidate = SweepCandidate(
@@ -103,7 +100,7 @@ class TestSweepCandidate:
             direction=SweepDirection.BEARISH,
             breach_candle_index=15,
             breach_timestamp=1001000,
-            breach_price=1.1005
+            breach_price=1.1005,
         )
 
         assert candidate.level == level
@@ -125,7 +122,7 @@ class TestLiquiditySweepDetector:
             reversal_confirmation_pips=3.0,
             max_candles_for_reversal=5,
             min_reversal_strength=30.0,
-            pip_size=0.0001
+            pip_size=0.0001,
         )
 
     @pytest.fixture
@@ -140,7 +137,7 @@ class TestLiquiditySweepDetector:
         high: float,
         low: float,
         close: float,
-        volume: float = 100.0
+        volume: float = 100.0,
     ) -> Candle:
         """Helper to create test candles."""
         return Candle(
@@ -151,7 +148,7 @@ class TestLiquiditySweepDetector:
             high=high,
             low=low,
             close=close,
-            volume=volume
+            volume=volume,
         )
 
     def test_detector_initialization(self, detector):
@@ -172,7 +169,7 @@ class TestLiquiditySweepDetector:
             origin_candle_index=0,
             symbol="EURUSD",
             timeframe=TimeFrame.M1,
-            strength=50.0
+            strength=50.0,
         )
 
         # Create candle sequence: approach → breach → close above → reverse below
@@ -212,7 +209,7 @@ class TestLiquiditySweepDetector:
             origin_candle_index=0,
             symbol="EURUSD",
             timeframe=TimeFrame.M1,
-            strength=50.0
+            strength=50.0,
         )
 
         # Create candle sequence: approach → breach → close below → reverse above
@@ -249,13 +246,15 @@ class TestLiquiditySweepDetector:
             origin_timestamp=base_timestamp,
             origin_candle_index=0,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # Create candles with tiny breach (0.5 pips, below 1 pip minimum)
         candles = [
             self.create_candle(base_timestamp, 1.0995, 1.1000, 1.0990, 1.0995),
-            self.create_candle(base_timestamp + 60000, 1.0995, 1.10005, 1.0992, 1.0997),  # 0.5 pip breach
+            self.create_candle(
+                base_timestamp + 60000, 1.0995, 1.10005, 1.0992, 1.0997
+            ),  # 0.5 pip breach
         ]
 
         sweeps = detector.detect_sweeps(candles, [level], start_index=1)
@@ -271,13 +270,15 @@ class TestLiquiditySweepDetector:
             origin_timestamp=base_timestamp,
             origin_candle_index=0,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # Create candles with huge breach (25 pips, above 20 pip maximum)
         candles = [
             self.create_candle(base_timestamp, 1.0995, 1.1000, 1.0990, 1.0995),
-            self.create_candle(base_timestamp + 60000, 1.0995, 1.1025, 1.0992, 1.1020),  # 25 pip breach
+            self.create_candle(
+                base_timestamp + 60000, 1.0995, 1.1025, 1.0992, 1.1020
+            ),  # 25 pip breach
         ]
 
         sweeps = detector.detect_sweeps(candles, [level], start_index=1)
@@ -293,14 +294,16 @@ class TestLiquiditySweepDetector:
             origin_timestamp=base_timestamp,
             origin_candle_index=0,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # Create candles: breach but continue upward (no reversal)
         candles = [
             self.create_candle(base_timestamp, 1.0995, 1.1000, 1.0990, 1.0995),
             self.create_candle(base_timestamp + 60000, 1.0995, 1.1005, 1.0992, 1.1003),  # Breach
-            self.create_candle(base_timestamp + 120000, 1.1003, 1.1010, 1.1000, 1.1008),  # Continue up
+            self.create_candle(
+                base_timestamp + 120000, 1.1003, 1.1010, 1.1000, 1.1008
+            ),  # Continue up
             self.create_candle(base_timestamp + 180000, 1.1008, 1.1015, 1.1005, 1.1012),  # Still up
         ]
 
@@ -317,7 +320,7 @@ class TestLiquiditySweepDetector:
             origin_timestamp=base_timestamp,
             origin_candle_index=0,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # Create candles: breach + close but reversal after max_candles_for_reversal
@@ -350,7 +353,7 @@ class TestLiquiditySweepDetector:
             origin_timestamp=base_timestamp,
             origin_candle_index=0,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         sell_side_level = LiquidityLevel(
@@ -359,7 +362,7 @@ class TestLiquiditySweepDetector:
             origin_timestamp=base_timestamp + 60000,
             origin_candle_index=1,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         candles = [
@@ -401,7 +404,7 @@ class TestLiquiditySweepDetector:
             origin_timestamp=base_timestamp,
             origin_candle_index=0,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         candles = [
@@ -428,7 +431,7 @@ class TestLiquiditySweepDetector:
             origin_timestamp=base_timestamp,
             origin_candle_index=0,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         candles = [
@@ -457,7 +460,7 @@ class TestLiquiditySweepDetector:
             origin_timestamp=base_timestamp,
             origin_candle_index=0,
             symbol="EURUSD",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # Initially active

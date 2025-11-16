@@ -8,30 +8,28 @@ This module defines the database schema for:
 - Backtest results and configurations
 """
 
-from datetime import datetime
-from typing import Optional
-from decimal import Decimal
 
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Float,
-    DateTime,
     Boolean,
-    Text,
-    Index,
-    ForeignKey,
-    Numeric,
-    Enum as SQLEnum,
-    UniqueConstraint,
     CheckConstraint,
+    Column,
+    DateTime,
+)
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import (
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
 from src.core.constants import TimeFrame
-
 
 Base = declarative_base()
 
@@ -44,7 +42,7 @@ class Trade(Base):
     profit/loss, and associated metadata.
     """
 
-    __tablename__ = 'trades'
+    __tablename__ = "trades"
 
     # Primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -73,29 +71,31 @@ class Trade(Base):
     fees = Column(Numeric(precision=18, scale=8), nullable=True, default=0)
 
     # Trade metadata
-    status = Column(String(20), nullable=False, default='OPEN')  # OPEN, CLOSED, CANCELLED
+    status = Column(String(20), nullable=False, default="OPEN")  # OPEN, CLOSED, CANCELLED
     exit_reason = Column(String(50), nullable=True)  # TP, SL, MANUAL, SIGNAL
     notes = Column(Text, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Relationships
-    position_id = Column(Integer, ForeignKey('positions.id'), nullable=True)
+    position_id = Column(Integer, ForeignKey("positions.id"), nullable=True)
     position = relationship("Position", back_populates="trades")
 
     # Indexes for query optimization
     __table_args__ = (
-        Index('idx_trade_symbol_strategy', 'symbol', 'strategy'),
-        Index('idx_trade_entry_time', 'entry_time'),
-        Index('idx_trade_exit_time', 'exit_time'),
-        Index('idx_trade_status', 'status'),
-        Index('idx_trade_pnl', 'pnl'),
-        CheckConstraint('quantity > 0', name='check_quantity_positive'),
-        CheckConstraint('leverage > 0', name='check_leverage_positive'),
-        CheckConstraint("side IN ('LONG', 'SHORT')", name='check_valid_side'),
-        CheckConstraint("status IN ('OPEN', 'CLOSED', 'CANCELLED')", name='check_valid_status'),
+        Index("idx_trade_symbol_strategy", "symbol", "strategy"),
+        Index("idx_trade_entry_time", "entry_time"),
+        Index("idx_trade_exit_time", "exit_time"),
+        Index("idx_trade_status", "status"),
+        Index("idx_trade_pnl", "pnl"),
+        CheckConstraint("quantity > 0", name="check_quantity_positive"),
+        CheckConstraint("leverage > 0", name="check_leverage_positive"),
+        CheckConstraint("side IN ('LONG', 'SHORT')", name="check_valid_side"),
+        CheckConstraint("status IN ('OPEN', 'CLOSED', 'CANCELLED')", name="check_valid_status"),
     )
 
     def __repr__(self) -> str:
@@ -113,7 +113,7 @@ class Position(Base):
     historical records of closed positions.
     """
 
-    __tablename__ = 'positions'
+    __tablename__ = "positions"
 
     # Primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -141,27 +141,29 @@ class Position(Base):
     take_profit = Column(Numeric(precision=18, scale=8), nullable=True)
 
     # Status tracking
-    status = Column(String(20), nullable=False, default='OPEN')  # OPEN, CLOSED
+    status = Column(String(20), nullable=False, default="OPEN")  # OPEN, CLOSED
     opened_at = Column(DateTime(timezone=True), nullable=False, index=True)
     closed_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Relationships
     trades = relationship("Trade", back_populates="position", cascade="all, delete-orphan")
 
     # Indexes and constraints
     __table_args__ = (
-        Index('idx_position_symbol_status', 'symbol', 'status'),
-        Index('idx_position_strategy', 'strategy'),
-        Index('idx_position_opened_at', 'opened_at'),
-        UniqueConstraint('symbol', 'strategy', 'opened_at', name='uq_position_unique'),
-        CheckConstraint('size > 0', name='check_size_positive'),
-        CheckConstraint('leverage > 0', name='check_position_leverage_positive'),
-        CheckConstraint("side IN ('LONG', 'SHORT')", name='check_position_valid_side'),
-        CheckConstraint("status IN ('OPEN', 'CLOSED')", name='check_position_valid_status'),
+        Index("idx_position_symbol_status", "symbol", "status"),
+        Index("idx_position_strategy", "strategy"),
+        Index("idx_position_opened_at", "opened_at"),
+        UniqueConstraint("symbol", "strategy", "opened_at", name="uq_position_unique"),
+        CheckConstraint("size > 0", name="check_size_positive"),
+        CheckConstraint("leverage > 0", name="check_position_leverage_positive"),
+        CheckConstraint("side IN ('LONG', 'SHORT')", name="check_position_valid_side"),
+        CheckConstraint("status IN ('OPEN', 'CLOSED')", name="check_position_valid_status"),
     )
 
     def __repr__(self) -> str:
@@ -179,7 +181,7 @@ class Statistics(Base):
     to track performance over time.
     """
 
-    __tablename__ = 'statistics'
+    __tablename__ = "statistics"
 
     # Primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -221,16 +223,18 @@ class Statistics(Base):
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Indexes and constraints
     __table_args__ = (
-        Index('idx_stats_strategy_period', 'strategy', 'period_type', 'period_start'),
-        UniqueConstraint('strategy', 'period_type', 'period_start', name='uq_stats_unique_period'),
-        CheckConstraint('total_trades >= 0', name='check_total_trades_non_negative'),
-        CheckConstraint('winning_trades >= 0', name='check_winning_trades_non_negative'),
-        CheckConstraint('losing_trades >= 0', name='check_losing_trades_non_negative'),
-        CheckConstraint("period_type IN ('DAILY', 'MONTHLY')", name='check_valid_period_type'),
+        Index("idx_stats_strategy_period", "strategy", "period_type", "period_start"),
+        UniqueConstraint("strategy", "period_type", "period_start", name="uq_stats_unique_period"),
+        CheckConstraint("total_trades >= 0", name="check_total_trades_non_negative"),
+        CheckConstraint("winning_trades >= 0", name="check_winning_trades_non_negative"),
+        CheckConstraint("losing_trades >= 0", name="check_losing_trades_non_negative"),
+        CheckConstraint("period_type IN ('DAILY', 'MONTHLY')", name="check_valid_period_type"),
     )
 
     def __repr__(self) -> str:
@@ -248,7 +252,7 @@ class BacktestResult(Base):
     and detailed results for historical analysis.
     """
 
-    __tablename__ = 'backtest_results'
+    __tablename__ = "backtest_results"
 
     # Primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -303,12 +307,12 @@ class BacktestResult(Base):
 
     # Indexes and constraints
     __table_args__ = (
-        Index('idx_backtest_strategy_symbol', 'strategy', 'symbol'),
-        Index('idx_backtest_dates', 'start_date', 'end_date'),
-        Index('idx_backtest_created', 'created_at'),
-        CheckConstraint('total_trades >= 0', name='check_backtest_total_trades'),
-        CheckConstraint('initial_capital > 0', name='check_initial_capital_positive'),
-        CheckConstraint('final_capital >= 0', name='check_final_capital_non_negative'),
+        Index("idx_backtest_strategy_symbol", "strategy", "symbol"),
+        Index("idx_backtest_dates", "start_date", "end_date"),
+        Index("idx_backtest_created", "created_at"),
+        CheckConstraint("total_trades >= 0", name="check_backtest_total_trades"),
+        CheckConstraint("initial_capital > 0", name="check_initial_capital_positive"),
+        CheckConstraint("final_capital >= 0", name="check_final_capital_non_negative"),
     )
 
     def __repr__(self) -> str:
@@ -326,7 +330,7 @@ class DailyPnL(Base):
     and loss limit status for risk management monitoring.
     """
 
-    __tablename__ = 'daily_pnl'
+    __tablename__ = "daily_pnl"
 
     # Primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -357,18 +361,20 @@ class DailyPnL(Base):
     session_start = Column(DateTime(timezone=True), nullable=False)
     session_end = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Indexes and constraints
     __table_args__ = (
-        Index('idx_daily_pnl_date', 'date'),
-        Index('idx_daily_pnl_session_start', 'session_start'),
-        Index('idx_daily_pnl_loss_limit', 'loss_limit_reached'),
-        CheckConstraint('starting_balance > 0', name='check_starting_balance_positive'),
-        CheckConstraint('loss_limit_percentage > 0', name='check_loss_limit_positive'),
-        CheckConstraint('total_trades >= 0', name='check_total_trades_non_negative'),
-        CheckConstraint('winning_trades >= 0', name='check_winning_trades_non_negative'),
-        CheckConstraint('losing_trades >= 0', name='check_losing_trades_non_negative'),
+        Index("idx_daily_pnl_date", "date"),
+        Index("idx_daily_pnl_session_start", "session_start"),
+        Index("idx_daily_pnl_loss_limit", "loss_limit_reached"),
+        CheckConstraint("starting_balance > 0", name="check_starting_balance_positive"),
+        CheckConstraint("loss_limit_percentage > 0", name="check_loss_limit_positive"),
+        CheckConstraint("total_trades >= 0", name="check_total_trades_non_negative"),
+        CheckConstraint("winning_trades >= 0", name="check_winning_trades_non_negative"),
+        CheckConstraint("losing_trades >= 0", name="check_losing_trades_non_negative"),
     )
 
     def __repr__(self) -> str:

@@ -10,17 +10,18 @@ Tests validation logic for:
 - Order approval/rejection decisions
 """
 
-import pytest
 from decimal import Decimal
 from unittest.mock import Mock
 
-from src.services.risk.risk_validator import RiskValidator, RiskValidationError
+import pytest
+
+from src.core.constants import EventType, PositionSide
+from src.core.events import Event
+from src.services.risk.daily_loss_monitor import DailyLossMonitor
 from src.services.risk.position_sizer import PositionSizer
+from src.services.risk.risk_validator import RiskValidationError, RiskValidator
 from src.services.risk.stop_loss_calculator import StopLossCalculator
 from src.services.risk.take_profit_calculator import TakeProfitCalculator
-from src.services.risk.daily_loss_monitor import DailyLossMonitor
-from src.core.constants import PositionSide, EventType
-from src.core.events import Event
 
 
 @pytest.fixture
@@ -31,9 +32,9 @@ def mock_position_sizer():
     # Make calculate_position_size return a coroutine
     async def mock_calc():
         return {
-            'position_size': Decimal('1000'),
-            'risk_amount': Decimal('20'),
-            'leverage_applied': Decimal('5000')
+            "position_size": Decimal("1000"),
+            "risk_amount": Decimal("20"),
+            "leverage_applied": Decimal("5000"),
         }
 
     sizer.calculate_position_size = Mock(side_effect=lambda **kwargs: mock_calc())
@@ -45,8 +46,8 @@ def mock_stop_loss_calculator():
     """Create mock stop loss calculator."""
     calculator = Mock(spec=StopLossCalculator)
     calculator.get_parameters.return_value = {
-        'min_stop_distance_pct': Decimal('0.3'),
-        'max_stop_distance_pct': Decimal('3.0')
+        "min_stop_distance_pct": Decimal("0.3"),
+        "max_stop_distance_pct": Decimal("3.0"),
     }
     return calculator
 
@@ -55,9 +56,7 @@ def mock_stop_loss_calculator():
 def mock_take_profit_calculator():
     """Create mock take profit calculator."""
     calculator = Mock(spec=TakeProfitCalculator)
-    calculator.get_parameters.return_value = {
-        'min_risk_reward_ratio': Decimal('1.5')
-    }
+    calculator.get_parameters.return_value = {"min_risk_reward_ratio": Decimal("1.5")}
     return calculator
 
 
@@ -67,16 +66,16 @@ def mock_daily_loss_monitor():
     monitor = Mock(spec=DailyLossMonitor)
     monitor.is_loss_limit_reached.return_value = False
     monitor.get_current_status.return_value = {
-        'date': '2025-10-31',
-        'starting_balance': Decimal('10000'),
-        'current_balance': Decimal('9750'),
-        'realized_pnl': Decimal('-250'),
-        'unrealized_pnl': Decimal('0'),
-        'total_pnl': Decimal('-250'),
-        'loss_percentage': Decimal('2.5'),
-        'loss_limit': Decimal('6.0'),
-        'limit_reached': False,
-        'distance_to_limit': Decimal('3.5')
+        "date": "2025-10-31",
+        "starting_balance": Decimal("10000"),
+        "current_balance": Decimal("9750"),
+        "realized_pnl": Decimal("-250"),
+        "unrealized_pnl": Decimal("0"),
+        "total_pnl": Decimal("-250"),
+        "loss_percentage": Decimal("2.5"),
+        "loss_limit": Decimal("6.0"),
+        "limit_reached": False,
+        "distance_to_limit": Decimal("3.5"),
     }
     return monitor
 
@@ -93,7 +92,7 @@ def risk_validator(
     mock_stop_loss_calculator,
     mock_take_profit_calculator,
     mock_daily_loss_monitor,
-    mock_event_bus
+    mock_event_bus,
 ):
     """Create RiskValidator instance with mocked dependencies."""
     return RiskValidator(
@@ -101,7 +100,7 @@ def risk_validator(
         stop_loss_calculator=mock_stop_loss_calculator,
         take_profit_calculator=mock_take_profit_calculator,
         daily_loss_monitor=mock_daily_loss_monitor,
-        event_bus=mock_event_bus
+        event_bus=mock_event_bus,
     )
 
 
@@ -118,10 +117,7 @@ class TestRiskValidatorInitialization:
         assert risk_validator.daily_loss_monitor is not None
 
     def test_initialization_missing_components(
-        self,
-        mock_stop_loss_calculator,
-        mock_take_profit_calculator,
-        mock_daily_loss_monitor
+        self, mock_stop_loss_calculator, mock_take_profit_calculator, mock_daily_loss_monitor
     ):
         """Test initialization fails with missing components."""
         with pytest.raises(RiskValidationError):
@@ -129,7 +125,7 @@ class TestRiskValidatorInitialization:
                 position_sizer=None,
                 stop_loss_calculator=mock_stop_loss_calculator,
                 take_profit_calculator=mock_take_profit_calculator,
-                daily_loss_monitor=mock_daily_loss_monitor
+                daily_loss_monitor=mock_daily_loss_monitor,
             )
 
 
@@ -154,9 +150,7 @@ class TestEntryControl:
     def test_handle_daily_loss_event(self, risk_validator):
         """Test handling of daily loss limit reached event."""
         event = Event(
-            priority=9,
-            event_type=EventType.DAILY_LOSS_LIMIT_REACHED,
-            data={'loss_percentage': 6.5}
+            priority=9, event_type=EventType.DAILY_LOSS_LIMIT_REACHED, data={"loss_percentage": 6.5}
         )
 
         risk_validator.handle_daily_loss_event(event)
@@ -176,12 +170,12 @@ class TestPositionSizeValidation:
     async def test_validate_position_size_valid(self, risk_validator):
         """Test validation passes for correct position size."""
         valid, reason = await risk_validator.validate_position_size(
-            position_size=Decimal('1000'),
-            symbol='BTCUSDT',
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),
+            position_size=Decimal("1000"),
+            symbol="BTCUSDT",
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),
             side=PositionSide.LONG,
-            custom_balance=1000.0
+            custom_balance=1000.0,
         )
         assert valid is True
         assert "valid" in reason.lower()
@@ -190,12 +184,12 @@ class TestPositionSizeValidation:
     async def test_validate_position_size_within_tolerance(self, risk_validator):
         """Test validation passes for size within 5% tolerance."""
         valid, reason = await risk_validator.validate_position_size(
-            position_size=Decimal('1040'),  # +4% from 1000
-            symbol='BTCUSDT',
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),
+            position_size=Decimal("1040"),  # +4% from 1000
+            symbol="BTCUSDT",
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),
             side=PositionSide.LONG,
-            custom_balance=1000.0
+            custom_balance=1000.0,
         )
         assert valid is True
 
@@ -203,12 +197,12 @@ class TestPositionSizeValidation:
     async def test_validate_position_size_too_small(self, risk_validator):
         """Test validation fails for position size too small."""
         valid, reason = await risk_validator.validate_position_size(
-            position_size=Decimal('900'),  # -10% from 1000
-            symbol='BTCUSDT',
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),
+            position_size=Decimal("900"),  # -10% from 1000
+            symbol="BTCUSDT",
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),
             side=PositionSide.LONG,
-            custom_balance=1000.0
+            custom_balance=1000.0,
         )
         assert valid is False
         assert "below minimum" in reason.lower()
@@ -217,12 +211,12 @@ class TestPositionSizeValidation:
     async def test_validate_position_size_too_large(self, risk_validator):
         """Test validation fails for position size too large."""
         valid, reason = await risk_validator.validate_position_size(
-            position_size=Decimal('1100'),  # +10% from 1000
-            symbol='BTCUSDT',
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),
+            position_size=Decimal("1100"),  # +10% from 1000
+            symbol="BTCUSDT",
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),
             side=PositionSide.LONG,
-            custom_balance=1000.0
+            custom_balance=1000.0,
         )
         assert valid is False
         assert "exceeds maximum" in reason.lower()
@@ -234,27 +228,27 @@ class TestStopLossValidation:
     def test_validate_stop_loss_long_valid(self, risk_validator):
         """Test valid stop loss for LONG position."""
         valid, reason = risk_validator.validate_stop_loss(
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),  # 1% below entry
-            side=PositionSide.LONG
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),  # 1% below entry
+            side=PositionSide.LONG,
         )
         assert valid is True
 
     def test_validate_stop_loss_short_valid(self, risk_validator):
         """Test valid stop loss for SHORT position."""
         valid, reason = risk_validator.validate_stop_loss(
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('50500'),  # 1% above entry
-            side=PositionSide.SHORT
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("50500"),  # 1% above entry
+            side=PositionSide.SHORT,
         )
         assert valid is True
 
     def test_validate_stop_loss_long_wrong_direction(self, risk_validator):
         """Test stop loss above entry for LONG position fails."""
         valid, reason = risk_validator.validate_stop_loss(
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('50500'),  # Above entry (wrong)
-            side=PositionSide.LONG
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("50500"),  # Above entry (wrong)
+            side=PositionSide.LONG,
         )
         assert valid is False
         assert "below entry price" in reason.lower()
@@ -262,9 +256,9 @@ class TestStopLossValidation:
     def test_validate_stop_loss_short_wrong_direction(self, risk_validator):
         """Test stop loss below entry for SHORT position fails."""
         valid, reason = risk_validator.validate_stop_loss(
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),  # Below entry (wrong)
-            side=PositionSide.SHORT
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),  # Below entry (wrong)
+            side=PositionSide.SHORT,
         )
         assert valid is False
         assert "above entry price" in reason.lower()
@@ -272,9 +266,9 @@ class TestStopLossValidation:
     def test_validate_stop_loss_too_tight(self, risk_validator):
         """Test stop loss too close to entry fails."""
         valid, reason = risk_validator.validate_stop_loss(
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49990'),  # 0.02% (too tight)
-            side=PositionSide.LONG
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49990"),  # 0.02% (too tight)
+            side=PositionSide.LONG,
         )
         assert valid is False
         assert "too tight" in reason.lower()
@@ -282,9 +276,9 @@ class TestStopLossValidation:
     def test_validate_stop_loss_too_wide(self, risk_validator):
         """Test stop loss too far from entry fails."""
         valid, reason = risk_validator.validate_stop_loss(
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('48000'),  # 4% (too wide)
-            side=PositionSide.LONG
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("48000"),  # 4% (too wide)
+            side=PositionSide.LONG,
         )
         assert valid is False
         assert "too wide" in reason.lower()
@@ -296,30 +290,30 @@ class TestTakeProfitValidation:
     def test_validate_take_profit_long_valid(self, risk_validator):
         """Test valid take profit for LONG position."""
         valid, reason = risk_validator.validate_take_profit(
-            entry_price=Decimal('50000'),
-            take_profit=Decimal('51000'),  # 2% above entry
-            stop_loss=Decimal('49500'),     # 1% below entry (R:R = 2)
-            side=PositionSide.LONG
+            entry_price=Decimal("50000"),
+            take_profit=Decimal("51000"),  # 2% above entry
+            stop_loss=Decimal("49500"),  # 1% below entry (R:R = 2)
+            side=PositionSide.LONG,
         )
         assert valid is True
 
     def test_validate_take_profit_short_valid(self, risk_validator):
         """Test valid take profit for SHORT position."""
         valid, reason = risk_validator.validate_take_profit(
-            entry_price=Decimal('50000'),
-            take_profit=Decimal('49000'),  # 2% below entry
-            stop_loss=Decimal('50500'),    # 1% above entry (R:R = 2)
-            side=PositionSide.SHORT
+            entry_price=Decimal("50000"),
+            take_profit=Decimal("49000"),  # 2% below entry
+            stop_loss=Decimal("50500"),  # 1% above entry (R:R = 2)
+            side=PositionSide.SHORT,
         )
         assert valid is True
 
     def test_validate_take_profit_long_wrong_direction(self, risk_validator):
         """Test take profit below entry for LONG fails."""
         valid, reason = risk_validator.validate_take_profit(
-            entry_price=Decimal('50000'),
-            take_profit=Decimal('49500'),  # Below entry (wrong)
-            stop_loss=Decimal('49000'),
-            side=PositionSide.LONG
+            entry_price=Decimal("50000"),
+            take_profit=Decimal("49500"),  # Below entry (wrong)
+            stop_loss=Decimal("49000"),
+            side=PositionSide.LONG,
         )
         assert valid is False
         assert "above entry price" in reason.lower()
@@ -327,10 +321,10 @@ class TestTakeProfitValidation:
     def test_validate_take_profit_short_wrong_direction(self, risk_validator):
         """Test take profit above entry for SHORT fails."""
         valid, reason = risk_validator.validate_take_profit(
-            entry_price=Decimal('50000'),
-            take_profit=Decimal('50500'),  # Above entry (wrong)
-            stop_loss=Decimal('51000'),
-            side=PositionSide.SHORT
+            entry_price=Decimal("50000"),
+            take_profit=Decimal("50500"),  # Above entry (wrong)
+            stop_loss=Decimal("51000"),
+            side=PositionSide.SHORT,
         )
         assert valid is False
         assert "below entry price" in reason.lower()
@@ -338,10 +332,10 @@ class TestTakeProfitValidation:
     def test_validate_take_profit_low_risk_reward(self, risk_validator):
         """Test take profit with insufficient risk-reward ratio fails."""
         valid, reason = risk_validator.validate_take_profit(
-            entry_price=Decimal('50000'),
-            take_profit=Decimal('50400'),  # 0.8% above entry
-            stop_loss=Decimal('49500'),    # 1% below entry (R:R = 0.8)
-            side=PositionSide.LONG
+            entry_price=Decimal("50000"),
+            take_profit=Decimal("50400"),  # 0.8% above entry
+            stop_loss=Decimal("49500"),  # 1% below entry (R:R = 0.8)
+            side=PositionSide.LONG,
         )
         assert valid is False
         assert "risk-reward ratio too low" in reason.lower()
@@ -354,19 +348,19 @@ class TestOrderValidation:
     async def test_validate_order_all_checks_pass(self, risk_validator):
         """Test order validation with all checks passing."""
         result = await risk_validator.validate_order(
-            symbol='BTCUSDT',
+            symbol="BTCUSDT",
             side=PositionSide.LONG,
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),
-            take_profit=Decimal('51000'),
-            position_size=Decimal('1000'),
-            custom_balance=1000.0
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),
+            take_profit=Decimal("51000"),
+            position_size=Decimal("1000"),
+            custom_balance=1000.0,
         )
 
         assert result.approved is True
         assert len(result.violations) == 0
         assert "passed" in result.reason.lower()
-        assert result.metadata['symbol'] == 'BTCUSDT'
+        assert result.metadata["symbol"] == "BTCUSDT"
 
     @pytest.mark.asyncio
     async def test_validate_order_entry_blocked(self, risk_validator, mock_daily_loss_monitor):
@@ -374,13 +368,13 @@ class TestOrderValidation:
         mock_daily_loss_monitor.is_loss_limit_reached.return_value = True
 
         result = await risk_validator.validate_order(
-            symbol='BTCUSDT',
+            symbol="BTCUSDT",
             side=PositionSide.LONG,
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),
-            take_profit=Decimal('51000'),
-            position_size=Decimal('1000'),
-            custom_balance=1000.0
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),
+            take_profit=Decimal("51000"),
+            position_size=Decimal("1000"),
+            custom_balance=1000.0,
         )
 
         assert result.approved is False
@@ -391,43 +385,39 @@ class TestOrderValidation:
     async def test_validate_order_multiple_violations(self, risk_validator):
         """Test order validation with multiple failures."""
         result = await risk_validator.validate_order(
-            symbol='BTCUSDT',
+            symbol="BTCUSDT",
             side=PositionSide.LONG,
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('50500'),    # Wrong direction
-            take_profit=Decimal('49500'),  # Wrong direction
-            position_size=Decimal('1100'),  # Too large
-            custom_balance=1000.0
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("50500"),  # Wrong direction
+            take_profit=Decimal("49500"),  # Wrong direction
+            position_size=Decimal("1100"),  # Too large
+            custom_balance=1000.0,
         )
 
         assert result.approved is False
         assert len(result.violations) >= 2
-        assert any('stop_loss' in v for v in result.violations)
-        assert any('take_profit' in v for v in result.violations)
+        assert any("stop_loss" in v for v in result.violations)
+        assert any("take_profit" in v for v in result.violations)
 
     @pytest.mark.asyncio
     async def test_validate_order_with_metadata(self, risk_validator):
         """Test order validation preserves metadata."""
-        custom_metadata = {
-            'strategy': 'ICT_SMC',
-            'timeframe': '15m',
-            'confidence': 0.85
-        }
+        custom_metadata = {"strategy": "ICT_SMC", "timeframe": "15m", "confidence": 0.85}
 
         result = await risk_validator.validate_order(
-            symbol='BTCUSDT',
+            symbol="BTCUSDT",
             side=PositionSide.LONG,
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),
-            take_profit=Decimal('51000'),
-            position_size=Decimal('1000'),
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),
+            take_profit=Decimal("51000"),
+            position_size=Decimal("1000"),
             metadata=custom_metadata,
-            custom_balance=1000.0
+            custom_balance=1000.0,
         )
 
-        assert result.metadata['strategy'] == 'ICT_SMC'
-        assert result.metadata['timeframe'] == '15m'
-        assert result.metadata['confidence'] == 0.85
+        assert result.metadata["strategy"] == "ICT_SMC"
+        assert result.metadata["timeframe"] == "15m"
+        assert result.metadata["confidence"] == 0.85
 
 
 class TestValidationStatus:
@@ -437,15 +427,15 @@ class TestValidationStatus:
         """Test getting current validation status."""
         status = risk_validator.get_validation_status()
 
-        assert 'entry_blocked' in status
-        assert 'daily_loss_limit_reached' in status
-        assert 'daily_status' in status
-        assert 'timestamp' in status
+        assert "entry_blocked" in status
+        assert "daily_loss_limit_reached" in status
+        assert "daily_status" in status
+        assert "timestamp" in status
 
-        daily_status = status['daily_status']
-        assert daily_status['loss_percentage'] == 2.5
-        assert daily_status['loss_limit_pct'] == 6.0
-        assert daily_status['remaining_capacity'] == 3.5
+        daily_status = status["daily_status"]
+        assert daily_status["loss_percentage"] == 2.5
+        assert daily_status["loss_limit_pct"] == 6.0
+        assert daily_status["remaining_capacity"] == 3.5
 
 
 class TestEventPublishing:
@@ -455,13 +445,13 @@ class TestEventPublishing:
     async def test_publish_passed_validation(self, risk_validator, mock_event_bus):
         """Test event published for passed validation."""
         result = await risk_validator.validate_order(
-            symbol='BTCUSDT',
+            symbol="BTCUSDT",
             side=PositionSide.LONG,
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('49500'),
-            take_profit=Decimal('51000'),
-            position_size=Decimal('1000'),
-            custom_balance=1000.0
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("49500"),
+            take_profit=Decimal("51000"),
+            position_size=Decimal("1000"),
+            custom_balance=1000.0,
         )
 
         # Event publishing is logged but not directly testable without event bus implementation
@@ -472,13 +462,13 @@ class TestEventPublishing:
     async def test_publish_failed_validation(self, risk_validator, mock_event_bus):
         """Test event published for failed validation."""
         result = await risk_validator.validate_order(
-            symbol='BTCUSDT',
+            symbol="BTCUSDT",
             side=PositionSide.LONG,
-            entry_price=Decimal('50000'),
-            stop_loss=Decimal('50500'),  # Wrong direction
-            take_profit=Decimal('51000'),
-            position_size=Decimal('1000'),
-            custom_balance=1000.0
+            entry_price=Decimal("50000"),
+            stop_loss=Decimal("50500"),  # Wrong direction
+            take_profit=Decimal("51000"),
+            position_size=Decimal("1000"),
+            custom_balance=1000.0,
         )
 
         # Event publishing is logged but not directly testable without event bus implementation
@@ -519,8 +509,7 @@ class TestThreadSafety:
             risk_validator.reset_entry_blocking()
 
         threads = [
-            threading.Thread(target=block_entry if i % 2 == 0 else reset_entry)
-            for i in range(20)
+            threading.Thread(target=block_entry if i % 2 == 0 else reset_entry) for i in range(20)
         ]
 
         for t in threads:

@@ -2,18 +2,18 @@
 Unit tests for Liquidity Zone detection and analysis.
 """
 
-import pytest
-from datetime import datetime, timezone
 
+import pytest
+
+from src.core.constants import TimeFrame
 from src.indicators.liquidity_zone import (
     LiquidityLevel,
-    LiquidityType,
     LiquidityState,
+    LiquidityType,
     LiquidityZoneDetector,
-    SwingPoint
+    SwingPoint,
 )
 from src.models.candle import Candle
-from src.core.constants import TimeFrame
 
 
 class TestLiquidityLevel:
@@ -30,7 +30,7 @@ class TestLiquidityLevel:
             timeframe=TimeFrame.M15,
             touch_count=2,
             strength=75.0,
-            volume_profile=100000.0
+            volume_profile=100000.0,
         )
 
         assert level.type == LiquidityType.BUY_SIDE
@@ -48,7 +48,7 @@ class TestLiquidityLevel:
             origin_candle_index=5,
             symbol="BTCUSDT",
             timeframe=TimeFrame.M15,
-            strength=60.0
+            strength=60.0,
         )
 
         assert level.type == LiquidityType.SELL_SIDE
@@ -64,7 +64,7 @@ class TestLiquidityLevel:
                 origin_timestamp=1609459200000,
                 origin_candle_index=10,
                 symbol="BTCUSDT",
-                timeframe=TimeFrame.M15
+                timeframe=TimeFrame.M15,
             )
 
     def test_invalid_strength(self):
@@ -77,7 +77,7 @@ class TestLiquidityLevel:
                 origin_candle_index=10,
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.M15,
-                strength=150.0
+                strength=150.0,
             )
 
     def test_is_price_near(self):
@@ -88,7 +88,7 @@ class TestLiquidityLevel:
             origin_timestamp=1609459200000,
             origin_candle_index=10,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M15
+            timeframe=TimeFrame.M15,
         )
 
         # Within tolerance (2 pips default with pip_size=1.0 for BTC)
@@ -106,7 +106,7 @@ class TestLiquidityLevel:
             origin_timestamp=1609459200000,
             origin_candle_index=10,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M15
+            timeframe=TimeFrame.M15,
         )
 
         assert level.touch_count == 0
@@ -126,7 +126,7 @@ class TestLiquidityLevel:
             origin_timestamp=1609459200000,
             origin_candle_index=10,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M15
+            timeframe=TimeFrame.M15,
         )
 
         level.mark_swept(1609459400000)
@@ -144,16 +144,16 @@ class TestLiquidityLevel:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M15,
             touch_count=3,
-            strength=80.0
+            strength=80.0,
         )
 
         data = level.to_dict()
 
-        assert data['type'] == 'BUY_SIDE'
-        assert data['price'] == 50000.0
-        assert data['touch_count'] == 3
-        assert data['strength'] == 80.0
-        assert 'origin_datetime' in data
+        assert data["type"] == "BUY_SIDE"
+        assert data["price"] == 50000.0
+        assert data["touch_count"] == 3
+        assert data["strength"] == 80.0
+        assert "origin_datetime" in data
 
 
 class TestSwingPoint:
@@ -167,7 +167,7 @@ class TestSwingPoint:
             candle_index=10,
             is_high=True,
             strength=3,
-            volume=1000.0
+            volume=1000.0,
         )
 
         assert swing.is_high is True
@@ -182,7 +182,7 @@ class TestSwingPoint:
             candle_index=5,
             is_high=False,
             strength=3,
-            volume=1200.0
+            volume=1200.0,
         )
 
         assert swing.is_high is False
@@ -201,17 +201,19 @@ class TestLiquidityZoneDetector:
             # Create varying prices for swing detection
             price_variation = (i % 5 - 2) * 100  # Creates swing patterns
 
-            candles.append(Candle(
-                symbol="BTCUSDT",
-                timeframe=TimeFrame.M15,
-                timestamp=timestamp + i * 900000,  # 15 min intervals
-                open=start_price + price_variation,
-                high=start_price + price_variation + 50,
-                low=start_price + price_variation - 50,
-                close=start_price + price_variation + 25,
-                volume=1000.0 + i * 10,
-                is_closed=True
-            ))
+            candles.append(
+                Candle(
+                    symbol="BTCUSDT",
+                    timeframe=TimeFrame.M15,
+                    timestamp=timestamp + i * 900000,  # 15 min intervals
+                    open=start_price + price_variation,
+                    high=start_price + price_variation + 50,
+                    low=start_price + price_variation - 50,
+                    close=start_price + price_variation + 25,
+                    volume=1000.0 + i * 10,
+                    is_closed=True,
+                )
+            )
 
         return candles
 
@@ -219,28 +221,48 @@ class TestLiquidityZoneDetector:
         """Create candles with clear swing highs and lows."""
         prices = [
             # Swing low at index 3
-            100.0, 99.0, 98.0, 95.0, 96.0, 97.0, 98.0,
+            100.0,
+            99.0,
+            98.0,
+            95.0,
+            96.0,
+            97.0,
+            98.0,
             # Swing high at index 10
-            99.0, 100.0, 102.0, 105.0, 103.0, 102.0, 101.0,
+            99.0,
+            100.0,
+            102.0,
+            105.0,
+            103.0,
+            102.0,
+            101.0,
             # Swing low at index 17
-            100.0, 99.0, 97.0, 94.0, 95.0, 96.0, 97.0
+            100.0,
+            99.0,
+            97.0,
+            94.0,
+            95.0,
+            96.0,
+            97.0,
         ]
 
         candles = []
         timestamp = 1609459200000
 
         for i, price in enumerate(prices):
-            candles.append(Candle(
-                symbol="BTCUSDT",
-                timeframe=TimeFrame.M15,
-                timestamp=timestamp + i * 900000,
-                open=price,
-                high=price + 1.0,
-                low=price - 1.0,
-                close=price + 0.5,
-                volume=1000.0,
-                is_closed=True
-            ))
+            candles.append(
+                Candle(
+                    symbol="BTCUSDT",
+                    timeframe=TimeFrame.M15,
+                    timestamp=timestamp + i * 900000,
+                    open=price,
+                    high=price + 1.0,
+                    low=price - 1.0,
+                    close=price + 0.5,
+                    volume=1000.0,
+                    is_closed=True,
+                )
+            )
 
         return candles
 
@@ -255,9 +277,7 @@ class TestLiquidityZoneDetector:
     def test_detector_custom_parameters(self):
         """Test detector initialization with custom parameters."""
         detector = LiquidityZoneDetector(
-            min_swing_strength=5,
-            proximity_tolerance_pips=5.0,
-            pip_size=0.01
+            min_swing_strength=5, proximity_tolerance_pips=5.0, pip_size=0.01
         )
 
         assert detector.min_swing_strength == 5
@@ -329,7 +349,7 @@ class TestLiquidityZoneDetector:
             candle_index=10,
             is_high=True,
             strength=3,
-            volume=2000.0
+            volume=2000.0,
         )
 
         strength = detector.calculate_liquidity_strength(swing_point, candles, touch_count=2)
@@ -365,10 +385,7 @@ class TestLiquidityZoneDetector:
 
     def test_cluster_nearby_levels(self):
         """Test clustering of nearby liquidity levels."""
-        detector = LiquidityZoneDetector(
-            proximity_tolerance_pips=5.0,
-            pip_size=1.0
-        )
+        detector = LiquidityZoneDetector(proximity_tolerance_pips=5.0, pip_size=1.0)
 
         # Create 3 nearby levels
         levels = [
@@ -380,7 +397,7 @@ class TestLiquidityZoneDetector:
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.M15,
                 strength=70.0,
-                touch_count=1
+                touch_count=1,
             ),
             LiquidityLevel(
                 type=LiquidityType.BUY_SIDE,
@@ -390,7 +407,7 @@ class TestLiquidityZoneDetector:
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.M15,
                 strength=65.0,
-                touch_count=2
+                touch_count=2,
             ),
             LiquidityLevel(
                 type=LiquidityType.BUY_SIDE,
@@ -399,8 +416,8 @@ class TestLiquidityZoneDetector:
                 origin_candle_index=12,
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.M15,
-                strength=60.0
-            )
+                strength=60.0,
+            ),
         ]
 
         clustered = detector.cluster_nearby_levels(levels)
@@ -431,11 +448,13 @@ class TestLiquidityZoneDetector:
                 low=highest_level.price - 10.0,
                 close=highest_level.price + 3.0,
                 volume=1500.0,
-                is_closed=True
+                is_closed=True,
             )
 
             test_candles = candles + [sweep_candle]
-            detector.update_liquidity_states(buy_side, sell_side, test_candles, start_index=len(candles))
+            detector.update_liquidity_states(
+                buy_side, sell_side, test_candles, start_index=len(candles)
+            )
 
             assert highest_level.state == LiquidityState.SWEPT
             assert highest_level.swept_timestamp is not None
@@ -459,11 +478,13 @@ class TestLiquidityZoneDetector:
                 low=lowest_level.price - 5.0,
                 close=lowest_level.price - 3.0,
                 volume=1500.0,
-                is_closed=True
+                is_closed=True,
             )
 
             test_candles = candles + [sweep_candle]
-            detector.update_liquidity_states(buy_side, sell_side, test_candles, start_index=len(candles))
+            detector.update_liquidity_states(
+                buy_side, sell_side, test_candles, start_index=len(candles)
+            )
 
             assert lowest_level.state == LiquidityState.SWEPT
             assert lowest_level.swept_timestamp is not None
@@ -487,13 +508,15 @@ class TestLiquidityZoneDetector:
                 low=level.price - 10.0,
                 close=level.price - 2.0,  # Closes below level
                 volume=1200.0,
-                is_closed=True
+                is_closed=True,
             )
 
             test_candles = candles + [touch_candle]
             original_touches = level.touch_count
 
-            detector.update_liquidity_states(buy_side, sell_side, test_candles, start_index=len(candles))
+            detector.update_liquidity_states(
+                buy_side, sell_side, test_candles, start_index=len(candles)
+            )
 
             # Should be touched but not swept
             assert level.touch_count > original_touches
@@ -501,5 +524,5 @@ class TestLiquidityZoneDetector:
             assert level.last_touch_timestamp is not None
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

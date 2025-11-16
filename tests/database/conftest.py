@@ -5,22 +5,22 @@ Provides shared fixtures for setting up test database, sessions,
 and common test data for DAO testing.
 """
 
-import pytest
-import pytest_asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.database.models import Base, Trade, Position, Statistics, BacktestResult
+from src.core.constants import TimeFrame
 from src.database.dao import (
-    TradeDAO,
+    BacktestResultDAO,
     PositionDAO,
     StatisticsDAO,
-    BacktestResultDAO,
+    TradeDAO,
 )
-from src.core.constants import TimeFrame
+from src.database.models import BacktestResult, Base, Position, Statistics, Trade
 
 
 @pytest.fixture(scope="session")

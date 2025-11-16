@@ -4,9 +4,10 @@ Unit tests for PositionDAO specialized operations.
 Tests position management, unrealized P&L updates, and risk tracking.
 """
 
-import pytest
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
+
+import pytest
 
 from src.core.constants import TimeFrame
 
@@ -78,10 +79,7 @@ class TestPositionDAO:
             opened_at=datetime.utcnow(),
         )
 
-        position = await position_dao.get_position_by_symbol_strategy(
-            "BTCUSDT",
-            "MACD"
-        )
+        position = await position_dao.get_position_by_symbol_strategy("BTCUSDT", "MACD")
         assert position is not None
         assert position.symbol == "BTCUSDT"
         assert position.strategy == "MACD"
@@ -134,11 +132,7 @@ class TestPositionDAO:
         closed_at = datetime.utcnow()
         realized_pnl = Decimal("500.00")
 
-        closed = await position_dao.close_position(
-            sample_position.id,
-            closed_at,
-            realized_pnl
-        )
+        closed = await position_dao.close_position(sample_position.id, closed_at, realized_pnl)
 
         assert closed.status == "CLOSED"
         assert closed.closed_at == closed_at
@@ -198,13 +192,13 @@ class TestPositionDAO:
         exposure = await position_dao.calculate_total_exposure()
 
         # Long exposure = 0.1 * 50000 * 2 = 10000
-        assert exposure['total_long_exposure'] == Decimal("10000.00")
+        assert exposure["total_long_exposure"] == Decimal("10000.00")
         # Short exposure = 1.0 * 3000 * 1 = 3000
-        assert exposure['total_short_exposure'] == Decimal("3000.00")
+        assert exposure["total_short_exposure"] == Decimal("3000.00")
         # Net = 10000 - 3000 = 7000
-        assert exposure['net_exposure'] == Decimal("7000.00")
+        assert exposure["net_exposure"] == Decimal("7000.00")
         # Total = 10000 + 3000 = 13000
-        assert exposure['total_absolute_exposure'] == Decimal("13000.00")
+        assert exposure["total_absolute_exposure"] == Decimal("13000.00")
 
     async def test_get_positions_at_risk(self, session, position_dao):
         """Test getting positions with losses exceeding threshold."""
@@ -233,9 +227,7 @@ class TestPositionDAO:
         take_profit = Decimal("60000.00")
 
         updated = await position_dao.update_stop_loss_take_profit(
-            sample_position.id,
-            stop_loss=stop_loss,
-            take_profit=take_profit
+            sample_position.id, stop_loss=stop_loss, take_profit=take_profit
         )
 
         assert updated.stop_loss == stop_loss

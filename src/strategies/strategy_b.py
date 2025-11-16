@@ -10,7 +10,7 @@ Strategy B: Aggressive Trading Strategy.
 
 import logging
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
 from src.core.constants import PositionSide, TimeFrame
 from src.strategies.base_strategy import BaseStrategy, TradingSignal
@@ -116,9 +116,7 @@ class StrategyB(BaseStrategy):
                 m15_sweep_analysis, m15_fvg_analysis, current_price
             )
             if not alignment_check["aligned"]:
-                logger.debug(
-                    f"Liquidity Sweep and FVG not aligned: {alignment_check['reason']}"
-                )
+                logger.debug(f"Liquidity Sweep and FVG not aligned: {alignment_check['reason']}")
                 return None
 
             # Step 4: Calculate confidence with volatility adjustment
@@ -130,9 +128,7 @@ class StrategyB(BaseStrategy):
             )
 
             if confidence < self.min_confidence:
-                logger.debug(
-                    f"Confidence {confidence:.2f} below threshold {self.min_confidence}"
-                )
+                logger.debug(f"Confidence {confidence:.2f} below threshold {self.min_confidence}")
                 return None
 
             # Step 5: Generate aggressive trading signal
@@ -214,9 +210,7 @@ class StrategyB(BaseStrategy):
             "candles_ago": candles_ago,
         }
 
-    def _analyze_fair_value_gap(
-        self, indicators: dict, expected_direction: PositionSide
-    ) -> dict:
+    def _analyze_fair_value_gap(self, indicators: dict, expected_direction: PositionSide) -> dict:
         """
         Analyze 15m timeframe for Fair Value Gap aligned with sweep direction.
 
@@ -269,9 +263,7 @@ class StrategyB(BaseStrategy):
             "fvg_low": best_fvg.get("low", 0.0),
         }
 
-    def _find_aligned_fvg(
-        self, fvg_list: List[dict], bias: PositionSide
-    ) -> List[dict]:
+    def _find_aligned_fvg(self, fvg_list: List[dict], bias: PositionSide) -> List[dict]:
         """
         Find FVG zones aligned with trading bias.
 
@@ -400,9 +392,7 @@ class StrategyB(BaseStrategy):
             volatility_multiplier = self._calculate_volatility_multiplier(volatility_data)
             confidence *= volatility_multiplier
 
-            logger.debug(
-                f"Volatility adjustment applied: multiplier={volatility_multiplier:.2f}"
-            )
+            logger.debug(f"Volatility adjustment applied: multiplier={volatility_multiplier:.2f}")
 
         return min(confidence, 1.0)
 
@@ -476,9 +466,7 @@ class StrategyB(BaseStrategy):
         stop_loss = self.calculate_stop_loss(current_price, direction, reference_level)
 
         # Calculate aggressive take profit (3:1 or higher R:R)
-        take_profit = self.calculate_take_profit(
-            current_price, stop_loss, self.risk_reward_ratio
-        )
+        take_profit = self.calculate_take_profit(current_price, stop_loss, self.risk_reward_ratio)
 
         return TradingSignal(
             strategy_name=self.name,

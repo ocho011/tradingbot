@@ -2,9 +2,10 @@
 Unit tests for Circuit Breaker pattern implementation.
 """
 
-import pytest
 import time
-from unittest.mock import Mock, patch
+
+import pytest
+
 from src.core.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
@@ -408,6 +409,7 @@ class TestCircuitBreakerCallbacks:
 
     def test_callback_errors_handled(self):
         """Should handle errors in callbacks gracefully."""
+
         def bad_callback(old_state, new_state):
             raise RuntimeError("callback error")
 

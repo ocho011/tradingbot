@@ -15,15 +15,15 @@ And distributed tracing with OpenTelemetry:
 """
 
 from src.monitoring.metrics import (
-    trading_metrics,
-    record_signal_generated,
     record_order_execution,
     record_risk_violation,
+    record_signal_generated,
+    trading_metrics,
     update_position_pnl,
 )
 from src.monitoring.tracing import (
-    TradingTracer,
     TracingConfig,
+    TradingTracer,
     get_tracer,
     init_tracing,
     shutdown_tracing,
@@ -31,15 +31,15 @@ from src.monitoring.tracing import (
 
 __all__ = [
     # Metrics
-    'trading_metrics',
-    'record_signal_generated',
-    'record_order_execution',
-    'record_risk_violation',
-    'update_position_pnl',
+    "trading_metrics",
+    "record_signal_generated",
+    "record_order_execution",
+    "record_risk_violation",
+    "update_position_pnl",
     # Tracing
-    'TradingTracer',
-    'TracingConfig',
-    'get_tracer',
-    'init_tracing',
-    'shutdown_tracing',
+    "TradingTracer",
+    "TracingConfig",
+    "get_tracer",
+    "init_tracing",
+    "shutdown_tracing",
 ]

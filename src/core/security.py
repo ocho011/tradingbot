@@ -19,7 +19,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -79,7 +78,7 @@ class APIKeyEncryption:
             length=32,  # 256 bits
             salt=salt,
             iterations=100000,  # OWASP recommended minimum
-            backend=default_backend()
+            backend=default_backend(),
         )
         key = kdf.derive(password.encode())
         return b64encode(key)
@@ -160,7 +159,7 @@ class TokenBucket:
         self,
         capacity: int = 100,
         refill_rate: float = 10.0,  # tokens per second
-        identifier: str = "default"
+        identifier: str = "default",
     ):
         """
         Initialize token bucket.
@@ -177,7 +176,9 @@ class TokenBucket:
         self._tokens = float(capacity)
         self._last_refill = time.time()
 
-        logger.debug(f"Token bucket created for {identifier}: capacity={capacity}, rate={refill_rate}")
+        logger.debug(
+            f"Token bucket created for {identifier}: capacity={capacity}, rate={refill_rate}"
+        )
 
     def _refill(self) -> None:
         """Refill tokens based on elapsed time."""
@@ -253,7 +254,7 @@ class RateLimiter:
         self,
         default_capacity: int = 100,
         default_refill_rate: float = 10.0,
-        cleanup_interval: int = 3600  # seconds
+        cleanup_interval: int = 3600,  # seconds
     ):
         """
         Initialize rate limiter.
@@ -278,12 +279,7 @@ class RateLimiter:
             f"rate={default_refill_rate}/s"
         )
 
-    def configure_endpoint(
-        self,
-        endpoint: str,
-        capacity: int,
-        refill_rate: float
-    ) -> None:
+    def configure_endpoint(self, endpoint: str, capacity: int, refill_rate: float) -> None:
         """
         Configure rate limiting for specific endpoint.
 
@@ -310,11 +306,7 @@ class RateLimiter:
             return f"{identifier}:{endpoint}"
         return identifier
 
-    def _get_or_create_bucket(
-        self,
-        identifier: str,
-        endpoint: Optional[str] = None
-    ) -> TokenBucket:
+    def _get_or_create_bucket(self, identifier: str, endpoint: Optional[str] = None) -> TokenBucket:
         """
         Get existing bucket or create new one.
 
@@ -336,18 +328,13 @@ class RateLimiter:
                 refill_rate = self.default_refill_rate
 
             self._buckets[bucket_key] = TokenBucket(
-                capacity=capacity,
-                refill_rate=refill_rate,
-                identifier=bucket_key
+                capacity=capacity, refill_rate=refill_rate, identifier=bucket_key
             )
 
         return self._buckets[bucket_key]
 
     def check_rate_limit(
-        self,
-        identifier: str,
-        endpoint: Optional[str] = None,
-        tokens: int = 1
+        self, identifier: str, endpoint: Optional[str] = None, tokens: int = 1
     ) -> Tuple[bool, Optional[float]]:
         """
         Check if request is allowed under rate limit.
@@ -380,7 +367,8 @@ class RateLimiter:
 
         # Remove buckets with full tokens (unused for a while)
         keys_to_remove = [
-            key for key, bucket in self._buckets.items()
+            key
+            for key, bucket in self._buckets.items()
             if bucket.get_available_tokens() >= bucket.capacity
         ]
 
@@ -411,7 +399,7 @@ class RateLimiter:
                 "endpoint": endpoint,
                 "available_tokens": self.default_capacity,
                 "capacity": self.default_capacity,
-                "refill_rate": self.default_refill_rate
+                "refill_rate": self.default_refill_rate,
             }
 
         bucket = self._buckets[bucket_key]
@@ -420,7 +408,7 @@ class RateLimiter:
             "endpoint": endpoint,
             "available_tokens": bucket.get_available_tokens(),
             "capacity": bucket.capacity,
-            "refill_rate": bucket.refill_rate
+            "refill_rate": bucket.refill_rate,
         }
 
 
@@ -548,7 +536,7 @@ class SecurityManager:
         encryption_key: Optional[str] = None,
         rate_limit_capacity: int = 100,
         rate_limit_refill_rate: float = 10.0,
-        ip_whitelist: Optional[List[str]] = None
+        ip_whitelist: Optional[List[str]] = None,
     ):
         """
         Initialize security manager.
@@ -562,18 +550,14 @@ class SecurityManager:
         # Initialize components
         self.encryption = APIKeyEncryption(master_key=encryption_key)
         self.rate_limiter = RateLimiter(
-            default_capacity=rate_limit_capacity,
-            default_refill_rate=rate_limit_refill_rate
+            default_capacity=rate_limit_capacity, default_refill_rate=rate_limit_refill_rate
         )
         self.ip_whitelist = IPWhitelist(whitelist=ip_whitelist)
 
         logger.info("Security manager initialized successfully")
 
     def validate_request(
-        self,
-        ip_address: str,
-        identifier: str,
-        endpoint: Optional[str] = None
+        self, ip_address: str, identifier: str, endpoint: Optional[str] = None
     ) -> Tuple[bool, Optional[str]]:
         """
         Validate incoming request against all security policies.
@@ -592,8 +576,7 @@ class SecurityManager:
 
         # Check rate limit
         allowed, retry_after = self.rate_limiter.check_rate_limit(
-            identifier=identifier,
-            endpoint=endpoint
+            identifier=identifier, endpoint=endpoint
         )
 
         if not allowed:
@@ -609,18 +592,15 @@ class SecurityManager:
             Status dictionary
         """
         return {
-            "encryption": {
-                "enabled": True,
-                "algorithm": "AES-256 (Fernet)"
-            },
+            "encryption": {"enabled": True, "algorithm": "AES-256 (Fernet)"},
             "rate_limiting": {
                 "enabled": True,
                 "default_capacity": self.rate_limiter.default_capacity,
                 "default_refill_rate": self.rate_limiter.default_refill_rate,
-                "active_buckets": len(self.rate_limiter._buckets)
+                "active_buckets": len(self.rate_limiter._buckets),
             },
             "ip_whitelist": {
                 "enabled": self.ip_whitelist.is_enabled(),
-                "entries": len(self.ip_whitelist._whitelist)
-            }
+                "entries": len(self.ip_whitelist._whitelist),
+            },
         }

@@ -9,31 +9,31 @@ Calculates stop loss levels using:
 """
 
 import logging
-from typing import Dict, Any, Optional, List
-from decimal import Decimal, ROUND_DOWN
+from decimal import ROUND_DOWN, Decimal
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from src.indicators.order_block import OrderBlock, OrderBlockType, OrderBlockState
-from src.indicators.fair_value_gap import FairValueGap, FVGType, FVGState
-from src.indicators.liquidity_zone import LiquidityLevel, LiquidityType, LiquidityState
 from src.core.constants import PositionSide
+from src.indicators.fair_value_gap import FairValueGap, FVGState, FVGType
+from src.indicators.liquidity_zone import LiquidityLevel, LiquidityState, LiquidityType
+from src.indicators.order_block import OrderBlock, OrderBlockState, OrderBlockType
 from src.services.risk.position_sizer import PositionSizer
-
 
 logger = logging.getLogger(__name__)
 
 
 class StopLossCalculationError(Exception):
     """Raised when stop loss calculation fails."""
-    pass
+
 
 
 class StopLossStrategy(str, Enum):
     """Strategy for determining stop loss placement."""
-    ORDER_BLOCK = "ORDER_BLOCK"          # Use nearest active order block
-    FAIR_VALUE_GAP = "FAIR_VALUE_GAP"   # Use nearest active FVG
-    LIQUIDITY_ZONE = "LIQUIDITY_ZONE"   # Use nearest liquidity level
-    AUTO = "AUTO"                        # Automatically select best structural level
+
+    ORDER_BLOCK = "ORDER_BLOCK"  # Use nearest active order block
+    FAIR_VALUE_GAP = "FAIR_VALUE_GAP"  # Use nearest active FVG
+    LIQUIDITY_ZONE = "LIQUIDITY_ZONE"  # Use nearest liquidity level
+    AUTO = "AUTO"  # Automatically select best structural level
 
 
 class StopLossCalculator:
@@ -65,7 +65,7 @@ class StopLossCalculator:
         default_tolerance_pct: float = 0.2,
         min_stop_distance_pct: float = 0.3,
         max_stop_distance_pct: float = 3.0,
-        precision: int = 8
+        precision: int = 8,
     ):
         """
         Initialize stop loss calculator.
@@ -112,10 +112,7 @@ class StopLossCalculator:
         )
 
     def _find_nearest_order_block(
-        self,
-        order_blocks: List[OrderBlock],
-        entry_price: float,
-        position_side: PositionSide
+        self, order_blocks: List[OrderBlock], entry_price: float, position_side: PositionSide
     ) -> Optional[OrderBlock]:
         """
         Find the nearest relevant order block for stop loss placement.
@@ -143,13 +140,15 @@ class StopLossCalculator:
         if position_side == PositionSide.LONG:
             # For long positions, we want bullish OBs below entry price
             relevant_obs = [
-                ob for ob in active_obs
+                ob
+                for ob in active_obs
                 if ob.type == OrderBlockType.BULLISH and ob.high < entry_price
             ]
         else:  # SHORT
             # For short positions, we want bearish OBs above entry price
             relevant_obs = [
-                ob for ob in active_obs
+                ob
+                for ob in active_obs
                 if ob.type == OrderBlockType.BEARISH and ob.low > entry_price
             ]
 
@@ -166,10 +165,7 @@ class StopLossCalculator:
             return min(relevant_obs, key=lambda ob: ob.low)
 
     def _find_nearest_fvg(
-        self,
-        fvgs: List[FairValueGap],
-        entry_price: float,
-        position_side: PositionSide
+        self, fvgs: List[FairValueGap], entry_price: float, position_side: PositionSide
     ) -> Optional[FairValueGap]:
         """
         Find the nearest relevant FVG for stop loss placement.
@@ -197,14 +193,12 @@ class StopLossCalculator:
         if position_side == PositionSide.LONG:
             # For long positions, we want bullish FVGs below entry price
             relevant_fvgs = [
-                fvg for fvg in active_fvgs
-                if fvg.type == FVGType.BULLISH and fvg.high < entry_price
+                fvg for fvg in active_fvgs if fvg.type == FVGType.BULLISH and fvg.high < entry_price
             ]
         else:  # SHORT
             # For short positions, we want bearish FVGs above entry price
             relevant_fvgs = [
-                fvg for fvg in active_fvgs
-                if fvg.type == FVGType.BEARISH and fvg.low > entry_price
+                fvg for fvg in active_fvgs if fvg.type == FVGType.BEARISH and fvg.low > entry_price
             ]
 
         if not relevant_fvgs:
@@ -223,7 +217,7 @@ class StopLossCalculator:
         self,
         liquidity_levels: List[LiquidityLevel],
         entry_price: float,
-        position_side: PositionSide
+        position_side: PositionSide,
     ) -> Optional[LiquidityLevel]:
         """
         Find the nearest relevant liquidity level for stop loss placement.
@@ -241,7 +235,8 @@ class StopLossCalculator:
 
         # Filter active liquidity levels
         active_levels = [
-            level for level in liquidity_levels
+            level
+            for level in liquidity_levels
             if level.state in (LiquidityState.ACTIVE, LiquidityState.PARTIAL)
         ]
 
@@ -254,13 +249,15 @@ class StopLossCalculator:
         if position_side == PositionSide.LONG:
             # For long positions, we want sell-side liquidity below entry price
             relevant_levels = [
-                level for level in active_levels
+                level
+                for level in active_levels
                 if level.type == LiquidityType.SELL_SIDE and level.price < entry_price
             ]
         else:  # SHORT
             # For short positions, we want buy-side liquidity above entry price
             relevant_levels = [
-                level for level in active_levels
+                level
+                for level in active_levels
                 if level.type == LiquidityType.BUY_SIDE and level.price > entry_price
             ]
 
@@ -277,9 +274,7 @@ class StopLossCalculator:
             return min(relevant_levels, key=lambda level: level.price)
 
     def _get_structural_level_price(
-        self,
-        structural_level: Any,
-        position_side: PositionSide
+        self, structural_level: Any, position_side: PositionSide
     ) -> float:
         """
         Extract the price from a structural level for stop loss placement.
@@ -293,11 +288,19 @@ class StopLossCalculator:
         """
         if isinstance(structural_level, OrderBlock):
             # Use the boundary opposite to position direction
-            return structural_level.low if position_side == PositionSide.LONG else structural_level.high
+            return (
+                structural_level.low
+                if position_side == PositionSide.LONG
+                else structural_level.high
+            )
 
         elif isinstance(structural_level, FairValueGap):
             # Use the boundary opposite to position direction
-            return structural_level.low if position_side == PositionSide.LONG else structural_level.high
+            return (
+                structural_level.low
+                if position_side == PositionSide.LONG
+                else structural_level.high
+            )
 
         elif isinstance(structural_level, LiquidityLevel):
             # Use the exact price level
@@ -307,10 +310,7 @@ class StopLossCalculator:
             raise ValueError(f"Unsupported structural level type: {type(structural_level)}")
 
     def _apply_tolerance(
-        self,
-        base_price: float,
-        position_side: PositionSide,
-        tolerance_pct: Optional[float] = None
+        self, base_price: float, position_side: PositionSide, tolerance_pct: Optional[float] = None
     ) -> float:
         """
         Apply tolerance buffer to the base stop loss price.
@@ -326,7 +326,7 @@ class StopLossCalculator:
         if tolerance_pct is None:
             tolerance_pct = float(self.default_tolerance_pct)
 
-        tolerance_decimal = Decimal(str(tolerance_pct)) / Decimal('100')
+        tolerance_decimal = Decimal(str(tolerance_pct)) / Decimal("100")
         price_decimal = Decimal(str(base_price))
         tolerance_amount = price_decimal * tolerance_decimal
 
@@ -345,10 +345,7 @@ class StopLossCalculator:
         return float(stop_price)
 
     def _validate_stop_distance(
-        self,
-        entry_price: float,
-        stop_loss_price: float,
-        position_side: PositionSide
+        self, entry_price: float, stop_loss_price: float, position_side: PositionSide
     ) -> bool:
         """
         Validate that stop loss distance is within acceptable range.
@@ -366,11 +363,9 @@ class StopLossCalculator:
 
         # Calculate distance percentage
         distance = abs(entry_decimal - stop_decimal)
-        distance_pct = (distance / entry_decimal) * Decimal('100')
+        distance_pct = (distance / entry_decimal) * Decimal("100")
 
-        is_valid = (
-            self.min_stop_distance_pct <= distance_pct <= self.max_stop_distance_pct
-        )
+        is_valid = self.min_stop_distance_pct <= distance_pct <= self.max_stop_distance_pct
 
         if not is_valid:
             logger.warning(
@@ -396,7 +391,7 @@ class StopLossCalculator:
             Rounded stop loss price
         """
         price_decimal = Decimal(str(price))
-        quantize_value = Decimal('1') / Decimal(10 ** self.precision)
+        quantize_value = Decimal("1") / Decimal(10**self.precision)
         rounded = price_decimal.quantize(quantize_value, rounding=ROUND_DOWN)
 
         if rounded != price_decimal:
@@ -405,11 +400,7 @@ class StopLossCalculator:
         return float(rounded)
 
     async def calculate_position_size_for_stop(
-        self,
-        entry_price: float,
-        stop_loss_price: float,
-        risk_amount: float,
-        leverage: int = 5
+        self, entry_price: float, stop_loss_price: float, risk_amount: float, leverage: int = 5
     ) -> float:
         """
         Recalculate position size based on entry-to-stop distance and risk amount.
@@ -435,14 +426,16 @@ class StopLossCalculator:
 
             # Calculate stop distance percentage
             distance = abs(entry_decimal - stop_decimal)
-            distance_pct = (distance / entry_decimal) * Decimal('100')
+            distance_pct = (distance / entry_decimal) * Decimal("100")
 
             if distance_pct == 0:
                 raise StopLossCalculationError("Stop loss distance is zero")
 
             # Calculate position size with leverage
             # position_size = (risk * leverage) / distance_pct
-            position_size = (risk_decimal * Decimal(str(leverage))) / (distance_pct / Decimal('100'))
+            position_size = (risk_decimal * Decimal(str(leverage))) / (
+                distance_pct / Decimal("100")
+            )
 
             logger.debug(
                 f"Position size for stop: risk={risk_amount} USDT, "
@@ -465,7 +458,7 @@ class StopLossCalculator:
         fvgs: Optional[List[FairValueGap]] = None,
         liquidity_levels: Optional[List[LiquidityLevel]] = None,
         strategy: StopLossStrategy = StopLossStrategy.AUTO,
-        tolerance_pct: Optional[float] = None
+        tolerance_pct: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Calculate stop loss level based on structural analysis and tolerance.
@@ -542,9 +535,7 @@ class StopLossCalculator:
                 structural_type = "ORDER_BLOCK"
 
             elif strategy == StopLossStrategy.FAIR_VALUE_GAP:
-                structural_level = self._find_nearest_fvg(
-                    fvgs or [], entry_price, position_side
-                )
+                structural_level = self._find_nearest_fvg(fvgs or [], entry_price, position_side)
                 structural_type = "FAIR_VALUE_GAP"
 
             elif strategy == StopLossStrategy.LIQUIDITY_ZONE:
@@ -563,8 +554,7 @@ class StopLossCalculator:
             base_price = self._get_structural_level_price(structural_level, position_side)
 
             logger.info(
-                f"Found structural level: type={structural_type}, "
-                f"base_price={base_price:.8f}"
+                f"Found structural level: type={structural_type}, " f"base_price={base_price:.8f}"
             )
 
             # Apply tolerance
@@ -574,9 +564,7 @@ class StopLossCalculator:
             is_valid = self._validate_stop_distance(entry_price, stop_loss_price, position_side)
 
             if not is_valid:
-                logger.warning(
-                    "Stop loss distance validation failed, but returning result anyway"
-                )
+                logger.warning("Stop loss distance validation failed, but returning result anyway")
 
             # Round to precision
             stop_loss_price = self._round_stop_price(stop_loss_price)
@@ -585,23 +573,25 @@ class StopLossCalculator:
             entry_decimal = Decimal(str(entry_price))
             stop_decimal = Decimal(str(stop_loss_price))
             distance = abs(entry_decimal - stop_decimal)
-            distance_pct = (distance / entry_decimal) * Decimal('100')
+            distance_pct = (distance / entry_decimal) * Decimal("100")
 
             # Get applied tolerance
-            applied_tolerance = tolerance_pct if tolerance_pct is not None else float(self.default_tolerance_pct)
+            applied_tolerance = (
+                tolerance_pct if tolerance_pct is not None else float(self.default_tolerance_pct)
+            )
 
             result = {
-                'stop_loss_price': stop_loss_price,
-                'base_price': base_price,
-                'tolerance_applied_pct': applied_tolerance,
-                'distance_pct': float(distance_pct),
-                'distance_usdt': float(distance),
-                'structural_level_type': structural_type,
-                'structural_level': structural_level,
-                'strategy_used': strategy_used.value,
-                'valid': is_valid,
-                'entry_price': entry_price,
-                'position_side': position_side.value
+                "stop_loss_price": stop_loss_price,
+                "base_price": base_price,
+                "tolerance_applied_pct": applied_tolerance,
+                "distance_pct": float(distance_pct),
+                "distance_usdt": float(distance),
+                "structural_level_type": structural_type,
+                "structural_level": structural_level,
+                "strategy_used": strategy_used.value,
+                "valid": is_valid,
+                "entry_price": entry_price,
+                "position_side": position_side.value,
             }
 
             logger.info(
@@ -628,12 +618,12 @@ class StopLossCalculator:
             Dictionary with current parameters
         """
         return {
-            'min_tolerance_pct': float(self.min_tolerance_pct),
-            'max_tolerance_pct': float(self.max_tolerance_pct),
-            'default_tolerance_pct': float(self.default_tolerance_pct),
-            'min_stop_distance_pct': float(self.min_stop_distance_pct),
-            'max_stop_distance_pct': float(self.max_stop_distance_pct),
-            'precision': self.precision
+            "min_tolerance_pct": float(self.min_tolerance_pct),
+            "max_tolerance_pct": float(self.max_tolerance_pct),
+            "default_tolerance_pct": float(self.default_tolerance_pct),
+            "min_stop_distance_pct": float(self.min_stop_distance_pct),
+            "max_stop_distance_pct": float(self.max_stop_distance_pct),
+            "precision": self.precision,
         }
 
     def update_parameters(
@@ -642,7 +632,7 @@ class StopLossCalculator:
         max_tolerance_pct: Optional[float] = None,
         default_tolerance_pct: Optional[float] = None,
         min_stop_distance_pct: Optional[float] = None,
-        max_stop_distance_pct: Optional[float] = None
+        max_stop_distance_pct: Optional[float] = None,
     ) -> None:
         """
         Update stop loss calculator parameters.
@@ -670,7 +660,11 @@ class StopLossCalculator:
             logger.info(f"Maximum tolerance updated to {max_tolerance_pct}%")
 
         if default_tolerance_pct is not None:
-            if not (float(self.min_tolerance_pct) <= default_tolerance_pct <= float(self.max_tolerance_pct)):
+            if not (
+                float(self.min_tolerance_pct)
+                <= default_tolerance_pct
+                <= float(self.max_tolerance_pct)
+            ):
                 raise ValueError("default_tolerance_pct must be between min and max")
             self.default_tolerance_pct = Decimal(str(default_tolerance_pct))
             logger.info(f"Default tolerance updated to {default_tolerance_pct}%")

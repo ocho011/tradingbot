@@ -4,18 +4,17 @@ Signal Logging and Tracking System
 Provides database persistence and performance tracking for trading signals.
 """
 
-from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
-from decimal import Decimal
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from src.services.strategy.signal import Signal, SignalDirection
 from src.services.strategy.events import (
+    SignalEvent,
     SignalEventPublisher,
     SignalEventType,
-    SignalEvent,
     get_event_publisher,
 )
+from src.services.strategy.signal import Signal
 
 logger = logging.getLogger(__name__)
 
@@ -58,18 +57,9 @@ class SignalTracker:
 
     def _subscribe_to_events(self):
         """Subscribe to signal events for automatic tracking"""
-        self.event_publisher.subscribe(
-            SignalEventType.SIGNAL_GENERATED,
-            self._on_signal_generated
-        )
-        self.event_publisher.subscribe(
-            SignalEventType.SIGNAL_VALIDATED,
-            self._on_signal_validated
-        )
-        self.event_publisher.subscribe(
-            SignalEventType.SIGNAL_REJECTED,
-            self._on_signal_rejected
-        )
+        self.event_publisher.subscribe(SignalEventType.SIGNAL_GENERATED, self._on_signal_generated)
+        self.event_publisher.subscribe(SignalEventType.SIGNAL_VALIDATED, self._on_signal_validated)
+        self.event_publisher.subscribe(SignalEventType.SIGNAL_REJECTED, self._on_signal_rejected)
 
         logger.info("SignalTracker subscribed to signal events")
 
@@ -103,10 +93,8 @@ class SignalTracker:
             event: Signal rejection event
         """
         self._signals_rejected += 1
-        rejection_reason = event.metadata.get('reason', 'Unknown')
-        logger.warning(
-            f"Signal rejected: {event.signal.signal_id}, reason: {rejection_reason}"
-        )
+        rejection_reason = event.metadata.get("reason", "Unknown")
+        logger.warning(f"Signal rejected: {event.signal.signal_id}, reason: {rejection_reason}")
 
     def log_signal(self, signal: Signal, metadata: Optional[Dict[str, Any]] = None):
         """
@@ -162,17 +150,17 @@ class SignalTracker:
         filtered_signals = [s for s in filtered_signals if s.timestamp >= cutoff_date]
 
         metrics = {
-            'total_signals': len(filtered_signals),
-            'executed_signals': self._signals_executed,
-            'pending_signals': len(filtered_signals),
-            'winning_trades': 0,  # Will be tracked in Task 8.5/8.6
-            'losing_trades': 0,   # Will be tracked in Task 8.5/8.6
-            'win_rate': 0.0,
-            'total_pnl': 0.0,
-            'average_pnl': 0.0,
-            'strategy': strategy_name or 'all',
-            'symbol': symbol or 'all',
-            'period_days': days,
+            "total_signals": len(filtered_signals),
+            "executed_signals": self._signals_executed,
+            "pending_signals": len(filtered_signals),
+            "winning_trades": 0,  # Will be tracked in Task 8.5/8.6
+            "losing_trades": 0,  # Will be tracked in Task 8.5/8.6
+            "win_rate": 0.0,
+            "total_pnl": 0.0,
+            "average_pnl": 0.0,
+            "strategy": strategy_name or "all",
+            "symbol": symbol or "all",
+            "period_days": days,
         }
 
         logger.info(f"Signal performance metrics: {metrics}")
@@ -212,9 +200,9 @@ class SignalTracker:
             Dictionary with tracking statistics
         """
         return {
-            'signals_tracked': self._signals_tracked,
-            'signals_executed': self._signals_executed,
-            'signals_rejected': self._signals_rejected,
+            "signals_tracked": self._signals_tracked,
+            "signals_executed": self._signals_executed,
+            "signals_rejected": self._signals_rejected,
         }
 
     def __repr__(self) -> str:

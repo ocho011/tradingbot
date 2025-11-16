@@ -5,18 +5,17 @@ This module provides specialized database operations for Trade records
 including strategy-based queries, P&L calculations, and performance metrics.
 """
 
-from typing import List, Optional, Dict, Any
+import logging
 from datetime import datetime
 from decimal import Decimal
-import logging
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, func, and_, or_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import Trade
 from src.database.dao.base import BaseDAO
-
+from src.database.models import Trade
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +112,7 @@ class TradeDAO(BaseDAO[Trade]):
             >>> open_trades = await trade_dao.get_open_trades(strategy='MACD')
         """
         try:
-            query = select(Trade).where(Trade.status == 'OPEN')
+            query = select(Trade).where(Trade.status == "OPEN")
 
             if strategy:
                 query = query.where(Trade.strategy == strategy)
@@ -159,7 +158,7 @@ class TradeDAO(BaseDAO[Trade]):
         try:
             query = select(Trade).where(
                 and_(
-                    Trade.status == 'CLOSED',
+                    Trade.status == "CLOSED",
                     Trade.exit_time >= start_date,
                     Trade.exit_time <= end_date,
                 )
@@ -175,8 +174,7 @@ class TradeDAO(BaseDAO[Trade]):
             result = await self.session.execute(query)
             trades = result.scalars().all()
             logger.debug(
-                f"Retrieved {len(trades)} closed trades "
-                f"between {start_date} and {end_date}"
+                f"Retrieved {len(trades)} closed trades " f"between {start_date} and {end_date}"
             )
             return list(trades)
         except SQLAlchemyError as e:
@@ -217,7 +215,7 @@ class TradeDAO(BaseDAO[Trade]):
             query = select(Trade).where(
                 and_(
                     Trade.strategy == strategy,
-                    Trade.status == 'CLOSED',
+                    Trade.status == "CLOSED",
                 )
             )
 
@@ -231,42 +229,44 @@ class TradeDAO(BaseDAO[Trade]):
 
             if not trades:
                 return {
-                    'total_pnl': Decimal('0'),
-                    'total_trades': 0,
-                    'winning_trades': 0,
-                    'losing_trades': 0,
-                    'win_rate': 0.0,
-                    'avg_pnl': Decimal('0'),
-                    'avg_win': Decimal('0'),
-                    'avg_loss': Decimal('0'),
-                    'total_fees': Decimal('0'),
+                    "total_pnl": Decimal("0"),
+                    "total_trades": 0,
+                    "winning_trades": 0,
+                    "losing_trades": 0,
+                    "win_rate": 0.0,
+                    "avg_pnl": Decimal("0"),
+                    "avg_win": Decimal("0"),
+                    "avg_loss": Decimal("0"),
+                    "total_fees": Decimal("0"),
                 }
 
             winning_trades = [t for t in trades if t.pnl and t.pnl > 0]
             losing_trades = [t for t in trades if t.pnl and t.pnl < 0]
 
-            total_pnl = sum(t.pnl for t in trades if t.pnl) or Decimal('0')
-            total_fees = sum(t.fees for t in trades if t.fees) or Decimal('0')
+            total_pnl = sum(t.pnl for t in trades if t.pnl) or Decimal("0")
+            total_fees = sum(t.fees for t in trades if t.fees) or Decimal("0")
 
             avg_win = (
                 sum(t.pnl for t in winning_trades) / len(winning_trades)
-                if winning_trades else Decimal('0')
+                if winning_trades
+                else Decimal("0")
             )
             avg_loss = (
                 sum(t.pnl for t in losing_trades) / len(losing_trades)
-                if losing_trades else Decimal('0')
+                if losing_trades
+                else Decimal("0")
             )
 
             stats = {
-                'total_pnl': total_pnl,
-                'total_trades': len(trades),
-                'winning_trades': len(winning_trades),
-                'losing_trades': len(losing_trades),
-                'win_rate': (len(winning_trades) / len(trades) * 100) if trades else 0.0,
-                'avg_pnl': total_pnl / len(trades) if trades else Decimal('0'),
-                'avg_win': avg_win,
-                'avg_loss': avg_loss,
-                'total_fees': total_fees,
+                "total_pnl": total_pnl,
+                "total_trades": len(trades),
+                "winning_trades": len(winning_trades),
+                "losing_trades": len(losing_trades),
+                "win_rate": (len(winning_trades) / len(trades) * 100) if trades else 0.0,
+                "avg_pnl": total_pnl / len(trades) if trades else Decimal("0"),
+                "avg_win": avg_win,
+                "avg_loss": avg_loss,
+                "total_fees": total_fees,
             }
 
             logger.debug(f"Calculated P&L stats for strategy '{strategy}': {stats}")
@@ -296,7 +296,7 @@ class TradeDAO(BaseDAO[Trade]):
         try:
             query = select(Trade).where(
                 and_(
-                    Trade.status == 'CLOSED',
+                    Trade.status == "CLOSED",
                     Trade.pnl.isnot(None),
                 )
             )
@@ -335,7 +335,7 @@ class TradeDAO(BaseDAO[Trade]):
         try:
             query = select(Trade).where(
                 and_(
-                    Trade.status == 'CLOSED',
+                    Trade.status == "CLOSED",
                     Trade.pnl.isnot(None),
                 )
             )
@@ -388,13 +388,13 @@ class TradeDAO(BaseDAO[Trade]):
                 logger.warning(f"Trade {trade_id} not found for closing")
                 return None
 
-            if trade.status != 'OPEN':
+            if trade.status != "OPEN":
                 logger.warning(f"Trade {trade_id} is not open (status: {trade.status})")
                 return trade
 
             # Calculate P&L
             price_diff = exit_price - trade.entry_price
-            if trade.side == 'SHORT':
+            if trade.side == "SHORT":
                 price_diff = -price_diff
 
             pnl = price_diff * trade.quantity * trade.leverage
@@ -409,10 +409,10 @@ class TradeDAO(BaseDAO[Trade]):
             trade.exit_reason = exit_reason
             trade.pnl = pnl
             trade.pnl_percent = float(pnl_percent)
-            trade.status = 'CLOSED'
+            trade.status = "CLOSED"
 
             if fees:
-                trade.fees = (trade.fees or Decimal('0')) + fees
+                trade.fees = (trade.fees or Decimal("0")) + fees
 
             await self.session.flush()
             await self.session.refresh(trade)

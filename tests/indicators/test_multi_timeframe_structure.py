@@ -5,26 +5,24 @@ Tests the integration of liquidity zones, sweeps, BMS, and trend recognition
 across multiple timeframes with consistency verification and conflict resolution.
 """
 
-import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List
 
-from src.models.candle import Candle
+import pytest
+
 from src.core.constants import TimeFrame
 from src.indicators.multi_timeframe_engine import (
-    MarketStructure,
     ConsistencyLevel,
-    StructureBias,
-    TimeframeMarketStructure,
+    MarketStructure,
     MultiTimeframeMarketStructure,
     MultiTimeframeMarketStructureAnalyzer,
+    StructureBias,
+    TimeframeMarketStructure,
 )
-from src.indicators.trend_recognition import TrendDirection, TrendState
-from src.indicators.liquidity_zone import LiquidityLevel
-from src.indicators.liquidity_sweep import LiquiditySweep
-
+from src.models.candle import Candle
 
 # --- Test Fixtures ---
+
 
 @pytest.fixture
 def bullish_h1_candles() -> List[Candle]:
@@ -49,17 +47,19 @@ def bullish_h1_candles() -> List[Candle]:
         high = max(open_price, close) + 100
         low = min(open_price, close) - 80
 
-        candles.append(Candle(
-            symbol="BTCUSDT",
-            timeframe=TimeFrame.H1,
-            timestamp=base_time + (i * 3600000),  # 1 hour intervals
-            open=open_price,
-            high=high,
-            low=low,
-            close=close,
-            volume=1000000.0 + i * 10000,
-            is_closed=True
-        ))
+        candles.append(
+            Candle(
+                symbol="BTCUSDT",
+                timeframe=TimeFrame.H1,
+                timestamp=base_time + (i * 3600000),  # 1 hour intervals
+                open=open_price,
+                high=high,
+                low=low,
+                close=close,
+                volume=1000000.0 + i * 10000,
+                is_closed=True,
+            )
+        )
 
     return candles
 
@@ -87,17 +87,19 @@ def bearish_h1_candles() -> List[Candle]:
         high = max(open_price, close) + 80
         low = min(open_price, close) - 100
 
-        candles.append(Candle(
-            symbol="BTCUSDT",
-            timeframe=TimeFrame.H1,
-            timestamp=base_time + (i * 3600000),
-            open=open_price,
-            high=high,
-            low=low,
-            close=close,
-            volume=1000000.0 + i * 10000,
-            is_closed=True
-        ))
+        candles.append(
+            Candle(
+                symbol="BTCUSDT",
+                timeframe=TimeFrame.H1,
+                timestamp=base_time + (i * 3600000),
+                open=open_price,
+                high=high,
+                low=low,
+                close=close,
+                volume=1000000.0 + i * 10000,
+                is_closed=True,
+            )
+        )
 
     return candles
 
@@ -124,17 +126,19 @@ def ranging_h1_candles() -> List[Candle]:
         high = max(open_price, close) + 60
         low = min(open_price, close) - 60
 
-        candles.append(Candle(
-            symbol="BTCUSDT",
-            timeframe=TimeFrame.H1,
-            timestamp=base_time + (i * 3600000),
-            open=open_price,
-            high=high,
-            low=low,
-            close=close,
-            volume=1000000.0,
-            is_closed=True
-        ))
+        candles.append(
+            Candle(
+                symbol="BTCUSDT",
+                timeframe=TimeFrame.H1,
+                timestamp=base_time + (i * 3600000),
+                open=open_price,
+                high=high,
+                low=low,
+                close=close,
+                volume=1000000.0,
+                is_closed=True,
+            )
+        )
 
     return candles
 
@@ -158,17 +162,19 @@ def bullish_m15_candles() -> List[Candle]:
         high = max(open_price, close) + 20
         low = min(open_price, close) - 15
 
-        candles.append(Candle(
-            symbol="BTCUSDT",
-            timeframe=TimeFrame.M15,
-            timestamp=base_time + (i * 900000),  # 15 min intervals
-            open=open_price,
-            high=high,
-            low=low,
-            close=close,
-            volume=250000.0 + i * 200,
-            is_closed=True
-        ))
+        candles.append(
+            Candle(
+                symbol="BTCUSDT",
+                timeframe=TimeFrame.M15,
+                timestamp=base_time + (i * 900000),  # 15 min intervals
+                open=open_price,
+                high=high,
+                low=low,
+                close=close,
+                volume=250000.0 + i * 200,
+                is_closed=True,
+            )
+        )
 
     return candles
 
@@ -192,17 +198,19 @@ def bullish_m1_candles() -> List[Candle]:
         high = max(open_price, close) + 3
         low = min(open_price, close) - 2
 
-        candles.append(Candle(
-            symbol="BTCUSDT",
-            timeframe=TimeFrame.M1,
-            timestamp=base_time + (i * 60000),  # 1 min intervals
-            open=open_price,
-            high=high,
-            low=low,
-            close=close,
-            volume=10000.0 + i * 10,
-            is_closed=True
-        ))
+        candles.append(
+            Candle(
+                symbol="BTCUSDT",
+                timeframe=TimeFrame.M1,
+                timestamp=base_time + (i * 60000),  # 1 min intervals
+                open=open_price,
+                high=high,
+                low=low,
+                close=close,
+                volume=10000.0 + i * 10,
+                is_closed=True,
+            )
+        )
 
     return candles
 
@@ -214,6 +222,7 @@ def analyzer() -> MultiTimeframeMarketStructureAnalyzer:
 
 
 # --- Single Timeframe Analysis Tests ---
+
 
 class TestTimeframeAnalysis:
     """Test analysis of individual timeframes."""
@@ -267,8 +276,12 @@ class TestTimeframeAnalysis:
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.H1,
                 timestamp=int(datetime.now().timestamp() * 1000),
-                open=50000, high=50100, low=49900, close=50050,
-                volume=1000, is_closed=True
+                open=50000,
+                high=50100,
+                low=49900,
+                close=50050,
+                volume=1000,
+                is_closed=True,
             )
             for _ in range(5)
         ]
@@ -282,16 +295,16 @@ class TestTimeframeAnalysis:
 
 # --- Multi-Timeframe Integration Tests ---
 
+
 class TestMultiTimeframeIntegration:
     """Test integration across multiple timeframes."""
 
-    def test_perfect_bullish_alignment(self, analyzer, bullish_h1_candles,
-                                      bullish_m15_candles, bullish_m1_candles):
+    def test_perfect_bullish_alignment(
+        self, analyzer, bullish_h1_candles, bullish_m15_candles, bullish_m1_candles
+    ):
         """Test perfect alignment when all timeframes are bullish."""
         result = analyzer.analyze_multi_timeframe(
-            bullish_h1_candles,
-            bullish_m15_candles,
-            bullish_m1_candles
+            bullish_h1_candles, bullish_m15_candles, bullish_m1_candles
         )
 
         assert result.symbol == "BTCUSDT"
@@ -315,14 +328,13 @@ class TestMultiTimeframeIntegration:
         # Should have recommendations
         assert len(result.recommendations) > 0
 
-    def test_conflicting_timeframes(self, analyzer, bullish_h1_candles,
-                                   bearish_h1_candles, ranging_h1_candles):
+    def test_conflicting_timeframes(
+        self, analyzer, bullish_h1_candles, bearish_h1_candles, ranging_h1_candles
+    ):
         """Test conflict detection when timeframes disagree."""
         # Use bullish H1, ranging M15, bearish M1 to create conflicts
         result = analyzer.analyze_multi_timeframe(
-            bullish_h1_candles,
-            ranging_h1_candles,  # Use as M15
-            bearish_h1_candles   # Use as M1
+            bullish_h1_candles, ranging_h1_candles, bearish_h1_candles  # Use as M15  # Use as M1
         )
 
         # Should detect conflicts
@@ -333,14 +345,13 @@ class TestMultiTimeframeIntegration:
         assert result.overall_bias in [StructureBias.BULLISH, StructureBias.STRONGLY_BULLISH]
         assert result.primary_timeframe == TimeFrame.H1
 
-    def test_h1_priority_override(self, analyzer, bearish_h1_candles,
-                                 bullish_m15_candles, bullish_m1_candles):
+    def test_h1_priority_override(
+        self, analyzer, bearish_h1_candles, bullish_m15_candles, bullish_m1_candles
+    ):
         """Test that H1 timeframe has priority in conflicts."""
         # H1 bearish, but M15 and M1 bullish
         result = analyzer.analyze_multi_timeframe(
-            bearish_h1_candles,
-            bullish_m15_candles,
-            bullish_m1_candles
+            bearish_h1_candles, bullish_m15_candles, bullish_m1_candles
         )
 
         # H1 should win despite lower timeframes
@@ -352,6 +363,7 @@ class TestMultiTimeframeIntegration:
 
 
 # --- Consistency Verification Tests ---
+
 
 class TestConsistencyVerification:
     """Test timeframe consistency verification logic."""
@@ -377,10 +389,15 @@ class TestConsistencyVerification:
         consistency = analyzer._verify_consistency(h1_struct, m15_struct, m1_struct)
 
         # Should detect conflicts
-        assert consistency in [ConsistencyLevel.LOW, ConsistencyLevel.CONFLICT, ConsistencyLevel.MODERATE]
+        assert consistency in [
+            ConsistencyLevel.LOW,
+            ConsistencyLevel.CONFLICT,
+            ConsistencyLevel.MODERATE,
+        ]
 
 
 # --- Conflict Resolution Tests ---
+
 
 class TestConflictResolution:
     """Test conflict resolution with higher timeframe priority."""
@@ -403,6 +420,7 @@ class TestConflictResolution:
 
 # --- Recommendation Generation Tests ---
 
+
 class TestRecommendations:
     """Test trading recommendation generation."""
 
@@ -413,25 +431,27 @@ class TestRecommendations:
         m1_struct = analyzer.analyze_timeframe(bullish_h1_candles, TimeFrame.M1)
 
         recommendations = analyzer._generate_recommendations(
-            h1_struct, m15_struct, m1_struct,
+            h1_struct,
+            m15_struct,
+            m1_struct,
             StructureBias.STRONGLY_BULLISH,
-            ConsistencyLevel.PERFECT
+            ConsistencyLevel.PERFECT,
         )
 
         assert len(recommendations) > 0
         # Should recommend long entries
         assert any("long" in rec.lower() or "bullish" in rec.lower() for rec in recommendations)
 
-    def test_conflict_warning_recommendations(self, analyzer, bullish_h1_candles, bearish_h1_candles):
+    def test_conflict_warning_recommendations(
+        self, analyzer, bullish_h1_candles, bearish_h1_candles
+    ):
         """Test warnings when timeframes conflict."""
         h1_struct = analyzer.analyze_timeframe(bullish_h1_candles, TimeFrame.H1)
         m15_struct = analyzer.analyze_timeframe(bearish_h1_candles, TimeFrame.M15)
         m1_struct = analyzer.analyze_timeframe(bearish_h1_candles, TimeFrame.M1)
 
         recommendations = analyzer._generate_recommendations(
-            h1_struct, m15_struct, m1_struct,
-            StructureBias.NEUTRAL,
-            ConsistencyLevel.CONFLICT
+            h1_struct, m15_struct, m1_struct, StructureBias.NEUTRAL, ConsistencyLevel.CONFLICT
         )
 
         assert len(recommendations) > 0
@@ -440,6 +460,7 @@ class TestRecommendations:
 
 
 # --- Data Structure Tests ---
+
 
 class TestDataStructures:
     """Test data structure functionality."""
@@ -450,7 +471,7 @@ class TestDataStructures:
             timeframe=TimeFrame.H1,
             timestamp=int(datetime.now().timestamp() * 1000),
             market_structure=MarketStructure.BULLISH,
-            structure_strength=7.5
+            structure_strength=7.5,
         )
 
         assert structure.timeframe == TimeFrame.H1
@@ -464,7 +485,7 @@ class TestDataStructures:
             timestamp=int(datetime.now().timestamp() * 1000),
             consistency_level=ConsistencyLevel.HIGH,
             overall_bias=StructureBias.BULLISH,
-            bias_strength=8.0
+            bias_strength=8.0,
         )
 
         assert structure.symbol == "BTCUSDT"
@@ -475,8 +496,7 @@ class TestDataStructures:
     def test_alignment_score_calculation(self):
         """Test alignment score calculation."""
         structure = MultiTimeframeMarketStructure(
-            symbol="BTCUSDT",
-            timestamp=int(datetime.now().timestamp() * 1000)
+            symbol="BTCUSDT", timestamp=int(datetime.now().timestamp() * 1000)
         )
 
         # Test with no timeframe data
@@ -490,7 +510,7 @@ class TestDataStructures:
             timestamp=int(datetime.now().timestamp() * 1000),
             consistency_level=ConsistencyLevel.PERFECT,
             overall_bias=StructureBias.STRONGLY_BULLISH,
-            bias_strength=8.5
+            bias_strength=8.5,
         )
 
         assert structure.is_strong_trend() is True
@@ -503,7 +523,7 @@ class TestDataStructures:
             timestamp=int(datetime.now().timestamp() * 1000),
             consistency_level=ConsistencyLevel.CONFLICT,
             overall_bias=StructureBias.NEUTRAL,
-            bias_strength=3.0
+            bias_strength=3.0,
         )
 
         assert structure.is_ranging_market() is True
@@ -517,7 +537,7 @@ class TestDataStructures:
             timestamp=int(datetime.now().timestamp() * 1000),
             consistency_level=ConsistencyLevel.PERFECT,
             overall_bias=StructureBias.STRONGLY_BULLISH,
-            bias_strength=9.0
+            bias_strength=9.0,
         )
 
         assert structure_strong.get_entry_timeframe_recommendation() == TimeFrame.M15
@@ -528,13 +548,14 @@ class TestDataStructures:
             timestamp=int(datetime.now().timestamp() * 1000),
             consistency_level=ConsistencyLevel.CONFLICT,
             overall_bias=StructureBias.NEUTRAL,
-            bias_strength=2.0
+            bias_strength=2.0,
         )
 
         assert structure_ranging.get_entry_timeframe_recommendation() is None
 
 
 # --- Integration with Existing Engine Tests ---
+
 
 class TestEngineIntegration:
     """Test integration with existing MultiTimeframeIndicatorEngine."""

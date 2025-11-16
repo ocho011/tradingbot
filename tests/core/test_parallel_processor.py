@@ -10,34 +10,26 @@ Tests Task 11.3 implementation:
 """
 
 import asyncio
+
 import pytest
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
 
 from src.core.parallel_processor import (
+    DataPipelineParallelProcessor,
     ParallelProcessor,
-    ParallelExecutionResult,
-    DataPipelineParallelProcessor
 )
 
 
 @pytest.fixture
 def parallel_processor():
     """Create a ParallelProcessor for testing."""
-    return ParallelProcessor(
-        max_concurrent=5,
-        timeout_seconds=2.0,
-        enable_metrics=True
-    )
+    return ParallelProcessor(max_concurrent=5, timeout_seconds=2.0, enable_metrics=True)
 
 
 @pytest.fixture
 def data_pipeline_processor():
     """Create a DataPipelineParallelProcessor for testing."""
     return DataPipelineParallelProcessor(
-        max_concurrent_candles=10,
-        max_concurrent_indicators=5,
-        max_concurrent_signals=3
+        max_concurrent_candles=10, max_concurrent_indicators=5, max_concurrent_signals=3
     )
 
 
@@ -63,9 +55,7 @@ class TestParallelProcessor:
             return item * 2
 
         result = await parallel_processor.process_batch(
-            items,
-            process_item,
-            operation_name="test_operation"
+            items, process_item, operation_name="test_operation"
         )
 
         assert result.success_count == 10
@@ -87,9 +77,7 @@ class TestParallelProcessor:
             return item * 2
 
         result = await parallel_processor.process_batch(
-            items,
-            process_item,
-            operation_name="test_with_errors"
+            items, process_item, operation_name="test_with_errors"
         )
 
         # Items 0, 3, 6, 9 should fail (4 errors)
@@ -109,10 +97,7 @@ class TestParallelProcessor:
 
         async def track_concurrency(item):
             concurrent_count["current"] += 1
-            concurrent_count["max"] = max(
-                concurrent_count["max"],
-                concurrent_count["current"]
-            )
+            concurrent_count["max"] = max(concurrent_count["max"], concurrent_count["current"])
             await asyncio.sleep(0.05)
             concurrent_count["current"] -= 1
             return item
@@ -126,10 +111,7 @@ class TestParallelProcessor:
     @pytest.mark.asyncio
     async def test_timeout_handling(self):
         """Test timeout handling for slow operations."""
-        processor = ParallelProcessor(
-            max_concurrent=5,
-            timeout_seconds=0.1
-        )
+        processor = ParallelProcessor(max_concurrent=5, timeout_seconds=0.1)
 
         async def slow_operation(item):
             await asyncio.sleep(0.5)  # Exceeds timeout
@@ -149,6 +131,7 @@ class TestParallelProcessor:
     @pytest.mark.asyncio
     async def test_gather_with_error_handling(self, parallel_processor):
         """Test gather_with_error_handling method."""
+
         async def success_coro(value):
             await asyncio.sleep(0.01)
             return value
@@ -157,17 +140,10 @@ class TestParallelProcessor:
             await asyncio.sleep(0.01)
             raise RuntimeError("Test error")
 
-        coroutines = [
-            success_coro(1),
-            success_coro(2),
-            fail_coro(),
-            success_coro(3),
-            fail_coro()
-        ]
+        coroutines = [success_coro(1), success_coro(2), fail_coro(), success_coro(3), fail_coro()]
 
         result = await parallel_processor.gather_with_error_handling(
-            coroutines,
-            operation_name="gather_test"
+            coroutines, operation_name="gather_test"
         )
 
         assert result.success_count == 3
@@ -189,8 +165,7 @@ class TestParallelProcessor:
         low_priority = [track_execution(f"low_{i}") for i in range(3)]
 
         high_result, low_result = await parallel_processor.process_with_priority(
-            high_priority,
-            low_priority
+            high_priority, low_priority
         )
 
         # High priority should complete first
@@ -220,11 +195,7 @@ class TestMetrics:
             await asyncio.sleep(0.01)
             return item
 
-        await parallel_processor.process_batch(
-            items,
-            process,
-            operation_name="metrics_test"
-        )
+        await parallel_processor.process_batch(items, process, operation_name="metrics_test")
 
         metrics = parallel_processor.get_metrics()
 
@@ -238,10 +209,7 @@ class TestMetrics:
     @pytest.mark.asyncio
     async def test_metrics_disabled(self):
         """Test that metrics are not collected when disabled."""
-        processor = ParallelProcessor(
-            max_concurrent=5,
-            enable_metrics=False
-        )
+        processor = ParallelProcessor(max_concurrent=5, enable_metrics=False)
 
         items = list(range(5))
 
@@ -268,11 +236,7 @@ class TestMetrics:
 
         # Execute same operation multiple times
         for _ in range(3):
-            await parallel_processor.process_batch(
-                items,
-                process,
-                operation_name="repeated_op"
-            )
+            await parallel_processor.process_batch(items, process, operation_name="repeated_op")
 
         metrics = parallel_processor.get_metrics()
         op_metrics = metrics["operations"]["repeated_op"]
@@ -320,10 +284,7 @@ class TestDataPipelineProcessor:
             await asyncio.sleep(0.01)
             return {"id": candle["id"], "processed": True}
 
-        result = await data_pipeline_processor.process_candles_parallel(
-            candles,
-            process_candle
-        )
+        result = await data_pipeline_processor.process_candles_parallel(candles, process_candle)
 
         assert result.success_count == 15
         assert result.error_count == 0
@@ -332,6 +293,7 @@ class TestDataPipelineProcessor:
     @pytest.mark.asyncio
     async def test_calculate_indicators_parallel(self, data_pipeline_processor):
         """Test parallel indicator calculation."""
+
         async def calculate_rsi():
             await asyncio.sleep(0.02)
             return {"indicator": "RSI", "value": 65.5}
@@ -344,15 +306,9 @@ class TestDataPipelineProcessor:
             await asyncio.sleep(0.02)
             return {"indicator": "Bollinger", "upper": 105, "lower": 95}
 
-        indicator_tasks = [
-            calculate_rsi(),
-            calculate_macd(),
-            calculate_bollinger()
-        ]
+        indicator_tasks = [calculate_rsi(), calculate_macd(), calculate_bollinger()]
 
-        result = await data_pipeline_processor.calculate_indicators_parallel(
-            indicator_tasks
-        )
+        result = await data_pipeline_processor.calculate_indicators_parallel(indicator_tasks)
 
         assert result.success_count == 3
         assert result.error_count == 0
@@ -361,6 +317,7 @@ class TestDataPipelineProcessor:
     @pytest.mark.asyncio
     async def test_evaluate_signals_parallel(self, data_pipeline_processor):
         """Test parallel signal evaluation."""
+
         async def evaluate_trend_signal():
             await asyncio.sleep(0.01)
             return {"signal": "trend", "action": "BUY"}
@@ -369,14 +326,9 @@ class TestDataPipelineProcessor:
             await asyncio.sleep(0.01)
             return {"signal": "momentum", "action": "HOLD"}
 
-        signal_tasks = [
-            evaluate_trend_signal(),
-            evaluate_momentum_signal()
-        ]
+        signal_tasks = [evaluate_trend_signal(), evaluate_momentum_signal()]
 
-        result = await data_pipeline_processor.evaluate_signals_parallel(
-            signal_tasks
-        )
+        result = await data_pipeline_processor.evaluate_signals_parallel(signal_tasks)
 
         assert result.success_count == 2
         assert result.error_count == 0
@@ -392,10 +344,7 @@ class TestDataPipelineProcessor:
             await asyncio.sleep(0.01)
             return candle
 
-        await data_pipeline_processor.process_candles_parallel(
-            candles,
-            process_candle
-        )
+        await data_pipeline_processor.process_candles_parallel(candles, process_candle)
 
         all_metrics = data_pipeline_processor.get_all_metrics()
 
@@ -425,10 +374,7 @@ class TestErrorIsolation:
             success_count["value"] += 1
             return item * 2
 
-        result = await parallel_processor.process_batch(
-            items,
-            process_with_occasional_failure
-        )
+        result = await parallel_processor.process_batch(items, process_with_occasional_failure)
 
         # 9 successful, 1 failure
         assert result.success_count == 9
@@ -446,10 +392,7 @@ class TestErrorIsolation:
                 raise ValueError(f"Error at {item}")
             return item
 
-        result = await parallel_processor.process_batch(
-            items,
-            process_with_random_failures
-        )
+        result = await parallel_processor.process_batch(items, process_with_random_failures)
 
         # Items 0, 4, 8, 12, 16 should fail (5 errors)
         assert result.error_count == 5
@@ -462,6 +405,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_empty_batch(self, parallel_processor):
         """Test processing empty batch."""
+
         async def process(item):
             return item
 
@@ -475,6 +419,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_single_item_batch(self, parallel_processor):
         """Test processing single item."""
+
         async def process(item):
             await asyncio.sleep(0.01)
             return item * 2
@@ -504,10 +449,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_none_timeout(self):
         """Test processor with no timeout."""
-        processor = ParallelProcessor(
-            max_concurrent=3,
-            timeout_seconds=None
-        )
+        processor = ParallelProcessor(max_concurrent=3, timeout_seconds=None)
 
         async def slow_operation(item):
             await asyncio.sleep(0.1)

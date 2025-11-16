@@ -2,16 +2,16 @@
 Tests for Signal Event Publishing System
 """
 
-import pytest
 from decimal import Decimal
 from time import sleep
 
-from src.services.strategy.signal import Signal, SignalDirection
+
 from src.services.strategy.events import (
+    SignalEvent,
     SignalEventPublisher,
     SignalEventType,
-    SignalEvent,
 )
+from src.services.strategy.signal import Signal, SignalDirection
 
 
 class TestSignalEvent:
@@ -20,36 +20,34 @@ class TestSignalEvent:
     def test_create_event(self):
         """Test creating a signal event"""
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         event = SignalEvent(
-            event_type=SignalEventType.SIGNAL_GENERATED,
-            signal=signal,
-            metadata={'test': 'data'}
+            event_type=SignalEventType.SIGNAL_GENERATED, signal=signal, metadata={"test": "data"}
         )
 
         assert event.event_type == SignalEventType.SIGNAL_GENERATED
         assert event.signal == signal
-        assert event.metadata['test'] == 'data'
+        assert event.metadata["test"] == "data"
         assert event.timestamp is not None
 
     def test_event_to_dict(self):
         """Test converting event to dictionary"""
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         event = SignalEvent(
@@ -59,9 +57,9 @@ class TestSignalEvent:
 
         data = event.to_dict()
 
-        assert data['event_type'] == 'signal_validated'
-        assert 'signal' in data
-        assert 'timestamp' in data
+        assert data["event_type"] == "signal_validated"
+        assert "signal" in data
+        assert "timestamp" in data
 
 
 class TestSignalEventPublisher:
@@ -85,13 +83,13 @@ class TestSignalEventPublisher:
         publisher.subscribe(SignalEventType.SIGNAL_GENERATED, on_signal)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         publisher.publish(SignalEventType.SIGNAL_GENERATED, signal)
@@ -110,13 +108,13 @@ class TestSignalEventPublisher:
         publisher.subscribe(SignalEventType.SIGNAL_GENERATED, on_signal)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         publisher.publish(SignalEventType.SIGNAL_GENERATED, signal)
@@ -145,13 +143,13 @@ class TestSignalEventPublisher:
         publisher.subscribe(SignalEventType.SIGNAL_GENERATED, listener2)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         publisher.publish(SignalEventType.SIGNAL_GENERATED, signal)
@@ -171,13 +169,13 @@ class TestSignalEventPublisher:
         publisher.unsubscribe(SignalEventType.SIGNAL_GENERATED, on_signal)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         publisher.publish(SignalEventType.SIGNAL_GENERATED, signal)
@@ -189,13 +187,13 @@ class TestSignalEventPublisher:
         publisher = SignalEventPublisher(enable_async=False)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         publisher.publish(SignalEventType.SIGNAL_GENERATED, signal)
@@ -211,22 +209,20 @@ class TestSignalEventPublisher:
         publisher = SignalEventPublisher(enable_async=False)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         publisher.publish(SignalEventType.SIGNAL_GENERATED, signal)
         publisher.publish(SignalEventType.SIGNAL_VALIDATED, signal)
         publisher.publish(SignalEventType.SIGNAL_GENERATED, signal)
 
-        generated_history = publisher.get_event_history(
-            event_type=SignalEventType.SIGNAL_GENERATED
-        )
+        generated_history = publisher.get_event_history(event_type=SignalEventType.SIGNAL_GENERATED)
 
         assert len(generated_history) == 2
         assert all(e.event_type == SignalEventType.SIGNAL_GENERATED for e in generated_history)
@@ -236,13 +232,13 @@ class TestSignalEventPublisher:
         publisher = SignalEventPublisher(enable_async=False)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         for _ in range(5):
@@ -257,13 +253,13 @@ class TestSignalEventPublisher:
         publisher = SignalEventPublisher(enable_async=False)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         publisher.publish(SignalEventType.SIGNAL_GENERATED, signal)
@@ -299,13 +295,13 @@ class TestSignalEventPublisher:
         publisher.subscribe(SignalEventType.SIGNAL_GENERATED, bad_listener)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         # Should not raise error

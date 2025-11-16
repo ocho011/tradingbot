@@ -8,13 +8,12 @@ and memory monitoring capabilities.
 import logging
 import sys
 from collections import deque
-from threading import RLock
-from typing import Dict, List, Optional, Tuple, Deque
 from dataclasses import dataclass
+from threading import RLock
+from typing import Deque, Dict, List, Optional, Tuple
 
 from src.core.constants import TimeFrame
 from src.models.candle import Candle
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +35,11 @@ class StorageStats:
     def to_dict(self) -> dict:
         """Convert stats to dictionary."""
         return {
-            'total_candles': self.total_candles,
-            'storage_count': self.storage_count,
-            'memory_bytes': self.memory_bytes,
-            'memory_mb': self.memory_mb,
-            'evictions': self.evictions
+            "total_candles": self.total_candles,
+            "storage_count": self.storage_count,
+            "memory_bytes": self.memory_bytes,
+            "memory_mb": self.memory_mb,
+            "evictions": self.evictions,
         }
 
 
@@ -139,7 +138,7 @@ class CandleStorage:
         timeframe: TimeFrame,
         limit: Optional[int] = None,
         start_time: Optional[int] = None,
-        end_time: Optional[int] = None
+        end_time: Optional[int] = None,
     ) -> List[Candle]:
         """
         Get candles from storage with optional filtering.
@@ -221,10 +220,7 @@ class CandleStorage:
             return self._storage[key][-1]  # Most recent candle
 
     def remove_candles(
-        self,
-        symbol: str,
-        timeframe: TimeFrame,
-        before_timestamp: Optional[int] = None
+        self, symbol: str, timeframe: TimeFrame, before_timestamp: Optional[int] = None
     ) -> int:
         """
         Remove candles from storage.
@@ -317,10 +313,7 @@ class CandleStorage:
 
             # Clear all timeframes for symbol
             symbol_upper = symbol.upper()
-            keys_to_remove = [
-                key for key in self._storage.keys()
-                if key[0] == symbol_upper
-            ]
+            keys_to_remove = [key for key in self._storage.keys() if key[0] == symbol_upper]
 
             total = 0
             for key in keys_to_remove:
@@ -347,7 +340,9 @@ class CandleStorage:
             symbol_upper = symbol.upper()
             return sum(1 for key in self._storage.keys() if key[0] == symbol_upper)
 
-    def get_candle_count(self, symbol: Optional[str] = None, timeframe: Optional[TimeFrame] = None) -> int:
+    def get_candle_count(
+        self, symbol: Optional[str] = None, timeframe: Optional[TimeFrame] = None
+    ) -> int:
         """
         Get total count of stored candles.
 
@@ -368,8 +363,7 @@ class CandleStorage:
 
             symbol_upper = symbol.upper()
             return sum(
-                len(storage) for key, storage in self._storage.items()
-                if key[0] == symbol_upper
+                len(storage) for key, storage in self._storage.items() if key[0] == symbol_upper
             )
 
     def get_memory_usage(self) -> int:
@@ -416,7 +410,7 @@ class CandleStorage:
                 total_candles=self.get_candle_count(),
                 storage_count=self.get_storage_count(),
                 memory_bytes=self.get_memory_usage(),
-                evictions=self._eviction_count
+                evictions=self._eviction_count,
             )
 
     def get_symbols(self) -> List[str]:
@@ -442,10 +436,7 @@ class CandleStorage:
         symbol_upper = symbol.upper()
 
         with self._lock:
-            timeframes = [
-                key[1] for key in self._storage.keys()
-                if key[0] == symbol_upper
-            ]
+            timeframes = [key[1] for key in self._storage.keys() if key[0] == symbol_upper]
             return sorted(timeframes, key=lambda tf: Candle.get_timeframe_milliseconds(tf))
 
     @property

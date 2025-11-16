@@ -2,24 +2,24 @@
 Unit tests for Liquidity Strength calculation and Market State tracking.
 """
 
-import pytest
-from datetime import datetime
 from unittest.mock import Mock
 
-from src.indicators.liquidity_strength import (
-    LiquidityStrengthCalculator,
-    MarketStateTracker,
-    LiquidityStrengthMetrics,
-    LiquidityStrengthLevel,
-    MarketStateData,
-    MarketState
-)
-from src.indicators.liquidity_zone import LiquidityLevel, LiquidityType, LiquidityState, SwingPoint
-from src.indicators.trend_recognition import TrendState, TrendDirection, TrendStrength
-from src.indicators.market_structure_break import BreakOfMarketStructure, BMSType, BMSState
-from src.models.candle import Candle
+import pytest
+
 from src.core.constants import TimeFrame
 from src.core.events import EventBus
+from src.indicators.liquidity_strength import (
+    LiquidityStrengthCalculator,
+    LiquidityStrengthLevel,
+    LiquidityStrengthMetrics,
+    MarketState,
+    MarketStateData,
+    MarketStateTracker,
+)
+from src.indicators.liquidity_zone import LiquidityLevel, LiquidityState, LiquidityType, SwingPoint
+from src.indicators.market_structure_break import BMSState, BMSType, BreakOfMarketStructure
+from src.indicators.trend_recognition import TrendDirection, TrendState, TrendStrength
+from src.models.candle import Candle
 
 
 @pytest.fixture
@@ -29,16 +29,18 @@ def sample_candles():
     base_time = 1609459200000  # 2021-01-01 00:00:00
 
     for i in range(100):
-        candles.append(Candle(
-            symbol="BTCUSDT",
-            timeframe=TimeFrame.M15,
-            timestamp=base_time + (i * 900000),  # 15 min intervals
-            open=50000 + i * 10,
-            high=50100 + i * 10,
-            low=49900 + i * 10,
-            close=50050 + i * 10,
-            volume=1000 + i
-        ))
+        candles.append(
+            Candle(
+                symbol="BTCUSDT",
+                timeframe=TimeFrame.M15,
+                timestamp=base_time + (i * 900000),  # 15 min intervals
+                open=50000 + i * 10,
+                high=50100 + i * 10,
+                low=49900 + i * 10,
+                close=50050 + i * 10,
+                volume=1000 + i,
+            )
+        )
 
     return candles
 
@@ -56,7 +58,7 @@ def sample_liquidity_level():
         touch_count=3,
         strength=6.5,
         volume_profile=5000.0,
-        state=LiquidityState.ACTIVE
+        state=LiquidityState.ACTIVE,
     )
 
 
@@ -74,20 +76,17 @@ class TestLiquidityStrengthCalculator:
 
         # Weights should sum to approximately 1.0
         total_weight = (
-            calculator.base_weight +
-            calculator.touch_weight +
-            calculator.volume_weight +
-            calculator.recency_weight
+            calculator.base_weight
+            + calculator.touch_weight
+            + calculator.volume_weight
+            + calculator.recency_weight
         )
         assert abs(total_weight - 1.0) < 0.01
 
     def test_calculator_custom_weights(self):
         """Test calculator initialization with custom weights."""
         calculator = LiquidityStrengthCalculator(
-            base_weight=0.3,
-            touch_weight=0.3,
-            volume_weight=0.2,
-            recency_weight=0.2
+            base_weight=0.3, touch_weight=0.3, volume_weight=0.2, recency_weight=0.2
         )
 
         assert calculator.base_weight == 0.3
@@ -101,9 +100,7 @@ class TestLiquidityStrengthCalculator:
         current_index = 50  # Middle of the candle list
 
         metrics = calculator.calculate_strength(
-            sample_liquidity_level,
-            sample_candles,
-            current_index
+            sample_liquidity_level, sample_candles, current_index
         )
 
         # Verify metrics structure
@@ -125,9 +122,7 @@ class TestLiquidityStrengthCalculator:
         current_index = 99
 
         metrics = calculator.calculate_strength(
-            sample_liquidity_level,
-            sample_candles,
-            current_index
+            sample_liquidity_level, sample_candles, current_index
         )
 
         # Old level should have lower recency strength
@@ -148,16 +143,12 @@ class TestLiquidityStrengthCalculator:
             touch_count=2,
             strength=7.0,
             volume_profile=6000.0,
-            state=LiquidityState.ACTIVE
+            state=LiquidityState.ACTIVE,
         )
 
         current_index = 99
 
-        metrics = calculator.calculate_strength(
-            recent_level,
-            sample_candles,
-            current_index
-        )
+        metrics = calculator.calculate_strength(recent_level, sample_candles, current_index)
 
         # Recent level should have high recency strength
         assert metrics.recency_strength > 70
@@ -179,17 +170,13 @@ class TestLiquidityStrengthCalculator:
                 touch_count=2 + i,
                 strength=6.0 + i,
                 volume_profile=5000.0 + i * 1000,
-                state=LiquidityState.ACTIVE
+                state=LiquidityState.ACTIVE,
             )
             levels.append(level)
 
         current_index = 50
 
-        metrics_list = calculator.calculate_all_strengths(
-            levels,
-            sample_candles,
-            current_index
-        )
+        metrics_list = calculator.calculate_all_strengths(levels, sample_candles, current_index)
 
         # Should get metrics for all active levels
         assert len(metrics_list) == 3
@@ -214,7 +201,7 @@ class TestLiquidityStrengthCalculator:
             touch_count=2,
             strength=6.0,
             volume_profile=5000.0,
-            state=LiquidityState.ACTIVE
+            state=LiquidityState.ACTIVE,
         )
 
         swept_level = LiquidityLevel(
@@ -228,17 +215,13 @@ class TestLiquidityStrengthCalculator:
             strength=7.0,
             volume_profile=6000.0,
             state=LiquidityState.SWEPT,
-            swept_timestamp=sample_candles[30].timestamp
+            swept_timestamp=sample_candles[30].timestamp,
         )
 
         levels = [active_level, swept_level]
         current_index = 50
 
-        metrics_list = calculator.calculate_all_strengths(
-            levels,
-            sample_candles,
-            current_index
-        )
+        metrics_list = calculator.calculate_all_strengths(levels, sample_candles, current_index)
 
         # Only active level should be included
         assert len(metrics_list) == 1
@@ -276,7 +259,7 @@ class TestMarketStateTracker:
             start_candle_index=0,
             last_update_timestamp=sample_candles[-1].timestamp,
             pattern_count=5,
-            is_confirmed=True
+            is_confirmed=True,
         )
 
         # Create bullish BMS
@@ -287,14 +270,14 @@ class TestMarketStateTracker:
                     price=50400.0,
                     timestamp=sample_candles[49].timestamp,
                     candle_index=49,
-                    is_high=True
+                    is_high=True,
                 ),
                 break_timestamp=sample_candles[50].timestamp,
                 break_candle_index=50,
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.M15,
                 confidence_score=80.0,
-                state=BMSState.CONFIRMED
+                state=BMSState.CONFIRMED,
             )
         ]
 
@@ -303,11 +286,7 @@ class TestMarketStateTracker:
 
         # First update should create new state
         state_data = tracker.update_state(
-            sample_candles,
-            trend_state,
-            bms_list,
-            buy_side_levels,
-            sell_side_levels
+            sample_candles, trend_state, bms_list, buy_side_levels, sell_side_levels
         )
 
         assert state_data is not None
@@ -322,8 +301,7 @@ class TestMarketStateTracker:
         """Test state update with ranging market."""
         event_bus = Mock(spec=EventBus)
         tracker = MarketStateTracker(
-            event_bus=event_bus,
-            min_confidence_for_state=20.0  # Lower threshold for ranging market
+            event_bus=event_bus, min_confidence_for_state=20.0  # Lower threshold for ranging market
         )
 
         # Create ranging trend state
@@ -337,7 +315,7 @@ class TestMarketStateTracker:
             start_candle_index=0,
             last_update_timestamp=sample_candles[-1].timestamp,
             pattern_count=1,
-            is_confirmed=True
+            is_confirmed=True,
         )
 
         bms_list = []
@@ -345,11 +323,7 @@ class TestMarketStateTracker:
         sell_side_levels = []
 
         state_data = tracker.update_state(
-            sample_candles,
-            trend_state,
-            bms_list,
-            buy_side_levels,
-            sell_side_levels
+            sample_candles, trend_state, bms_list, buy_side_levels, sell_side_levels
         )
 
         assert state_data is not None
@@ -372,7 +346,7 @@ class TestMarketStateTracker:
             start_candle_index=0,
             last_update_timestamp=sample_candles[-1].timestamp,
             pattern_count=5,
-            is_confirmed=True
+            is_confirmed=True,
         )
 
         bms_list = [
@@ -382,14 +356,14 @@ class TestMarketStateTracker:
                     price=50400.0,
                     timestamp=sample_candles[49].timestamp,
                     candle_index=49,
-                    is_high=True
+                    is_high=True,
                 ),
                 break_timestamp=sample_candles[50].timestamp,
                 break_candle_index=50,
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.M15,
                 confidence_score=80.0,
-                state=BMSState.CONFIRMED
+                state=BMSState.CONFIRMED,
             )
         ]
 
@@ -398,21 +372,13 @@ class TestMarketStateTracker:
 
         # First update creates state
         first_update = tracker.update_state(
-            sample_candles,
-            trend_state,
-            bms_list,
-            buy_side_levels,
-            sell_side_levels
+            sample_candles, trend_state, bms_list, buy_side_levels, sell_side_levels
         )
         assert first_update is not None
 
         # Second update with same conditions should return None (no change)
         second_update = tracker.update_state(
-            sample_candles,
-            trend_state,
-            bms_list,
-            buy_side_levels,
-            sell_side_levels
+            sample_candles, trend_state, bms_list, buy_side_levels, sell_side_levels
         )
         assert second_update is None
 
@@ -420,8 +386,7 @@ class TestMarketStateTracker:
         """Test getting current state."""
         event_bus = Mock(spec=EventBus)
         tracker = MarketStateTracker(
-            event_bus=event_bus,
-            min_confidence_for_state=20.0  # Lower threshold for ranging market
+            event_bus=event_bus, min_confidence_for_state=20.0  # Lower threshold for ranging market
         )
 
         # Initially no state
@@ -438,16 +403,10 @@ class TestMarketStateTracker:
             start_candle_index=0,
             last_update_timestamp=sample_candles[-1].timestamp,
             pattern_count=1,
-            is_confirmed=True
+            is_confirmed=True,
         )
 
-        tracker.update_state(
-            sample_candles,
-            trend_state,
-            [],
-            [],
-            []
-        )
+        tracker.update_state(sample_candles, trend_state, [], [], [])
 
         # Now should have a state
         current_state = tracker.get_current_state()
@@ -458,8 +417,7 @@ class TestMarketStateTracker:
         """Test getting state history."""
         event_bus = Mock(spec=EventBus)
         tracker = MarketStateTracker(
-            event_bus=event_bus,
-            min_confidence_for_state=20.0  # Lower threshold for ranging market
+            event_bus=event_bus, min_confidence_for_state=20.0  # Lower threshold for ranging market
         )
 
         # Initially empty
@@ -476,7 +434,7 @@ class TestMarketStateTracker:
             start_candle_index=0,
             last_update_timestamp=sample_candles[25].timestamp,
             pattern_count=1,
-            is_confirmed=True
+            is_confirmed=True,
         )
 
         # First state change
@@ -490,8 +448,7 @@ class TestMarketStateTracker:
         """Test clearing state history."""
         event_bus = Mock(spec=EventBus)
         tracker = MarketStateTracker(
-            event_bus=event_bus,
-            min_confidence_for_state=20.0  # Lower threshold for ranging market
+            event_bus=event_bus, min_confidence_for_state=20.0  # Lower threshold for ranging market
         )
 
         # Create a state
@@ -505,7 +462,7 @@ class TestMarketStateTracker:
             start_candle_index=0,
             last_update_timestamp=sample_candles[-1].timestamp,
             pattern_count=1,
-            is_confirmed=True
+            is_confirmed=True,
         )
 
         tracker.update_state(sample_candles, trend_state, [], [], [])

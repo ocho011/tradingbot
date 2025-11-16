@@ -6,31 +6,32 @@ analysis. FVGs represent price imbalances that may attract price back to fill th
 serving as potential support/resistance zones and continuation signals.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any
-import logging
+from typing import Any, Dict, List, Optional
 
-from src.models.candle import Candle
 from src.core.constants import TimeFrame
-
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 
 
 class FVGType(str, Enum):
     """Type of Fair Value Gap based on direction."""
+
     BULLISH = "BULLISH"  # Gap formed during upward movement
     BEARISH = "BEARISH"  # Gap formed during downward movement
 
 
 class FVGState(str, Enum):
     """Current state of a Fair Value Gap."""
-    ACTIVE = "ACTIVE"        # Currently valid and unfilled
-    PARTIAL = "PARTIAL"      # Partially filled
-    FILLED = "FILLED"        # Completely filled
-    EXPIRED = "EXPIRED"      # Time-based expiration
+
+    ACTIVE = "ACTIVE"  # Currently valid and unfilled
+    PARTIAL = "PARTIAL"  # Partially filled
+    FILLED = "FILLED"  # Completely filled
+    EXPIRED = "EXPIRED"  # Time-based expiration
 
 
 @dataclass
@@ -80,7 +81,9 @@ class FairValueGap:
         if self.size_percentage < 0:
             raise ValueError(f"Size percentage must be non-negative, got {self.size_percentage}")
         if not (0 <= self.filled_percentage <= 100):
-            raise ValueError(f"Filled percentage must be between 0 and 100, got {self.filled_percentage}")
+            raise ValueError(
+                f"Filled percentage must be between 0 and 100, got {self.filled_percentage}"
+            )
         if self.volume < 0:
             raise ValueError(f"Volume must be non-negative, got {self.volume}")
 
@@ -158,26 +161,27 @@ class FairValueGap:
     def to_dict(self) -> Dict[str, Any]:
         """Convert Fair Value Gap to dictionary."""
         return {
-            'type': self.type.value,
-            'high': self.high,
-            'low': self.low,
-            'origin_timestamp': self.origin_timestamp,
-            'origin_datetime': datetime.fromtimestamp(self.origin_timestamp / 1000).isoformat(),
-            'origin_candle_index': self.origin_candle_index,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe.value,
-            'size_pips': self.size_pips,
-            'size_percentage': self.size_percentage,
-            'volume': self.volume,
-            'state': self.state.value,
-            'filled_percentage': self.filled_percentage,
-            'first_fill_timestamp': self.first_fill_timestamp,
-            'first_fill_datetime': (
+            "type": self.type.value,
+            "high": self.high,
+            "low": self.low,
+            "origin_timestamp": self.origin_timestamp,
+            "origin_datetime": datetime.fromtimestamp(self.origin_timestamp / 1000).isoformat(),
+            "origin_candle_index": self.origin_candle_index,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe.value,
+            "size_pips": self.size_pips,
+            "size_percentage": self.size_percentage,
+            "volume": self.volume,
+            "state": self.state.value,
+            "filled_percentage": self.filled_percentage,
+            "first_fill_timestamp": self.first_fill_timestamp,
+            "first_fill_datetime": (
                 datetime.fromtimestamp(self.first_fill_timestamp / 1000).isoformat()
-                if self.first_fill_timestamp else None
+                if self.first_fill_timestamp
+                else None
             ),
-            'range': self.get_range(),
-            'midpoint': self.get_midpoint()
+            "range": self.get_range(),
+            "midpoint": self.get_midpoint(),
         }
 
     def __repr__(self) -> str:
@@ -207,7 +211,7 @@ class FVGDetector:
         min_gap_size_pips: float = 0.0,
         min_gap_size_percentage: float = 0.0,
         use_pip_threshold: bool = True,
-        pip_size: float = 0.0001  # Default for forex (0.01 for JPY pairs)
+        pip_size: float = 0.0001,  # Default for forex (0.01 for JPY pairs)
     ):
         """
         Initialize Fair Value Gap detector.
@@ -225,10 +229,7 @@ class FVGDetector:
         self.logger = logging.getLogger(f"{__name__}.FVGDetector")
 
     def calculate_gap_size(
-        self,
-        gap_high: float,
-        gap_low: float,
-        reference_price: float
+        self, gap_high: float, gap_low: float, reference_price: float
     ) -> tuple[float, float]:
         """
         Calculate gap size in both pips and percentage.
@@ -263,11 +264,7 @@ class FVGDetector:
         else:
             return size_percentage >= self.min_gap_size_percentage
 
-    def detect_bullish_fvg(
-        self,
-        candles: List[Candle],
-        start_index: int
-    ) -> Optional[FairValueGap]:
+    def detect_bullish_fvg(self, candles: List[Candle], start_index: int) -> Optional[FairValueGap]:
         """
         Detect a bullish Fair Value Gap at the given position.
 
@@ -300,9 +297,7 @@ class FVGDetector:
 
         # Calculate gap size
         reference_price = candle_1.close
-        size_pips, size_percentage = self.calculate_gap_size(
-            gap_high, gap_low, reference_price
-        )
+        size_pips, size_percentage = self.calculate_gap_size(gap_high, gap_low, reference_price)
 
         # Check threshold
         if not self.meets_threshold(size_pips, size_percentage):
@@ -323,17 +318,13 @@ class FVGDetector:
             timeframe=candle_1.timeframe,
             size_pips=size_pips,
             size_percentage=size_percentage,
-            volume=candle_1.volume
+            volume=candle_1.volume,
         )
 
         self.logger.debug(f"Bullish FVG detected: {fvg}")
         return fvg
 
-    def detect_bearish_fvg(
-        self,
-        candles: List[Candle],
-        start_index: int
-    ) -> Optional[FairValueGap]:
+    def detect_bearish_fvg(self, candles: List[Candle], start_index: int) -> Optional[FairValueGap]:
         """
         Detect a bearish Fair Value Gap at the given position.
 
@@ -366,9 +357,7 @@ class FVGDetector:
 
         # Calculate gap size
         reference_price = candle_1.close
-        size_pips, size_percentage = self.calculate_gap_size(
-            gap_high, gap_low, reference_price
-        )
+        size_pips, size_percentage = self.calculate_gap_size(gap_high, gap_low, reference_price)
 
         # Check threshold
         if not self.meets_threshold(size_pips, size_percentage):
@@ -389,7 +378,7 @@ class FVGDetector:
             timeframe=candle_1.timeframe,
             size_pips=size_pips,
             size_percentage=size_percentage,
-            volume=candle_1.volume
+            volume=candle_1.volume,
         )
 
         self.logger.debug(f"Bearish FVG detected: {fvg}")
@@ -410,8 +399,7 @@ class FVGDetector:
         """
         if len(candles) < 3:
             raise ValueError(
-                f"Insufficient candles for FVG detection. "
-                f"Need at least 3, got {len(candles)}"
+                f"Insufficient candles for FVG detection. " f"Need at least 3, got {len(candles)}"
             )
 
         self.logger.info(
@@ -443,11 +431,7 @@ class FVGDetector:
 
         return fvgs
 
-    def update_fvg_states(
-        self,
-        fvgs: List[FairValueGap],
-        current_candles: List[Candle]
-    ) -> None:
+    def update_fvg_states(self, fvgs: List[FairValueGap], current_candles: List[Candle]) -> None:
         """
         Update the state of FVGs based on current price action.
 

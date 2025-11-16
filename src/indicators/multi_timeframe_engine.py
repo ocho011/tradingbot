@@ -6,65 +6,53 @@ across multiple timeframes (1m, 15m, 1h) with synchronized data management and e
 cross-timeframe analysis capabilities.
 """
 
+import asyncio
+import logging
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Optional, Callable, Any
-import logging
-import asyncio
-from collections import defaultdict
 from threading import Lock
+from typing import Any, Callable, Dict, List, Optional
 
-from src.models.candle import Candle
-from src.core.constants import TimeFrame
+from src.core.constants import EventType, TimeFrame
+from src.core.events import Event, EventBus
+from src.indicators.breaker_block import BreakerBlock, BreakerBlockDetector
+from src.indicators.expiration_manager import ExpirationRules, IndicatorExpirationManager
+from src.indicators.fair_value_gap import FairValueGap, FVGDetector, FVGState, FVGType
+from src.indicators.liquidity_strength import (
+    LiquidityStrengthCalculator,
+    LiquidityStrengthMetrics,
+    MarketStateData,
+    MarketStateTracker,
+)
+from src.indicators.liquidity_sweep import LiquiditySweep, LiquiditySweepDetector
+from src.indicators.liquidity_zone import LiquidityLevel, LiquidityZoneDetector
 from src.indicators.order_block import (
     OrderBlock,
     OrderBlockDetector,
+    OrderBlockState,
     OrderBlockType,
-    OrderBlockState
 )
-from src.indicators.fair_value_gap import (
-    FairValueGap,
-    FVGDetector,
-    FVGType,
-    FVGState
-)
-from src.indicators.breaker_block import (
-    BreakerBlock,
-    BreakerBlockDetector
-)
-from src.indicators.liquidity_zone import (
-    LiquidityLevel,
-    LiquidityZoneDetector
-)
-from src.indicators.liquidity_sweep import (
-    LiquiditySweep,
-    LiquiditySweepDetector
+from src.indicators.market_structure_break import (
+    BreakOfMarketStructure,
+    MarketStructureBreakDetector,
 )
 from src.indicators.trend_recognition import (
+    TrendDirection,
     TrendRecognitionEngine,
     TrendState,
-    TrendStructure
+    TrendStructure,
 )
-from src.indicators.expiration_manager import (
-    IndicatorExpirationManager,
-    ExpirationRules
-)
-from src.indicators.liquidity_strength import (
-    LiquidityStrengthCalculator,
-    MarketStateTracker,
-    LiquidityStrengthMetrics,
-    MarketStateData
-)
-from src.core.events import EventBus, Event
-from src.core.constants import EventType
-
+from src.indicators.liquidity_zone import SwingPoint
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 
 
 class IndicatorType(str, Enum):
     """Types of ICT indicators supported."""
+
     ORDER_BLOCK = "order_block"
     FAIR_VALUE_GAP = "fair_value_gap"
     BREAKER_BLOCK = "breaker_block"
@@ -93,6 +81,7 @@ class TimeframeIndicators:
         last_update_timestamp: Last time indicators were calculated
         candle_count: Number of candles processed
     """
+
     timeframe: TimeFrame
     order_blocks: List[OrderBlock] = field(default_factory=list)
     fair_value_gaps: List[FairValueGap] = field(default_factory=list)
@@ -144,9 +133,12 @@ class TimeframeData:
         indicators: Detected indicators for this timeframe
         max_candles: Maximum number of candles to retain
     """
+
     timeframe: TimeFrame
     candles: List[Candle] = field(default_factory=list)
-    indicators: TimeframeIndicators = field(default_factory=lambda: TimeframeIndicators(TimeFrame.M1))
+    indicators: TimeframeIndicators = field(
+        default_factory=lambda: TimeframeIndicators(TimeFrame.M1)
+    )
     max_candles: int = 1000
 
     def __post_init__(self):
@@ -242,10 +234,7 @@ class MultiTimeframeIndicatorEngine:
 
         # Initialize storage for each timeframe
         self.timeframe_data: Dict[TimeFrame, TimeframeData] = {
-            tf: TimeframeData(
-                timeframe=tf,
-                max_candles=max_candles_per_timeframe
-            )
+            tf: TimeframeData(timeframe=tf, max_candles=max_candles_per_timeframe)
             for tf in self.timeframes
         }
 
@@ -255,12 +244,10 @@ class MultiTimeframeIndicatorEngine:
         self.bb_detector = BreakerBlockDetector(**(bb_detector_config or {}))
         self.liquidity_zone_detector = LiquidityZoneDetector(**(liquidity_zone_config or {}))
         self.liquidity_sweep_detector = LiquiditySweepDetector(
-            **(liquidity_sweep_config or {}),
-            event_bus=event_bus
+            **(liquidity_sweep_config or {}), event_bus=event_bus
         )
         self.trend_recognition_engine = TrendRecognitionEngine(
-            **(trend_recognition_config or {}),
-            event_bus=event_bus
+            **(trend_recognition_config or {}), event_bus=event_bus
         )
 
         # Initialize liquidity strength calculator
@@ -271,8 +258,7 @@ class MultiTimeframeIndicatorEngine:
 
         # Initialize expiration manager
         self.expiration_manager = IndicatorExpirationManager(
-            expiration_rules=expiration_rules,
-            auto_remove_expired=auto_remove_expired
+            expiration_rules=expiration_rules, auto_remove_expired=auto_remove_expired
         )
 
         # Event bus for publishing indicator events
@@ -310,9 +296,7 @@ class MultiTimeframeIndicatorEngine:
             )
 
     def register_callback(
-        self,
-        indicator_type: IndicatorType,
-        callback: Callable[[TimeFrame, Any], None]
+        self, indicator_type: IndicatorType, callback: Callable[[TimeFrame, Any], None]
     ) -> None:
         """
         Register a callback for indicator detection events.
@@ -322,15 +306,10 @@ class MultiTimeframeIndicatorEngine:
             callback: Function(timeframe, indicator) to call when detected
         """
         self._callbacks[indicator_type].append(callback)
-        logger.debug(
-            f"Registered callback for {indicator_type.value} events"
-        )
+        logger.debug(f"Registered callback for {indicator_type.value} events")
 
     def _trigger_callbacks(
-        self,
-        indicator_type: IndicatorType,
-        timeframe: TimeFrame,
-        indicators: List[Any]
+        self, indicator_type: IndicatorType, timeframe: TimeFrame, indicators: List[Any]
     ) -> None:
         """Trigger callbacks for detected indicators."""
         for callback in self._callbacks[indicator_type]:
@@ -338,10 +317,7 @@ class MultiTimeframeIndicatorEngine:
                 for indicator in indicators:
                     callback(timeframe, indicator)
             except Exception as e:
-                logger.error(
-                    f"Error in callback for {indicator_type.value}: {e}",
-                    exc_info=True
-                )
+                logger.error(f"Error in callback for {indicator_type.value}: {e}", exc_info=True)
 
     def add_candle(self, candle: Candle) -> None:
         """
@@ -394,7 +370,7 @@ class MultiTimeframeIndicatorEngine:
             return
 
         # Check each higher timeframe
-        for higher_tf in self.timeframes[base_idx + 1:]:
+        for higher_tf in self.timeframes[base_idx + 1 :]:
             # Check if we need to create a new higher timeframe candle
             if self._should_aggregate_to_timeframe(base_candle, higher_tf):
                 aggregated = self._create_aggregated_candle(base_candle, higher_tf)
@@ -408,11 +384,7 @@ class MultiTimeframeIndicatorEngine:
                     # Update indicators for aggregated timeframe
                     self._update_indicators(higher_tf)
 
-    def _should_aggregate_to_timeframe(
-        self,
-        candle: Candle,
-        target_tf: TimeFrame
-    ) -> bool:
+    def _should_aggregate_to_timeframe(self, candle: Candle, target_tf: TimeFrame) -> bool:
         """
         Check if candle should trigger aggregation to target timeframe.
 
@@ -430,19 +402,14 @@ class MultiTimeframeIndicatorEngine:
         target_ms = Candle.get_timeframe_milliseconds(target_tf)
 
         # Calculate what the next candle's timestamp would be
-        next_candle_ts = Candle.calculate_next_candle_time(
-            candle.timestamp,
-            candle.timeframe
-        )
+        next_candle_ts = Candle.calculate_next_candle_time(candle.timestamp, candle.timeframe)
 
         # Check if next candle starts a new target timeframe period
         # This happens when next_candle_ts is aligned to target boundary
         return (next_candle_ts % target_ms) == 0
 
     def _create_aggregated_candle(
-        self,
-        base_candle: Candle,
-        target_tf: TimeFrame
+        self, base_candle: Candle, target_tf: TimeFrame
     ) -> Optional[Candle]:
         """
         Create aggregated candle for higher timeframe.
@@ -474,10 +441,7 @@ class MultiTimeframeIndicatorEngine:
             return None
 
         # Calculate aggregated OHLCV
-        normalized_timestamp = Candle.normalize_timestamp(
-            base_candle.timestamp,
-            target_tf
-        )
+        normalized_timestamp = Candle.normalize_timestamp(base_candle.timestamp, target_tf)
 
         aggregated = Candle(
             symbol=base_candle.symbol,
@@ -488,7 +452,7 @@ class MultiTimeframeIndicatorEngine:
             low=min(c.low for c in recent_candles),
             close=recent_candles[-1].close,
             volume=sum(c.volume for c in recent_candles),
-            is_closed=True
+            is_closed=True,
         )
 
         return aggregated
@@ -505,8 +469,7 @@ class MultiTimeframeIndicatorEngine:
         # Need sufficient candles for analysis
         if len(tf_data.candles) < 10:
             logger.debug(
-                f"Insufficient candles for {timeframe.value} indicators: "
-                f"{len(tf_data.candles)}"
+                f"Insufficient candles for {timeframe.value} indicators: " f"{len(tf_data.candles)}"
             )
             return
 
@@ -538,10 +501,10 @@ class MultiTimeframeIndicatorEngine:
                     EventType.ORDER_BLOCK_DETECTED,
                     timeframe,
                     {
-                        'count': len(newly_detected_obs),
-                        'order_blocks': [ob.to_dict() for ob in newly_detected_obs]
+                        "count": len(newly_detected_obs),
+                        "order_blocks": [ob.to_dict() for ob in newly_detected_obs],
                     },
-                    priority=7
+                    priority=7,
                 )
 
             # Detect Fair Value Gaps
@@ -549,8 +512,7 @@ class MultiTimeframeIndicatorEngine:
 
             # Update existing FVGs
             self.fvg_detector.update_fvg_states(
-                tf_data.indicators.fair_value_gaps,
-                tf_data.candles[-10:]  # Check last 10 candles
+                tf_data.indicators.fair_value_gaps, tf_data.candles[-10:]  # Check last 10 candles
             )
 
             # Add new FVGs
@@ -570,17 +532,17 @@ class MultiTimeframeIndicatorEngine:
                     EventType.FVG_DETECTED,
                     timeframe,
                     {
-                        'count': len(newly_detected_fvgs),
-                        'fair_value_gaps': [fvg.to_dict() for fvg in newly_detected_fvgs]
+                        "count": len(newly_detected_fvgs),
+                        "fair_value_gaps": [fvg.to_dict() for fvg in newly_detected_fvgs],
                     },
-                    priority=7
+                    priority=7,
                 )
 
             # Detect Breaker Blocks
             new_bbs = self.bb_detector.detect_breaker_blocks(
                 tf_data.indicators.order_blocks,
                 tf_data.candles,
-                start_index=max(0, len(tf_data.candles) - 100)
+                start_index=max(0, len(tf_data.candles) - 100),
             )
 
             # Add new BBs
@@ -600,15 +562,15 @@ class MultiTimeframeIndicatorEngine:
                     EventType.BREAKER_BLOCK_DETECTED,
                     timeframe,
                     {
-                        'count': len(newly_detected_bbs),
-                        'breaker_blocks': [bb.to_dict() for bb in newly_detected_bbs]
+                        "count": len(newly_detected_bbs),
+                        "breaker_blocks": [bb.to_dict() for bb in newly_detected_bbs],
                     },
-                    priority=7
+                    priority=7,
                 )
 
             # Detect Liquidity Zones (levels)
-            buy_side_levels, sell_side_levels = self.liquidity_zone_detector.detect_liquidity_levels(
-                tf_data.candles
+            buy_side_levels, sell_side_levels = (
+                self.liquidity_zone_detector.detect_liquidity_levels(tf_data.candles)
             )
 
             # Combine buy and sell side levels for storage
@@ -624,9 +586,7 @@ class MultiTimeframeIndicatorEngine:
                 start_index = max(0, len(tf_data.candles) - 50)
 
                 detected_sweeps = self.liquidity_sweep_detector.detect_sweeps(
-                    tf_data.candles,
-                    all_liquidity_levels,
-                    start_index=start_index
+                    tf_data.candles, all_liquidity_levels, start_index=start_index
                 )
 
                 # Add new sweeps that weren't detected before
@@ -635,17 +595,20 @@ class MultiTimeframeIndicatorEngine:
                         s.sweep_timestamp for s in tf_data.indicators.liquidity_sweeps
                     }
                     new_sweeps = [
-                        sweep for sweep in detected_sweeps
+                        sweep
+                        for sweep in detected_sweeps
                         if sweep.sweep_timestamp not in existing_sweep_timestamps
                     ]
 
                     if new_sweeps:
                         tf_data.indicators.liquidity_sweeps.extend(new_sweeps)
-                        self._trigger_callbacks(IndicatorType.LIQUIDITY_SWEEP, timeframe, new_sweeps)
+                        self._trigger_callbacks(
+                            IndicatorType.LIQUIDITY_SWEEP, timeframe, new_sweeps
+                        )
 
             # Detect Trend Patterns (HH/HL/LH/LL)
-            trend_structures, trend_direction = self.trend_recognition_engine.analyze_trend_patterns(
-                tf_data.candles
+            trend_structures, trend_direction = (
+                self.trend_recognition_engine.analyze_trend_patterns(tf_data.candles)
             )
 
             # Update trend structures
@@ -653,9 +616,10 @@ class MultiTimeframeIndicatorEngine:
 
             # Calculate trend strength and update trend state
             if trend_structures:
-                strength_score, strength_level = self.trend_recognition_engine.calculate_trend_strength(
-                    trend_structures,
-                    trend_direction
+                strength_score, strength_level = (
+                    self.trend_recognition_engine.calculate_trend_strength(
+                        trend_structures, trend_direction
+                    )
                 )
 
                 latest_candle = tf_data.get_latest_candle()
@@ -676,32 +640,32 @@ class MultiTimeframeIndicatorEngine:
                             start_candle_index=len(tf_data.candles) - 1,
                             last_update_timestamp=latest_candle.timestamp,
                             pattern_count=len(trend_structures),
-                            is_confirmed=len(trend_structures) >= self.trend_recognition_engine.min_patterns_for_confirmation
+                            is_confirmed=len(trend_structures)
+                            >= self.trend_recognition_engine.min_patterns_for_confirmation,
                         )
                     else:
                         # Update existing trend state
                         tf_data.indicators.trend_state.strength = strength_score
                         tf_data.indicators.trend_state.strength_level = strength_level
-                        tf_data.indicators.trend_state.last_update_timestamp = latest_candle.timestamp
+                        tf_data.indicators.trend_state.last_update_timestamp = (
+                            latest_candle.timestamp
+                        )
                         tf_data.indicators.trend_state.pattern_count = len(trend_structures)
                         tf_data.indicators.trend_state.is_confirmed = (
-                            len(trend_structures) >= self.trend_recognition_engine.min_patterns_for_confirmation
+                            len(trend_structures)
+                            >= self.trend_recognition_engine.min_patterns_for_confirmation
                         )
 
                     # Detect trend change (will publish event if changed)
                     if previous_trend:
                         self.trend_recognition_engine.detect_trend_change(
-                            previous_trend,
-                            tf_data.indicators.trend_state,
-                            trend_structures
+                            previous_trend, tf_data.indicators.trend_state, trend_structures
                         )
 
             # Calculate Liquidity Strength for all detected levels
             if all_liquidity_levels:
                 strength_metrics = self.liquidity_strength_calculator.calculate_all_strengths(
-                    all_liquidity_levels,
-                    tf_data.candles,
-                    tf_data.indicators.trend_state
+                    all_liquidity_levels, tf_data.candles, tf_data.indicators.trend_state
                 )
 
                 # Store strength metrics
@@ -709,17 +673,21 @@ class MultiTimeframeIndicatorEngine:
 
                 # Publish event for liquidity strength calculation
                 if strength_metrics:
-                    avg_strength = sum(m.overall_strength for m in strength_metrics) / len(strength_metrics)
+                    avg_strength = sum(m.overall_strength for m in strength_metrics) / len(
+                        strength_metrics
+                    )
                     self._publish_event_sync(
                         EventType.LIQUIDITY_STRENGTH_CALCULATED,
                         timeframe,
                         {
-                            'total_levels': len(strength_metrics),
-                            'average_strength': round(avg_strength, 2),
-                            'strong_levels': len([m for m in strength_metrics if m.overall_strength >= 7.0]),
-                            'metrics': [m.to_dict() for m in strength_metrics]
+                            "total_levels": len(strength_metrics),
+                            "average_strength": round(avg_strength, 2),
+                            "strong_levels": len(
+                                [m for m in strength_metrics if m.overall_strength >= 7.0]
+                            ),
+                            "metrics": [m.to_dict() for m in strength_metrics],
                         },
-                        priority=7
+                        priority=7,
                     )
 
                 logger.debug(
@@ -734,11 +702,14 @@ class MultiTimeframeIndicatorEngine:
 
             # Get recent BMS events (last 10)
             recent_bms = []
-            if hasattr(self, 'bms_detector'):
+            if hasattr(self, "bms_detector"):
                 # Import at runtime to avoid circular dependency
                 from src.indicators.market_structure_break import MarketStructureBreakDetector
-                if not hasattr(self, '_bms_detector_instance'):
-                    self._bms_detector_instance = MarketStructureBreakDetector(event_bus=self.event_bus)
+
+                if not hasattr(self, "_bms_detector_instance"):
+                    self._bms_detector_instance = MarketStructureBreakDetector(
+                        event_bus=self.event_bus
+                    )
 
                 # Detect BMS using swing points
                 swing_highs = self.liquidity_zone_detector.detect_swing_highs(tf_data.candles)
@@ -748,7 +719,7 @@ class MultiTimeframeIndicatorEngine:
                     tf_data.candles,
                     swing_highs,
                     swing_lows,
-                    start_index=max(0, len(tf_data.candles) - 50)
+                    start_index=max(0, len(tf_data.candles) - 50),
                 )
 
             # Update market state
@@ -757,7 +728,7 @@ class MultiTimeframeIndicatorEngine:
                 trend_state=tf_data.indicators.trend_state,
                 bms_list=recent_bms,
                 buy_side_levels=buy_side_levels,
-                sell_side_levels=sell_side_levels
+                sell_side_levels=sell_side_levels,
             )
 
             # Store updated market state if it changed
@@ -781,9 +752,7 @@ class MultiTimeframeIndicatorEngine:
 
                 # Expire Order Blocks
                 tf_data.indicators.order_blocks = self.expiration_manager.expire_order_blocks(
-                    tf_data.indicators.order_blocks,
-                    latest,
-                    candle_count
+                    tf_data.indicators.order_blocks, latest, candle_count
                 )
                 expired_ob_count = original_ob_count - len(tf_data.indicators.order_blocks)
                 if expired_ob_count > 0:
@@ -791,18 +760,16 @@ class MultiTimeframeIndicatorEngine:
                         EventType.INDICATOR_EXPIRED,
                         timeframe,
                         {
-                            'indicator_type': 'order_block',
-                            'expired_count': expired_ob_count,
-                            'remaining_count': len(tf_data.indicators.order_blocks)
+                            "indicator_type": "order_block",
+                            "expired_count": expired_ob_count,
+                            "remaining_count": len(tf_data.indicators.order_blocks),
                         },
-                        priority=6
+                        priority=6,
                     )
 
                 # Expire Fair Value Gaps
                 tf_data.indicators.fair_value_gaps = self.expiration_manager.expire_fair_value_gaps(
-                    tf_data.indicators.fair_value_gaps,
-                    latest,
-                    candle_count
+                    tf_data.indicators.fair_value_gaps, latest, candle_count
                 )
                 expired_fvg_count = original_fvg_count - len(tf_data.indicators.fair_value_gaps)
                 if expired_fvg_count > 0:
@@ -810,18 +777,16 @@ class MultiTimeframeIndicatorEngine:
                         EventType.INDICATOR_EXPIRED,
                         timeframe,
                         {
-                            'indicator_type': 'fair_value_gap',
-                            'expired_count': expired_fvg_count,
-                            'remaining_count': len(tf_data.indicators.fair_value_gaps)
+                            "indicator_type": "fair_value_gap",
+                            "expired_count": expired_fvg_count,
+                            "remaining_count": len(tf_data.indicators.fair_value_gaps),
                         },
-                        priority=6
+                        priority=6,
                     )
 
                 # Expire Breaker Blocks
                 tf_data.indicators.breaker_blocks = self.expiration_manager.expire_breaker_blocks(
-                    tf_data.indicators.breaker_blocks,
-                    latest,
-                    candle_count
+                    tf_data.indicators.breaker_blocks, latest, candle_count
                 )
                 expired_bb_count = original_bb_count - len(tf_data.indicators.breaker_blocks)
                 if expired_bb_count > 0:
@@ -829,11 +794,11 @@ class MultiTimeframeIndicatorEngine:
                         EventType.INDICATOR_EXPIRED,
                         timeframe,
                         {
-                            'indicator_type': 'breaker_block',
-                            'expired_count': expired_bb_count,
-                            'remaining_count': len(tf_data.indicators.breaker_blocks)
+                            "indicator_type": "breaker_block",
+                            "expired_count": expired_bb_count,
+                            "remaining_count": len(tf_data.indicators.breaker_blocks),
                         },
-                        priority=6
+                        priority=6,
                     )
 
                 # Update timestamp
@@ -845,29 +810,47 @@ class MultiTimeframeIndicatorEngine:
                     EventType.INDICATORS_UPDATED,
                     timeframe,
                     {
-                        'symbol': tf_data.candles[0].symbol if tf_data.candles else "UNKNOWN",
-                        'order_blocks_count': len(tf_data.indicators.order_blocks),
-                        'fair_value_gaps_count': len(tf_data.indicators.fair_value_gaps),
-                        'breaker_blocks_count': len(tf_data.indicators.breaker_blocks),
-                        'liquidity_levels_count': len(tf_data.indicators.liquidity_levels),
-                        'liquidity_sweeps_count': len(tf_data.indicators.liquidity_sweeps),
-                        'trend_structures_count': len(tf_data.indicators.trend_structures),
-                        'trend_direction': tf_data.indicators.trend_state.direction.value if tf_data.indicators.trend_state else None,
-                        'trend_strength': tf_data.indicators.trend_state.strength if tf_data.indicators.trend_state else None,
-                        'liquidity_strength_count': len(tf_data.indicators.liquidity_strength_metrics),
-                        'market_state': tf_data.indicators.market_state.state.value if tf_data.indicators.market_state else None,
-                        'market_state_confidence': tf_data.indicators.market_state.confidence if tf_data.indicators.market_state else None,
-                        'total_indicators': (
-                            len(tf_data.indicators.order_blocks) +
-                            len(tf_data.indicators.fair_value_gaps) +
-                            len(tf_data.indicators.breaker_blocks) +
-                            len(tf_data.indicators.liquidity_levels) +
-                            len(tf_data.indicators.liquidity_sweeps) +
-                            len(tf_data.indicators.trend_structures)
+                        "symbol": tf_data.candles[0].symbol if tf_data.candles else "UNKNOWN",
+                        "order_blocks_count": len(tf_data.indicators.order_blocks),
+                        "fair_value_gaps_count": len(tf_data.indicators.fair_value_gaps),
+                        "breaker_blocks_count": len(tf_data.indicators.breaker_blocks),
+                        "liquidity_levels_count": len(tf_data.indicators.liquidity_levels),
+                        "liquidity_sweeps_count": len(tf_data.indicators.liquidity_sweeps),
+                        "trend_structures_count": len(tf_data.indicators.trend_structures),
+                        "trend_direction": (
+                            tf_data.indicators.trend_state.direction.value
+                            if tf_data.indicators.trend_state
+                            else None
                         ),
-                        'timestamp': latest.timestamp
+                        "trend_strength": (
+                            tf_data.indicators.trend_state.strength
+                            if tf_data.indicators.trend_state
+                            else None
+                        ),
+                        "liquidity_strength_count": len(
+                            tf_data.indicators.liquidity_strength_metrics
+                        ),
+                        "market_state": (
+                            tf_data.indicators.market_state.state.value
+                            if tf_data.indicators.market_state
+                            else None
+                        ),
+                        "market_state_confidence": (
+                            tf_data.indicators.market_state.confidence
+                            if tf_data.indicators.market_state
+                            else None
+                        ),
+                        "total_indicators": (
+                            len(tf_data.indicators.order_blocks)
+                            + len(tf_data.indicators.fair_value_gaps)
+                            + len(tf_data.indicators.breaker_blocks)
+                            + len(tf_data.indicators.liquidity_levels)
+                            + len(tf_data.indicators.liquidity_sweeps)
+                            + len(tf_data.indicators.trend_structures)
+                        ),
+                        "timestamp": latest.timestamp,
                     },
-                    priority=5
+                    priority=5,
                 )
 
             logger.info(
@@ -884,17 +867,10 @@ class MultiTimeframeIndicatorEngine:
             )
 
         except Exception as e:
-            logger.error(
-                f"Error updating indicators for {timeframe.value}: {e}",
-                exc_info=True
-            )
+            logger.error(f"Error updating indicators for {timeframe.value}: {e}", exc_info=True)
 
     def _publish_event_sync(
-        self,
-        event_type: EventType,
-        timeframe: TimeFrame,
-        data: Dict[str, Any],
-        priority: int = 5
+        self, event_type: EventType, timeframe: TimeFrame, data: Dict[str, Any], priority: int = 5
     ) -> None:
         """
         Publish an event to the event bus if available (synchronous wrapper).
@@ -913,11 +889,8 @@ class MultiTimeframeIndicatorEngine:
                 event = Event(
                     priority=priority,
                     event_type=event_type,
-                    data={
-                        'timeframe': timeframe.value,
-                        **data
-                    },
-                    source='MultiTimeframeIndicatorEngine'
+                    data={"timeframe": timeframe.value, **data},
+                    source="MultiTimeframeIndicatorEngine",
                 )
 
                 # Try to get the running event loop
@@ -925,24 +898,16 @@ class MultiTimeframeIndicatorEngine:
                     asyncio.get_running_loop()
                     # Schedule event publishing in the loop
                     asyncio.create_task(self.event_bus.publish(event))
-                    logger.debug(
-                        f"Scheduled {event_type.value} event for {timeframe.value}"
-                    )
+                    logger.debug(f"Scheduled {event_type.value} event for {timeframe.value}")
                 except RuntimeError:
                     # No event loop running, log instead
                     logger.warning(
                         f"No event loop running, cannot publish {event_type.value} event"
                     )
             except Exception as e:
-                logger.error(
-                    f"Error publishing {event_type.value} event: {e}",
-                    exc_info=True
-                )
+                logger.error(f"Error publishing {event_type.value} event: {e}", exc_info=True)
 
-    def get_indicators(
-        self,
-        timeframe: TimeFrame
-    ) -> Optional[TimeframeIndicators]:
+    def get_indicators(self, timeframe: TimeFrame) -> Optional[TimeframeIndicators]:
         """
         Get all indicators for a specific timeframe.
 
@@ -956,10 +921,7 @@ class MultiTimeframeIndicatorEngine:
             tf_data = self.timeframe_data.get(timeframe)
             return tf_data.indicators if tf_data else None
 
-    def get_active_indicators(
-        self,
-        timeframe: TimeFrame
-    ) -> Dict[str, List[Any]]:
+    def get_active_indicators(self, timeframe: TimeFrame) -> Dict[str, List[Any]]:
         """
         Get only active indicators for a timeframe.
 
@@ -974,16 +936,13 @@ class MultiTimeframeIndicatorEngine:
             return {}
 
         return {
-            'order_blocks': indicators.get_active_order_blocks(),
-            'fair_value_gaps': indicators.get_active_fvgs(),
-            'breaker_blocks': indicators.get_active_breaker_blocks()
+            "order_blocks": indicators.get_active_order_blocks(),
+            "fair_value_gaps": indicators.get_active_fvgs(),
+            "breaker_blocks": indicators.get_active_breaker_blocks(),
         }
 
     def get_cross_timeframe_confirmations(
-        self,
-        indicator_type: IndicatorType,
-        price: float,
-        tolerance_percent: float = 0.5
+        self, indicator_type: IndicatorType, price: float, tolerance_percent: float = 0.5
     ) -> Dict[TimeFrame, List[Any]]:
         """
         Find indicators across multiple timeframes near a specific price.
@@ -1009,20 +968,17 @@ class MultiTimeframeIndicatorEngine:
                 if indicator_type == IndicatorType.ORDER_BLOCK:
                     indicators = tf_data.indicators.get_active_order_blocks()
                     matches = [
-                        ob for ob in indicators
-                        if abs(ob.get_midpoint() - price) <= tolerance
+                        ob for ob in indicators if abs(ob.get_midpoint() - price) <= tolerance
                     ]
                 elif indicator_type == IndicatorType.FAIR_VALUE_GAP:
                     indicators = tf_data.indicators.get_active_fvgs()
                     matches = [
-                        fvg for fvg in indicators
-                        if abs(fvg.get_midpoint() - price) <= tolerance
+                        fvg for fvg in indicators if abs(fvg.get_midpoint() - price) <= tolerance
                     ]
                 elif indicator_type == IndicatorType.BREAKER_BLOCK:
                     indicators = tf_data.indicators.get_active_breaker_blocks()
                     matches = [
-                        bb for bb in indicators
-                        if abs(bb.get_midpoint() - price) <= tolerance
+                        bb for bb in indicators if abs(bb.get_midpoint() - price) <= tolerance
                     ]
 
                 if matches:
@@ -1064,51 +1020,47 @@ class MultiTimeframeIndicatorEngine:
             for tf, tf_data in self.timeframe_data.items():
                 indicators = tf_data.indicators
                 stats[tf.value] = {
-                    'candle_count': len(tf_data.candles),
-                    'order_blocks': {
-                        'total': len(indicators.order_blocks),
-                        'active': len(indicators.get_active_order_blocks()),
-                        'bullish': sum(
-                            1 for ob in indicators.order_blocks
-                            if ob.type == OrderBlockType.BULLISH
+                    "candle_count": len(tf_data.candles),
+                    "order_blocks": {
+                        "total": len(indicators.order_blocks),
+                        "active": len(indicators.get_active_order_blocks()),
+                        "bullish": sum(
+                            1 for ob in indicators.order_blocks if ob.type == OrderBlockType.BULLISH
                         ),
-                        'bearish': sum(
-                            1 for ob in indicators.order_blocks
-                            if ob.type == OrderBlockType.BEARISH
+                        "bearish": sum(
+                            1 for ob in indicators.order_blocks if ob.type == OrderBlockType.BEARISH
                         ),
                     },
-                    'fair_value_gaps': {
-                        'total': len(indicators.fair_value_gaps),
-                        'active': len(indicators.get_active_fvgs()),
-                        'bullish': sum(
-                            1 for fvg in indicators.fair_value_gaps
-                            if fvg.type == FVGType.BULLISH
+                    "fair_value_gaps": {
+                        "total": len(indicators.fair_value_gaps),
+                        "active": len(indicators.get_active_fvgs()),
+                        "bullish": sum(
+                            1 for fvg in indicators.fair_value_gaps if fvg.type == FVGType.BULLISH
                         ),
-                        'bearish': sum(
-                            1 for fvg in indicators.fair_value_gaps
-                            if fvg.type == FVGType.BEARISH
+                        "bearish": sum(
+                            1 for fvg in indicators.fair_value_gaps if fvg.type == FVGType.BEARISH
                         ),
                     },
-                    'breaker_blocks': {
-                        'total': len(indicators.breaker_blocks),
-                        'active': len(indicators.get_active_breaker_blocks()),
+                    "breaker_blocks": {
+                        "total": len(indicators.breaker_blocks),
+                        "active": len(indicators.get_active_breaker_blocks()),
                     },
-                    'last_update': (
-                        datetime.fromtimestamp(
-                            indicators.last_update_timestamp / 1000
-                        ).isoformat()
-                        if indicators.last_update_timestamp else None
-                    )
+                    "last_update": (
+                        datetime.fromtimestamp(indicators.last_update_timestamp / 1000).isoformat()
+                        if indicators.last_update_timestamp
+                        else None
+                    ),
                 }
 
             # Add expiration statistics
-            stats['expiration'] = self.expiration_manager.get_statistics()
+            stats["expiration"] = self.expiration_manager.get_statistics()
 
         return stats
 
 
 class MarketStructure(str, Enum):
     """Overall market structure classification."""
+
     STRONG_BULLISH = "STRONG_BULLISH"
     BULLISH = "BULLISH"
     RANGING = "RANGING"
@@ -1118,15 +1070,17 @@ class MarketStructure(str, Enum):
 
 class ConsistencyLevel(str, Enum):
     """Level of consistency across multiple timeframes."""
-    PERFECT = "PERFECT"        # All 3 timeframes perfectly aligned
-    HIGH = "HIGH"              # 2 of 3 timeframes aligned
-    MODERATE = "MODERATE"      # Partial alignment with minor conflicts
-    LOW = "LOW"                # Significant conflicts
-    CONFLICT = "CONFLICT"      # Direct contradictions
+
+    PERFECT = "PERFECT"  # All 3 timeframes perfectly aligned
+    HIGH = "HIGH"  # 2 of 3 timeframes aligned
+    MODERATE = "MODERATE"  # Partial alignment with minor conflicts
+    LOW = "LOW"  # Significant conflicts
+    CONFLICT = "CONFLICT"  # Direct contradictions
 
 
 class StructureBias(str, Enum):
     """Overall market bias considering all timeframes."""
+
     STRONGLY_BULLISH = "STRONGLY_BULLISH"
     BULLISH = "BULLISH"
     NEUTRAL = "NEUTRAL"
@@ -1138,84 +1092,85 @@ class StructureBias(str, Enum):
 class TimeframeMarketStructure:
     """
     Complete market structure analysis for a single timeframe.
-    
+
     Integrates all ICT pattern analysis (liquidity, sweeps, BMS, trend)
     to provide comprehensive market state view.
-    
+
     Attributes:
         timeframe: The timeframe this analysis belongs to
         timestamp: Analysis timestamp (milliseconds)
-        
+
         # Trend Analysis
         trend_state: Current trend state (direction, strength)
         trend_structures: HH/HL/LH/LL patterns
-        
+
         # Liquidity Analysis
         buy_side_levels: Buy-side liquidity levels (above price)
         sell_side_levels: Sell-side liquidity levels (below price)
         recent_sweeps: Recent liquidity sweep patterns
-        
+
         # Structure Analysis
         recent_bms: Recent Break of Market Structure events
         swing_highs: Detected swing high points
         swing_lows: Detected swing low points
-        
+
         # Overall Assessment
         market_structure: Overall structure classification
         structure_strength: Strength of current structure (0-10)
         dominant_liquidity_side: Which side has more liquidity ("BUY" or "SELL")
     """
+
     timeframe: TimeFrame
     timestamp: int
-    
+
     # Trend
     trend_state: Optional[TrendState] = None
     trend_structures: List[TrendStructure] = field(default_factory=list)
-    
+
     # Liquidity
     buy_side_levels: List[LiquidityLevel] = field(default_factory=list)
     sell_side_levels: List[LiquidityLevel] = field(default_factory=list)
     recent_sweeps: List[LiquiditySweep] = field(default_factory=list)
-    
+
     # Structure
-    recent_bms: List['BreakOfMarketStructure'] = field(default_factory=list)
-    swing_highs: List['SwingPoint'] = field(default_factory=list)
-    swing_lows: List['SwingPoint'] = field(default_factory=list)
-    
+    recent_bms: List["BreakOfMarketStructure"] = field(default_factory=list)
+    swing_highs: List["SwingPoint"] = field(default_factory=list)
+    swing_lows: List["SwingPoint"] = field(default_factory=list)
+
     # Assessment
     market_structure: MarketStructure = MarketStructure.RANGING
     structure_strength: float = 0.0
     dominant_liquidity_side: str = "NEUTRAL"
-    
+
     def get_liquidity_balance(self) -> float:
         """
         Calculate liquidity balance between buy and sell sides.
-        
+
         Returns:
             Balance score: > 0 means buy-side dominant, < 0 means sell-side dominant
         """
         buy_count = len(self.buy_side_levels)
         sell_count = len(self.sell_side_levels)
-        
+
         if buy_count + sell_count == 0:
             return 0.0
-        
+
         return (buy_count - sell_count) / (buy_count + sell_count)
-    
+
     def has_recent_sweep(self, side: str, within_candles: int = 10) -> bool:
         """
         Check if there was a recent liquidity sweep.
-        
+
         Args:
             side: "BUY" or "SELL"
             within_candles: Look back this many candles
-            
+
         Returns:
             True if recent sweep detected
         """
         if not self.recent_sweeps:
             return False
-        
+
         # Check sweeps on specified side
         for sweep in self.recent_sweeps[-within_candles:]:
             if side == "BUY" and sweep.liquidity_level.side == "SELL":
@@ -1224,7 +1179,7 @@ class TimeframeMarketStructure:
             elif side == "SELL" and sweep.liquidity_level.side == "BUY":
                 # Sell-side sweep takes buy-side liquidity
                 return True
-        
+
         return False
 
 
@@ -1232,58 +1187,59 @@ class TimeframeMarketStructure:
 class MultiTimeframeMarketStructure:
     """
     Integrated market structure analysis across multiple timeframes.
-    
+
     Provides unified view of market state by analyzing and reconciling
     structure across H1, M15, and M1 timeframes with intelligent
     conflict resolution.
-    
+
     Attributes:
         symbol: Trading pair symbol
         timestamp: Analysis timestamp (milliseconds)
-        
+
         # Timeframe Analysis
         h1_structure: 1-hour timeframe analysis
         m15_structure: 15-minute timeframe analysis
         m1_structure: 1-minute timeframe analysis
-        
+
         # Integration Results
         consistency_level: How well timeframes align
         overall_bias: Integrated directional bias
         bias_strength: Strength of overall bias (0-10)
         primary_timeframe: Which timeframe dominates (usually H1)
-        
+
         # Conflict Management
         conflicts: List of detected conflicts between timeframes
         recommendations: Trading recommendations based on analysis
     """
+
     symbol: str
     timestamp: int
-    
+
     # Timeframe Structures
     h1_structure: Optional[TimeframeMarketStructure] = None
     m15_structure: Optional[TimeframeMarketStructure] = None
     m1_structure: Optional[TimeframeMarketStructure] = None
-    
+
     # Integration
     consistency_level: ConsistencyLevel = ConsistencyLevel.MODERATE
     overall_bias: StructureBias = StructureBias.NEUTRAL
     bias_strength: float = 0.0
     primary_timeframe: TimeFrame = TimeFrame.H1
-    
+
     # Guidance
     conflicts: List[str] = field(default_factory=list)
     recommendations: List[str] = field(default_factory=list)
-    
+
     def get_timeframe_alignment_score(self) -> float:
         """
         Calculate alignment score across timeframes.
-        
+
         Returns:
             Score 0-10 where 10 = perfect alignment
         """
         if not all([self.h1_structure, self.m15_structure, self.m1_structure]):
             return 0.0
-        
+
         # Compare trend directions
         directions = []
         if self.h1_structure and self.h1_structure.trend_state:
@@ -1292,15 +1248,16 @@ class MultiTimeframeMarketStructure:
             directions.append(self.m15_structure.trend_state.direction.value)
         if self.m1_structure and self.m1_structure.trend_state:
             directions.append(self.m1_structure.trend_state.direction.value)
-        
+
         if len(directions) < 2:
             return 5.0  # Neutral if insufficient data
-        
+
         # Count matching directions
         from collections import Counter
+
         direction_counts = Counter(directions)
         most_common_count = direction_counts.most_common(1)[0][1]
-        
+
         # Perfect alignment = 10, 2/3 = 7, none = 0
         if most_common_count == 3:
             return 10.0
@@ -1308,27 +1265,28 @@ class MultiTimeframeMarketStructure:
             return 7.0
         else:
             return 3.0
-    
+
     def is_strong_trend(self) -> bool:
         """Check if we're in a strong trending market."""
         return (
-            self.consistency_level in [ConsistencyLevel.PERFECT, ConsistencyLevel.HIGH] and
-            self.overall_bias in [StructureBias.STRONGLY_BULLISH, StructureBias.STRONGLY_BEARISH] and
-            self.bias_strength >= 7.0
+            self.consistency_level in [ConsistencyLevel.PERFECT, ConsistencyLevel.HIGH]
+            and self.overall_bias
+            in [StructureBias.STRONGLY_BULLISH, StructureBias.STRONGLY_BEARISH]
+            and self.bias_strength >= 7.0
         )
-    
+
     def is_ranging_market(self) -> bool:
         """Check if we're in a ranging market."""
         return (
-            self.overall_bias == StructureBias.NEUTRAL or
-            self.consistency_level == ConsistencyLevel.CONFLICT or
-            self.bias_strength < 4.0
+            self.overall_bias == StructureBias.NEUTRAL
+            or self.consistency_level == ConsistencyLevel.CONFLICT
+            or self.bias_strength < 4.0
         )
-    
+
     def get_entry_timeframe_recommendation(self) -> Optional[TimeFrame]:
         """
         Recommend which timeframe to use for entry timing.
-        
+
         Returns:
             Recommended timeframe for precise entries
         """
@@ -1346,11 +1304,11 @@ class MultiTimeframeMarketStructure:
 class MultiTimeframeMarketStructureAnalyzer:
     """
     Orchestrates market structure analysis across multiple timeframes.
-    
+
     Integrates liquidity zones, sweeps, BMS, and trend recognition
     to provide comprehensive multi-timeframe market view with
     intelligent conflict resolution.
-    
+
     Key Features:
     - Independent analysis per timeframe
     - Consistency verification across timeframes
@@ -1358,18 +1316,18 @@ class MultiTimeframeMarketStructureAnalyzer:
     - Conflict detection and resolution
     - Trading recommendations based on alignment
     """
-    
+
     def __init__(
         self,
         liquidity_zone_detector: Optional[LiquidityZoneDetector] = None,
         liquidity_sweep_detector: Optional[LiquiditySweepDetector] = None,
         trend_recognition_engine: Optional[TrendRecognitionEngine] = None,
-        bms_detector: Optional['MarketStructureBreakDetector'] = None,
+        bms_detector: Optional["MarketStructureBreakDetector"] = None,
         event_bus: Optional[EventBus] = None,
     ):
         """
         Initialize multi-timeframe market structure analyzer.
-        
+
         Args:
             liquidity_zone_detector: Detector for liquidity levels
             liquidity_sweep_detector: Detector for liquidity sweeps
@@ -1385,80 +1343,78 @@ class MultiTimeframeMarketStructureAnalyzer:
         self.trend_recognition_engine = trend_recognition_engine or TrendRecognitionEngine(
             event_bus=event_bus
         )
-        
+
         # BMS detector needs to be imported at runtime to avoid circular dependency
         if bms_detector is None:
             from src.indicators.market_structure_break import MarketStructureBreakDetector
+
             self.bms_detector = MarketStructureBreakDetector(event_bus=event_bus)
         else:
             self.bms_detector = bms_detector
-        
+
         self.event_bus = event_bus
-        
+
         logger.info("Initialized MultiTimeframeMarketStructureAnalyzer")
-    
+
     def analyze_timeframe(
-        self,
-        candles: List[Candle],
-        timeframe: TimeFrame
+        self, candles: List[Candle], timeframe: TimeFrame
     ) -> TimeframeMarketStructure:
         """
         Perform complete market structure analysis for a single timeframe.
-        
+
         Steps:
         1. Detect liquidity levels (buy-side and sell-side)
         2. Analyze trend patterns (HH/HL/LH/LL)
         3. Detect BMS (Break of Market Structure) events
         4. Detect liquidity sweeps
         5. Determine overall market structure and strength
-        
+
         Args:
             candles: Candle data for this timeframe
             timeframe: The timeframe being analyzed
-            
+
         Returns:
             Complete market structure analysis
         """
         if not candles or len(candles) < 10:
             logger.warning(f"Insufficient candles for {timeframe.value} analysis")
             return TimeframeMarketStructure(
-                timeframe=timeframe,
-                timestamp=candles[-1].timestamp if candles else 0
+                timeframe=timeframe, timestamp=candles[-1].timestamp if candles else 0
             )
-        
+
         latest_candle = candles[-1]
         timestamp = latest_candle.timestamp
-        
+
         # 1. Detect Liquidity Levels
         buy_side_levels, sell_side_levels = self.liquidity_zone_detector.detect_liquidity_levels(
             candles
         )
-        
+
         # Get swing points for structure analysis
         swing_highs = self.liquidity_zone_detector.detect_swing_highs(candles)
         swing_lows = self.liquidity_zone_detector.detect_swing_lows(candles)
-        
+
         logger.debug(
             f"{timeframe.value}: Detected {len(buy_side_levels)} buy-side and "
             f"{len(sell_side_levels)} sell-side liquidity levels"
         )
-        
+
         # 2. Analyze Trend Patterns
         trend_structures, trend_direction = self.trend_recognition_engine.analyze_trend_patterns(
             candles
         )
-        
+
         # Calculate trend strength
         strength_score = 0.0
         trend_state = None
-        
+
         if trend_structures:
             strength_score, strength_level = self.trend_recognition_engine.calculate_trend_strength(
-                trend_structures,
-                trend_direction
+                trend_structures, trend_direction
             )
-            
+
             from src.indicators.trend_recognition import TrendState
+
             trend_state = TrendState(
                 direction=trend_direction,
                 strength=strength_score,
@@ -1469,58 +1425,47 @@ class MultiTimeframeMarketStructureAnalyzer:
                 start_candle_index=len(candles) - 1,
                 last_update_timestamp=timestamp,
                 pattern_count=len(trend_structures),
-                is_confirmed=len(trend_structures) >= 2
+                is_confirmed=len(trend_structures) >= 2,
             )
-        
+
         logger.debug(
             f"{timeframe.value}: Trend={trend_direction.value if trend_state else 'N/A'}, "
             f"Strength={strength_score:.1f}, Patterns={len(trend_structures)}"
         )
-        
+
         # 3. Detect Break of Market Structure (BMS)
         recent_bms = self.bms_detector.detect_bms(
-            candles,
-            swing_highs,
-            swing_lows,
-            start_index=max(0, len(candles) - 50)
+            candles, swing_highs, swing_lows, start_index=max(0, len(candles) - 50)
         )
-        
+
         logger.debug(f"{timeframe.value}: Detected {len(recent_bms)} BMS events")
-        
+
         # 4. Detect Liquidity Sweeps
         all_liquidity_levels = buy_side_levels + sell_side_levels
         recent_sweeps = []
-        
+
         if all_liquidity_levels:
             recent_sweeps = self.liquidity_sweep_detector.detect_sweeps(
-                candles,
-                all_liquidity_levels,
-                start_index=max(0, len(candles) - 50)
+                candles, all_liquidity_levels, start_index=max(0, len(candles) - 50)
             )
-        
+
         logger.debug(f"{timeframe.value}: Detected {len(recent_sweeps)} liquidity sweeps")
-        
+
         # 5. Determine Overall Market Structure
         market_structure, structure_strength = self._determine_market_structure(
-            trend_state,
-            trend_direction,
-            strength_score,
-            recent_bms,
-            recent_sweeps
+            trend_state, trend_direction, strength_score, recent_bms, recent_sweeps
         )
-        
+
         # Determine dominant liquidity side
         dominant_side = self._determine_dominant_liquidity(
-            buy_side_levels,
-            sell_side_levels,
-            recent_sweeps
+            buy_side_levels, sell_side_levels, recent_sweeps
         )
-        
+
         logger.info(
             f"{timeframe.value} Analysis: Structure={market_structure.value}, "
             f"Strength={structure_strength:.1f}, Liquidity={dominant_side}"
         )
-        
+
         return TimeframeMarketStructure(
             timeframe=timeframe,
             timestamp=timestamp,
@@ -1534,32 +1479,32 @@ class MultiTimeframeMarketStructureAnalyzer:
             swing_lows=swing_lows,
             market_structure=market_structure,
             structure_strength=structure_strength,
-            dominant_liquidity_side=dominant_side
+            dominant_liquidity_side=dominant_side,
         )
-    
+
     def _determine_market_structure(
         self,
         trend_state: Optional[TrendState],
-        trend_direction: 'TrendDirection',
+        trend_direction: "TrendDirection",
         strength_score: float,
-        recent_bms: List['BreakOfMarketStructure'],
-        recent_sweeps: List[LiquiditySweep]
+        recent_bms: List["BreakOfMarketStructure"],
+        recent_sweeps: List[LiquiditySweep],
     ) -> tuple[MarketStructure, float]:
         """
         Determine overall market structure classification.
-        
+
         Args:
             trend_state: Current trend state
             trend_direction: Trend direction
             strength_score: Trend strength score
             recent_bms: Recent BMS events
             recent_sweeps: Recent liquidity sweeps
-            
+
         Returns:
             (market_structure, structure_strength)
         """
         from src.indicators.trend_recognition import TrendDirection
-        
+
         # Base structure on trend
         if not trend_state or trend_direction == TrendDirection.RANGING:
             return MarketStructure.RANGING, strength_score
@@ -1570,80 +1515,75 @@ class MultiTimeframeMarketStructureAnalyzer:
                 return MarketStructure.STRONG_BULLISH, strength_score
             else:
                 return MarketStructure.STRONG_BEARISH, strength_score
-        
+
         # Moderate trending
         elif strength_score >= 5.0:
             if trend_direction == TrendDirection.UPTREND:
                 return MarketStructure.BULLISH, strength_score
             else:
                 return MarketStructure.BEARISH, strength_score
-        
+
         # Weak trend = ranging
         else:
             return MarketStructure.RANGING, strength_score
-    
+
     def _determine_dominant_liquidity(
         self,
         buy_side_levels: List[LiquidityLevel],
         sell_side_levels: List[LiquidityLevel],
-        recent_sweeps: List[LiquiditySweep]
+        recent_sweeps: List[LiquiditySweep],
     ) -> str:
         """
         Determine which side has dominant liquidity.
-        
+
         Args:
             buy_side_levels: Buy-side liquidity levels
             sell_side_levels: Sell-side liquidity levels
             recent_sweeps: Recent sweep activity
-            
+
         Returns:
             "BUY", "SELL", or "NEUTRAL"
         """
         buy_count = len(buy_side_levels)
         sell_count = len(sell_side_levels)
-        
+
         # Factor in recent sweep activity
         recent_buy_sweeps = sum(
-            1 for sweep in recent_sweeps[-5:]
-            if sweep.liquidity_level.side == "BUY"
+            1 for sweep in recent_sweeps[-5:] if sweep.liquidity_level.side == "BUY"
         )
         recent_sell_sweeps = sum(
-            1 for sweep in recent_sweeps[-5:]
-            if sweep.liquidity_level.side == "SELL"
+            1 for sweep in recent_sweeps[-5:] if sweep.liquidity_level.side == "SELL"
         )
-        
+
         # Adjust counts based on sweep activity
         # Swept liquidity reduces that side's dominance
         effective_buy = max(0, buy_count - recent_buy_sweeps)
         effective_sell = max(0, sell_count - recent_sell_sweeps)
-        
+
         if effective_buy > effective_sell * 1.2:
             return "BUY"
         elif effective_sell > effective_buy * 1.2:
             return "SELL"
         else:
             return "NEUTRAL"
-    
+
     def analyze_multi_timeframe(
-        self,
-        h1_candles: List[Candle],
-        m15_candles: List[Candle],
-        m1_candles: List[Candle]
+        self, h1_candles: List[Candle], m15_candles: List[Candle], m1_candles: List[Candle]
     ) -> MultiTimeframeMarketStructure:
         """
         Integrate market structure analysis across all timeframes.
-        
+
         Performs the following:
         1. Analyze each timeframe independently
         2. Verify consistency across timeframes
         3. Resolve conflicts using higher timeframe priority
         4. Generate trading recommendations
-        
+
         Args:
             h1_candles: 1-hour candles
             m15_candles: 15-minute candles
             m1_candles: 1-minute candles
-            
+
         Returns:
             Integrated multi-timeframe market structure
         """
@@ -1651,42 +1591,32 @@ class MultiTimeframeMarketStructureAnalyzer:
             logger.warning("Insufficient candle data for multi-timeframe analysis")
             return MultiTimeframeMarketStructure(
                 symbol=h1_candles[0].symbol if h1_candles else "UNKNOWN",
-                timestamp=h1_candles[-1].timestamp if h1_candles else 0
+                timestamp=h1_candles[-1].timestamp if h1_candles else 0,
             )
-        
+
         symbol = h1_candles[0].symbol
         timestamp = h1_candles[-1].timestamp
-        
+
         logger.info(f"Starting multi-timeframe analysis for {symbol}")
-        
+
         # 1. Analyze each timeframe independently
         h1_structure = self.analyze_timeframe(h1_candles, TimeFrame.H1)
         m15_structure = self.analyze_timeframe(m15_candles, TimeFrame.M15)
         m1_structure = self.analyze_timeframe(m1_candles, TimeFrame.M1)
-        
+
         # 2. Verify consistency
-        consistency_level = self._verify_consistency(
-            h1_structure,
-            m15_structure,
-            m1_structure
-        )
-        
+        consistency_level = self._verify_consistency(h1_structure, m15_structure, m1_structure)
+
         # 3. Resolve conflicts and determine overall bias
         overall_bias, bias_strength, primary_tf, conflicts = self._resolve_conflicts(
-            h1_structure,
-            m15_structure,
-            m1_structure
+            h1_structure, m15_structure, m1_structure
         )
-        
+
         # 4. Generate recommendations
         recommendations = self._generate_recommendations(
-            h1_structure,
-            m15_structure,
-            m1_structure,
-            overall_bias,
-            consistency_level
+            h1_structure, m15_structure, m1_structure, overall_bias, consistency_level
         )
-        
+
         result = MultiTimeframeMarketStructure(
             symbol=symbol,
             timestamp=timestamp,
@@ -1698,9 +1628,9 @@ class MultiTimeframeMarketStructureAnalyzer:
             bias_strength=bias_strength,
             primary_timeframe=primary_tf,
             conflicts=conflicts,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
-        
+
         # Publish multi-timeframe analysis event
         if self.event_bus:
             try:
@@ -1709,142 +1639,151 @@ class MultiTimeframeMarketStructureAnalyzer:
                     priority=8,
                     event_type=EventType.MULTI_TIMEFRAME_ANALYSIS,
                     data={
-                        'symbol': symbol,
-                        'consistency_level': consistency_level.value,
-                        'overall_bias': overall_bias.value,
-                        'bias_strength': bias_strength,
-                        'primary_timeframe': primary_tf.value,
-                        'conflict_count': len(conflicts),
-                        'recommendation_count': len(recommendations),
-                        'timestamp': timestamp
+                        "symbol": symbol,
+                        "consistency_level": consistency_level.value,
+                        "overall_bias": overall_bias.value,
+                        "bias_strength": bias_strength,
+                        "primary_timeframe": primary_tf.value,
+                        "conflict_count": len(conflicts),
+                        "recommendation_count": len(recommendations),
+                        "timestamp": timestamp,
                     },
-                    source='MultiTimeframeMarketStructureAnalyzer'
+                    source="MultiTimeframeMarketStructureAnalyzer",
                 )
                 asyncio.create_task(self.event_bus.publish(event))
             except RuntimeError:
                 pass  # No event loop running
-        
+
         logger.info(
             f"Multi-timeframe analysis complete: "
             f"Consistency={consistency_level.value}, "
             f"Bias={overall_bias.value}, "
             f"Strength={bias_strength:.1f}"
         )
-        
+
         return result
-    
+
     def _verify_consistency(
         self,
         h1: TimeframeMarketStructure,
         m15: TimeframeMarketStructure,
-        m1: TimeframeMarketStructure
+        m1: TimeframeMarketStructure,
     ) -> ConsistencyLevel:
         """
         Verify consistency across timeframes.
-        
+
         Checks alignment of:
         - Trend directions
         - Market structure classifications
         - Liquidity dominance
-        
+
         Args:
             h1: 1-hour structure
             m15: 15-minute structure
             m1: 1-minute structure
-            
+
         Returns:
             Consistency level classification
         """
         from src.indicators.trend_recognition import TrendDirection
-        
+
         # Extract trend directions
         h1_dir = h1.trend_state.direction if h1.trend_state else TrendDirection.RANGING
         m15_dir = m15.trend_state.direction if m15.trend_state else TrendDirection.RANGING
         m1_dir = m1.trend_state.direction if m1.trend_state else TrendDirection.RANGING
-        
+
         # Count agreements
         directions = [h1_dir, m15_dir, m1_dir]
         from collections import Counter
+
         direction_counts = Counter(directions)
         most_common_count = direction_counts.most_common(1)[0][1]
-        
+
         # Extract market structures
         structures = [h1.market_structure, m15.market_structure, m1.market_structure]
         structure_counts = Counter(structures)
         structure_agreement = structure_counts.most_common(1)[0][1]
-        
+
         # Extract liquidity dominance
-        liquidity_sides = [h1.dominant_liquidity_side, m15.dominant_liquidity_side, m1.dominant_liquidity_side]
+        liquidity_sides = [
+            h1.dominant_liquidity_side,
+            m15.dominant_liquidity_side,
+            m1.dominant_liquidity_side,
+        ]
         liquidity_counts = Counter(liquidity_sides)
         liquidity_agreement = liquidity_counts.most_common(1)[0][1]
-        
+
         # Calculate overall consistency
         total_agreement = most_common_count + structure_agreement + liquidity_agreement
-        
+
         # Perfect: all 3 agree on all aspects
         if total_agreement == 9:
             return ConsistencyLevel.PERFECT
-        
+
         # High: 2/3 agree on most aspects
         elif total_agreement >= 7:
             return ConsistencyLevel.HIGH
-        
+
         # Moderate: some agreement
         elif total_agreement >= 5:
             return ConsistencyLevel.MODERATE
-        
+
         # Low: minimal agreement
         elif total_agreement >= 3:
             return ConsistencyLevel.LOW
-        
+
         # Conflict: no clear agreement
         else:
             return ConsistencyLevel.CONFLICT
-    
+
     def _resolve_conflicts(
         self,
         h1: TimeframeMarketStructure,
         m15: TimeframeMarketStructure,
-        m1: TimeframeMarketStructure
+        m1: TimeframeMarketStructure,
     ) -> tuple[StructureBias, float, TimeFrame, List[str]]:
         """
         Resolve conflicts between timeframes using higher timeframe priority.
-        
+
         Priority: H1 > M15 > M1
-        
+
         Args:
             h1: 1-hour structure
             m15: 15-minute structure
             m1: 1-minute structure
-            
+
         Returns:
             (overall_bias, bias_strength, primary_timeframe, conflicts)
         """
         from src.indicators.trend_recognition import TrendDirection
-        
+
         conflicts = []
-        
+
         # Primary decision comes from H1
         primary_tf = TimeFrame.H1
-        
+
         # Get H1 trend direction and strength
         h1_dir = h1.trend_state.direction if h1.trend_state else TrendDirection.RANGING
         h1_strength = h1.structure_strength
-        
+
         # Get M15 and M1 directions for comparison
         m15_dir = m15.trend_state.direction if m15.trend_state else TrendDirection.RANGING
         m1_dir = m1.trend_state.direction if m1.trend_state else TrendDirection.RANGING
-        
+
         # Check for conflicts
         if h1_dir != m15_dir and m15_dir != TrendDirection.RANGING:
             conflicts.append(f"H1 ({h1_dir.value}) conflicts with M15 ({m15_dir.value})")
-        
+
         if h1_dir != m1_dir and m1_dir != TrendDirection.RANGING:
             conflicts.append(f"H1 ({h1_dir.value}) conflicts with M1 ({m1_dir.value})")
-        
-        if m15_dir != m1_dir and m15_dir != TrendDirection.RANGING and m1_dir != TrendDirection.RANGING:
+
+        if (
+            m15_dir != m1_dir
+            and m15_dir != TrendDirection.RANGING
+            and m1_dir != TrendDirection.RANGING
+        ):
             conflicts.append(f"M15 ({m15_dir.value}) conflicts with M1 ({m1_dir.value})")
-        
+
         # Determine overall bias based on H1 (primary timeframe)
         if h1_dir == TrendDirection.RANGING:
             overall_bias = StructureBias.NEUTRAL
@@ -1873,32 +1812,32 @@ class MultiTimeframeMarketStructureAnalyzer:
             else:
                 overall_bias = StructureBias.BEARISH
                 bias_strength = max(0.0, h1_strength - 1.0)
-        
+
         return overall_bias, bias_strength, primary_tf, conflicts
-    
+
     def _generate_recommendations(
         self,
         h1: TimeframeMarketStructure,
         m15: TimeframeMarketStructure,
         m1: TimeframeMarketStructure,
         overall_bias: StructureBias,
-        consistency: ConsistencyLevel
+        consistency: ConsistencyLevel,
     ) -> List[str]:
         """
         Generate trading recommendations based on multi-timeframe analysis.
-        
+
         Args:
             h1: 1-hour structure
             m15: 15-minute structure
             m1: 1-minute structure
             overall_bias: Overall directional bias
             consistency: Consistency level across timeframes
-            
+
         Returns:
             List of actionable trading recommendations
         """
         recommendations = []
-        
+
         # Consistency-based recommendations
         if consistency == ConsistencyLevel.PERFECT:
             recommendations.append(
@@ -1909,9 +1848,7 @@ class MultiTimeframeMarketStructureAnalyzer:
                 f"✅ Strong alignment - Good trading conditions for {overall_bias.value} bias"
             )
         elif consistency == ConsistencyLevel.MODERATE:
-            recommendations.append(
-                "⚠️ Moderate alignment - Use caution, wait for clearer structure"
-            )
+            recommendations.append("⚠️ Moderate alignment - Use caution, wait for clearer structure")
         elif consistency == ConsistencyLevel.LOW:
             recommendations.append(
                 "⚠️ Low alignment - Consider staying out until structure clarifies"
@@ -1920,44 +1857,44 @@ class MultiTimeframeMarketStructureAnalyzer:
             recommendations.append(
                 "❌ Timeframe conflict detected - Avoid trading until alignment improves"
             )
-        
+
         # Bias-specific recommendations
         if overall_bias in [StructureBias.STRONGLY_BULLISH, StructureBias.STRONGLY_BEARISH]:
             direction = "long" if "BULLISH" in overall_bias.value else "short"
             recommendations.append(
                 f"📈 Strong {direction} bias - Look for {direction} entry opportunities on pullbacks"
             )
-            
+
             # Entry timing
             if m1.has_recent_sweep(side="SELL" if "BULLISH" in overall_bias.value else "BUY"):
                 recommendations.append(
                     f"🎯 Recent liquidity sweep detected on M1 - Good {direction} entry setup"
                 )
-        
+
         elif overall_bias != StructureBias.NEUTRAL:
             direction = "long" if "BULLISH" in overall_bias.value else "short"
             recommendations.append(
                 f"📊 Moderate {direction} bias - Wait for M15 confirmation before entering {direction}"
             )
-        
+
         # Liquidity-based recommendations
         if h1.dominant_liquidity_side != "NEUTRAL":
             side = h1.dominant_liquidity_side.lower()
             recommendations.append(
                 f"💧 H1 liquidity dominated by {side}-side - Expect price to target these levels"
             )
-        
+
         # BMS-based recommendations
         if h1.recent_bms and len(h1.recent_bms) > 0:
-            latest_bms = h1.recent_bms[-1]
+            h1.recent_bms[-1]
             recommendations.append(
-                f"🔨 Recent H1 BMS detected - Structure change confirmed, follow new direction"
+                "🔨 Recent H1 BMS detected - Structure change confirmed, follow new direction"
             )
-        
+
         # Structure strength warnings
         if h1.structure_strength < 4.0:
             recommendations.append(
                 "⚠️ Weak H1 structure - Market may be consolidating, reduce position sizes"
             )
-        
+
         return recommendations

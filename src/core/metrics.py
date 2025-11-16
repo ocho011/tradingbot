@@ -7,23 +7,25 @@ error tracking, and alerting capabilities.
 
 import asyncio
 import logging
-import psutil
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Callable, Deque
 from threading import RLock
+from typing import Any, Callable, Deque, Dict, List, Optional
 
-from src.core.events import EventBus, Event
+import psutil
+
 from src.core.constants import EventType
+from src.core.events import Event, EventBus
 
 logger = logging.getLogger(__name__)
 
 
 class HealthStatus(Enum):
     """Component health status."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -32,6 +34,7 @@ class HealthStatus(Enum):
 
 class MetricType(Enum):
     """Types of metrics collected."""
+
     COUNTER = "counter"  # Monotonically increasing value
     GAUGE = "gauge"  # Point-in-time value
     HISTOGRAM = "histogram"  # Distribution of values
@@ -41,6 +44,7 @@ class MetricType(Enum):
 @dataclass
 class MetricValue:
     """Individual metric measurement."""
+
     name: str
     value: float
     metric_type: MetricType
@@ -52,6 +56,7 @@ class MetricValue:
 @dataclass
 class HealthCheck:
     """Component health check result."""
+
     component: str
     status: HealthStatus
     timestamp: datetime = field(default_factory=datetime.now)
@@ -63,6 +68,7 @@ class HealthCheck:
 @dataclass
 class ErrorRecord:
     """Error occurrence record."""
+
     error_type: str
     message: str
     component: str
@@ -75,6 +81,7 @@ class ErrorRecord:
 @dataclass
 class AlertThreshold:
     """Alert threshold configuration."""
+
     metric_name: str
     operator: str  # gt, lt, gte, lte, eq, neq
     value: float
@@ -85,6 +92,7 @@ class AlertThreshold:
 @dataclass
 class Alert:
     """Triggered alert."""
+
     threshold: AlertThreshold
     current_value: float
     timestamp: datetime = field(default_factory=datetime.now)
@@ -104,9 +112,7 @@ class MetricsCollector:
         Args:
             retention_seconds: How long to retain metric history
         """
-        self._metrics: Dict[str, Deque[MetricValue]] = defaultdict(
-            lambda: deque(maxlen=10000)
-        )
+        self._metrics: Dict[str, Deque[MetricValue]] = defaultdict(lambda: deque(maxlen=10000))
         self._retention_seconds = retention_seconds
         self._lock = RLock()
         self._start_time = datetime.now()
@@ -117,7 +123,7 @@ class MetricsCollector:
         value: float,
         metric_type: MetricType = MetricType.GAUGE,
         tags: Optional[Dict[str, str]] = None,
-        unit: Optional[str] = None
+        unit: Optional[str] = None,
     ) -> None:
         """
         Record a metric value.
@@ -130,18 +136,16 @@ class MetricsCollector:
             unit: Unit of measurement
         """
         metric = MetricValue(
-            name=name,
-            value=value,
-            metric_type=metric_type,
-            tags=tags or {},
-            unit=unit
+            name=name, value=value, metric_type=metric_type, tags=tags or {}, unit=unit
         )
 
         with self._lock:
             self._metrics[name].append(metric)
             self._cleanup_old_metrics(name)
 
-    def increment(self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None) -> None:
+    def increment(
+        self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None
+    ) -> None:
         """
         Increment a counter metric.
 
@@ -152,7 +156,13 @@ class MetricsCollector:
         """
         self.record(name, value, MetricType.COUNTER, tags)
 
-    def gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None, unit: Optional[str] = None) -> None:
+    def gauge(
+        self,
+        name: str,
+        value: float,
+        tags: Optional[Dict[str, str]] = None,
+        unit: Optional[str] = None,
+    ) -> None:
         """
         Record a gauge metric.
 
@@ -190,10 +200,7 @@ class MetricsCollector:
             return metrics[-1] if metrics else None
 
     def get_history(
-        self,
-        name: str,
-        since: Optional[datetime] = None,
-        limit: Optional[int] = None
+        self, name: str, since: Optional[datetime] = None, limit: Optional[int] = None
     ) -> List[MetricValue]:
         """
         Get metric history.
@@ -240,7 +247,7 @@ class MetricsCollector:
             "max": max(values),
             "avg": sum(values) / len(values),
             "count": len(values),
-            "sum": sum(values)
+            "sum": sum(values),
         }
 
     def _cleanup_old_metrics(self, name: str) -> None:
@@ -301,7 +308,7 @@ class HealthCheckManager:
                 return HealthCheck(
                     component=component,
                     status=HealthStatus.UNKNOWN,
-                    message="No health check registered"
+                    message="No health check registered",
                 )
 
             try:
@@ -315,7 +322,7 @@ class HealthCheckManager:
                 result = HealthCheck(
                     component=component,
                     status=HealthStatus.UNHEALTHY,
-                    message=f"Health check error: {str(e)}"
+                    message=f"Health check error: {str(e)}",
                 )
                 self._health_checks[component] = result
                 return result
@@ -387,7 +394,7 @@ class ErrorTracker:
         component: str,
         severity: str = "error",
         stack_trace: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Record an error occurrence.
@@ -406,7 +413,7 @@ class ErrorTracker:
             component=component,
             severity=severity,
             stack_trace=stack_trace,
-            context=context or {}
+            context=context or {},
         )
 
         with self._lock:
@@ -415,10 +422,7 @@ class ErrorTracker:
             self._cleanup_old_errors()
 
     def get_recent_errors(
-        self,
-        component: Optional[str] = None,
-        since: Optional[datetime] = None,
-        limit: int = 100
+        self, component: Optional[str] = None, since: Optional[datetime] = None, limit: int = 100
     ) -> List[ErrorRecord]:
         """
         Get recent errors.
@@ -442,11 +446,7 @@ class ErrorTracker:
 
             return errors[-limit:]
 
-    def get_error_rate(
-        self,
-        component: Optional[str] = None,
-        window_seconds: int = 60
-    ) -> float:
+    def get_error_rate(self, component: Optional[str] = None, window_seconds: int = 60) -> float:
         """
         Calculate error rate (errors per second).
 
@@ -461,10 +461,7 @@ class ErrorTracker:
         errors = self.get_recent_errors(component=component, since=since)
         return len(errors) / window_seconds if window_seconds > 0 else 0.0
 
-    def get_error_statistics(
-        self,
-        window_seconds: int = 3600
-    ) -> Dict[str, Any]:
+    def get_error_statistics(self, window_seconds: int = 3600) -> Dict[str, Any]:
         """
         Get error statistics.
 
@@ -481,7 +478,7 @@ class ErrorTracker:
             "total_errors": len(errors),
             "by_component": defaultdict(int),
             "by_type": defaultdict(int),
-            "by_severity": defaultdict(int)
+            "by_severity": defaultdict(int),
         }
 
         for error in errors:
@@ -530,12 +527,7 @@ class SystemMetricsCollector:
             # Per-CPU
             cpu_percents = psutil.cpu_percent(interval=0.1, percpu=True)
             for i, percent in enumerate(cpu_percents):
-                self._collector.gauge(
-                    "system.cpu.percent",
-                    percent,
-                    tags={"cpu": str(i)},
-                    unit="%"
-                )
+                self._collector.gauge("system.cpu.percent", percent, tags={"cpu": str(i)}, unit="%")
 
             # Process CPU
             process_cpu = self._process.cpu_percent(interval=0.1)
@@ -569,7 +561,7 @@ class SystemMetricsCollector:
     def collect_disk_metrics(self) -> None:
         """Collect disk usage metrics."""
         try:
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             self._collector.gauge("system.disk.total", disk.total, unit="bytes")
             self._collector.gauge("system.disk.used", disk.used, unit="bytes")
             self._collector.gauge("system.disk.free", disk.free, unit="bytes")
@@ -652,7 +644,7 @@ class AlertManager:
                     alert = Alert(
                         threshold=threshold,
                         current_value=metric.value,
-                        message=f"{threshold.metric_name} {threshold.operator} {threshold.value} (current: {metric.value})"
+                        message=f"{threshold.metric_name} {threshold.operator} {threshold.value} (current: {metric.value})",
                     )
 
                     self._active_alerts[key] = alert
@@ -664,18 +656,20 @@ class AlertManager:
                     if self._event_bus:
                         try:
                             asyncio.create_task(
-                                self._event_bus.publish(Event(
-                                    priority=7,
-                                    event_type=EventType.ERROR_OCCURRED,
-                                    data={
-                                        "alert_type": "threshold_breach",
-                                        "metric": threshold.metric_name,
-                                        "value": metric.value,
-                                        "threshold": threshold.value,
-                                        "message": alert.message
-                                    },
-                                    source="AlertManager"
-                                ))
+                                self._event_bus.publish(
+                                    Event(
+                                        priority=7,
+                                        event_type=EventType.ERROR_OCCURRED,
+                                        data={
+                                            "alert_type": "threshold_breach",
+                                            "metric": threshold.metric_name,
+                                            "value": metric.value,
+                                            "threshold": threshold.value,
+                                            "message": alert.message,
+                                        },
+                                        source="AlertManager",
+                                    )
+                                )
                             )
                         except RuntimeError:
                             # No event loop running, skip event publishing
@@ -695,7 +689,7 @@ class AlertManager:
             "gte": lambda v, t: v >= t,
             "lte": lambda v, t: v <= t,
             "eq": lambda v, t: v == t,
-            "neq": lambda v, t: v != t
+            "neq": lambda v, t: v != t,
         }
         op_func = operators.get(operator)
         return op_func(value, threshold) if op_func else False
@@ -720,7 +714,7 @@ class MonitoringSystem:
         self,
         event_bus: Optional[EventBus] = None,
         metrics_retention_seconds: int = 3600,
-        error_retention_seconds: int = 3600
+        error_retention_seconds: int = 3600,
     ):
         """
         Initialize monitoring system.
@@ -788,7 +782,7 @@ class MonitoringSystem:
                     error_type=type(e).__name__,
                     message=str(e),
                     component="MonitoringSystem",
-                    severity="error"
+                    severity="error",
                 )
                 await asyncio.sleep(self._collection_interval)
 
@@ -807,23 +801,32 @@ class MonitoringSystem:
                     name: {
                         "status": check.status.value,
                         "message": check.message,
-                        "response_time_ms": check.response_time_ms
+                        "response_time_ms": check.response_time_ms,
                     }
                     for name, check in self.health_checks.get_all_statuses().items()
-                }
+                },
             },
             "metrics": {
-                "cpu": self.metrics.get_latest("system.cpu.percent").value
-                if self.metrics.get_latest("system.cpu.percent") else 0,
-                "memory": self.metrics.get_latest("system.memory.percent").value
-                if self.metrics.get_latest("system.memory.percent") else 0,
-                "disk": self.metrics.get_latest("system.disk.percent").value
-                if self.metrics.get_latest("system.disk.percent") else 0
+                "cpu": (
+                    self.metrics.get_latest("system.cpu.percent").value
+                    if self.metrics.get_latest("system.cpu.percent")
+                    else 0
+                ),
+                "memory": (
+                    self.metrics.get_latest("system.memory.percent").value
+                    if self.metrics.get_latest("system.memory.percent")
+                    else 0
+                ),
+                "disk": (
+                    self.metrics.get_latest("system.disk.percent").value
+                    if self.metrics.get_latest("system.disk.percent")
+                    else 0
+                ),
             },
             "errors": {
                 "recent": len(self.errors.get_recent_errors(limit=100)),
                 "rate_per_second": self.errors.get_error_rate(window_seconds=60),
-                "statistics": self.errors.get_error_statistics(window_seconds=3600)
+                "statistics": self.errors.get_error_statistics(window_seconds=3600),
             },
             "alerts": {
                 "active": len(self.alerts.get_active_alerts()),
@@ -831,9 +834,9 @@ class MonitoringSystem:
                     {
                         "message": alert.message,
                         "severity": alert.severity,
-                        "timestamp": alert.timestamp.isoformat()
+                        "timestamp": alert.timestamp.isoformat(),
                     }
                     for alert in self.alerts.get_alert_history(limit=10)
-                ]
-            }
+                ],
+            },
         }

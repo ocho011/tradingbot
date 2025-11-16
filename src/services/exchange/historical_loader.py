@@ -8,13 +8,12 @@ data validation, and integration with CandleStorage.
 import asyncio
 import logging
 import time
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from src.core.constants import TimeFrame
 from src.models.candle import Candle
 from src.services.candle_storage import CandleStorage
-from src.services.exchange.binance_manager import BinanceManager, BinanceConnectionError
-
+from src.services.exchange.binance_manager import BinanceConnectionError, BinanceManager
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +59,7 @@ class HistoricalDataLoader:
         self,
         binance_manager: BinanceManager,
         candle_storage: CandleStorage,
-        enable_rate_limiting: bool = True
+        enable_rate_limiting: bool = True,
     ):
         """
         Initialize historical data loader.
@@ -132,7 +131,7 @@ class HistoricalDataLoader:
         symbol: str,
         timeframe: TimeFrame,
         since: Optional[int] = None,
-        limit: int = MAX_CANDLES_PER_REQUEST
+        limit: int = MAX_CANDLES_PER_REQUEST,
     ) -> List[List]:
         """
         Fetch OHLCV data with exponential backoff retry logic.
@@ -164,10 +163,7 @@ class HistoricalDataLoader:
                 )
 
                 ohlcv = await self.binance_manager.fetch_ohlcv(
-                    symbol=symbol,
-                    timeframe=timeframe.value,
-                    since=since,
-                    limit=limit
+                    symbol=symbol, timeframe=timeframe.value, since=since, limit=limit
                 )
 
                 self._total_requests += 1
@@ -214,12 +210,7 @@ class HistoricalDataLoader:
             - 'duplicates': List of duplicate timestamps
         """
         if not candles:
-            return {
-                'valid': True,
-                'issues': [],
-                'gaps': [],
-                'duplicates': []
-            }
+            return {"valid": True, "issues": [], "gaps": [], "duplicates": []}
 
         issues = []
         gaps = []
@@ -255,11 +246,13 @@ class HistoricalDataLoader:
                 expected_timestamp = prev_candle.timestamp + interval_ms
                 if candle.timestamp > expected_timestamp:
                     gap_size = (candle.timestamp - expected_timestamp) // interval_ms
-                    gaps.append({
-                        'start': prev_candle.timestamp,
-                        'end': candle.timestamp,
-                        'missing_candles': gap_size
-                    })
+                    gaps.append(
+                        {
+                            "start": prev_candle.timestamp,
+                            "end": candle.timestamp,
+                            "missing_candles": gap_size,
+                        }
+                    )
                     issues.append(
                         f"Gap detected: {gap_size} missing candles between "
                         f"{prev_candle.get_datetime_iso()} and {candle.get_datetime_iso()}"
@@ -273,12 +266,7 @@ class HistoricalDataLoader:
                 f"{candles[0].symbol} {timeframe.value}"
             )
 
-        return {
-            'valid': valid,
-            'issues': issues,
-            'gaps': gaps,
-            'duplicates': duplicates
-        }
+        return {"valid": valid, "issues": issues, "gaps": gaps, "duplicates": duplicates}
 
     async def load_historical_data(
         self,
@@ -286,7 +274,7 @@ class HistoricalDataLoader:
         timeframe: TimeFrame,
         limit: int = DEFAULT_CANDLES_TO_LOAD,
         validate: bool = True,
-        store: bool = True
+        store: bool = True,
     ) -> List[Candle]:
         """
         Load historical candle data for a symbol-timeframe pair.
@@ -316,9 +304,7 @@ class HistoricalDataLoader:
         try:
             # Fetch OHLCV data
             ohlcv_data = await self._fetch_ohlcv_with_retry(
-                symbol=symbol,
-                timeframe=timeframe,
-                limit=limit
+                symbol=symbol, timeframe=timeframe, limit=limit
             )
 
             if not ohlcv_data:
@@ -333,7 +319,7 @@ class HistoricalDataLoader:
                         symbol=symbol,
                         timeframe=timeframe,
                         ohlcv=ohlcv,
-                        is_closed=True  # Historical candles are always closed
+                        is_closed=True,  # Historical candles are always closed
                     )
                     candles.append(candle)
                 except Exception as e:
@@ -349,10 +335,10 @@ class HistoricalDataLoader:
             if validate and candles:
                 validation_result = self._validate_candles(candles)
 
-                if not validation_result['valid']:
+                if not validation_result["valid"]:
                     logger.warning(
                         f"Data validation issues for {symbol} {timeframe.value}:\n"
-                        + "\n".join(validation_result['issues'][:5])  # Show first 5 issues
+                        + "\n".join(validation_result["issues"][:5])  # Show first 5 issues
                     )
                 else:
                     logger.debug(f"Data validation passed for {symbol} {timeframe.value}")
@@ -378,8 +364,7 @@ class HistoricalDataLoader:
 
         except Exception as e:
             logger.error(
-                f"Failed to load historical data for {symbol} {timeframe.value}: {e}",
-                exc_info=True
+                f"Failed to load historical data for {symbol} {timeframe.value}: {e}", exc_info=True
             )
             raise
 
@@ -390,7 +375,7 @@ class HistoricalDataLoader:
         limit: int = DEFAULT_CANDLES_TO_LOAD,
         validate: bool = True,
         store: bool = True,
-        parallel: bool = True
+        parallel: bool = True,
     ) -> Dict[str, Dict[TimeFrame, List[Candle]]]:
         """
         Load historical data for multiple symbol-timeframe combinations.
@@ -430,11 +415,7 @@ class HistoricalDataLoader:
             results[symbol] = {}
             for timeframe in timeframes:
                 task = self.load_historical_data(
-                    symbol=symbol,
-                    timeframe=timeframe,
-                    limit=limit,
-                    validate=validate,
-                    store=store
+                    symbol=symbol, timeframe=timeframe, limit=limit, validate=validate, store=store
                 )
                 tasks.append(task)
                 symbol_timeframe_pairs.append((symbol, timeframe))
@@ -458,18 +439,14 @@ class HistoricalDataLoader:
         # Organize results
         for (symbol, timeframe), candles in zip(symbol_timeframe_pairs, candle_lists):
             if isinstance(candles, Exception):
-                logger.error(
-                    f"Failed to load {symbol} {timeframe.value}: {candles}"
-                )
+                logger.error(f"Failed to load {symbol} {timeframe.value}: {candles}")
                 results[symbol][timeframe] = []
             else:
                 results[symbol][timeframe] = candles
 
         # Summary
         total_candles = sum(
-            len(candles)
-            for symbol_data in results.values()
-            for candles in symbol_data.values()
+            len(candles) for symbol_data in results.values() for candles in symbol_data.values()
         )
         elapsed = time.time() - start_time
 
@@ -489,10 +466,10 @@ class HistoricalDataLoader:
             Dictionary with loading statistics
         """
         return {
-            'total_candles_loaded': self._total_candles_loaded,
-            'total_requests': self._total_requests,
-            'rate_limit_delays': self._rate_limit_delays,
-            'rate_limiting_enabled': self.enable_rate_limiting
+            "total_candles_loaded": self._total_candles_loaded,
+            "total_requests": self._total_requests,
+            "rate_limit_delays": self._rate_limit_delays,
+            "rate_limiting_enabled": self.enable_rate_limiting,
         }
 
     def reset_stats(self) -> None:

@@ -2,8 +2,8 @@
 Tests for Signal Validation
 """
 
-import pytest
 from decimal import Decimal
+
 
 from src.services.strategy.signal import Signal, SignalDirection
 from src.services.strategy.validators import SignalValidator, ValidationResult
@@ -24,9 +24,7 @@ class TestValidationResult:
     def test_invalid_result(self):
         """Test invalid validation result"""
         result = ValidationResult(
-            is_valid=False,
-            errors=['Error 1', 'Error 2'],
-            warnings=['Warning 1']
+            is_valid=False, errors=["Error 1", "Error 2"], warnings=["Warning 1"]
         )
 
         assert not result.is_valid
@@ -60,13 +58,13 @@ class TestSignalValidator:
         )
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         result = validator.validate(signal)
@@ -79,70 +77,70 @@ class TestSignalValidator:
         validator = SignalValidator(min_confidence=70.0)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=50.0,  # Below threshold
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         result = validator.validate(signal)
 
         assert not result.is_valid
-        assert any('Confidence' in error for error in result.errors)
+        assert any("Confidence" in error for error in result.errors)
 
     def test_validate_poor_risk_reward(self):
         """Test that poor risk-reward ratio fails validation"""
         validator = SignalValidator(min_risk_reward=2.0)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('48000'),  # 2000 risk
-            take_profit=Decimal('51000'),  # 1000 reward = 0.5 R:R
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("48000"),  # 2000 risk
+            take_profit=Decimal("51000"),  # 1000 reward = 0.5 R:R
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         result = validator.validate(signal)
 
         assert not result.is_valid
-        assert any('Risk-reward' in error for error in result.errors)
+        assert any("Risk-reward" in error for error in result.errors)
 
     def test_validate_excessive_stop_loss(self):
         """Test that excessive stop loss distance fails validation"""
         validator = SignalValidator(max_stop_loss_pct=2.0)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('47500'),  # 5% stop loss (exceeds max)
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("47500"),  # 5% stop loss (exceeds max)
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         result = validator.validate(signal)
 
         assert not result.is_valid
-        assert any('Stop loss' in error for error in result.errors)
+        assert any("Stop loss" in error for error in result.errors)
 
     def test_validate_excessive_take_profit_warning(self):
         """Test that excessive take profit creates warning"""
         validator = SignalValidator(max_take_profit_pct=10.0)
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('56000'),  # 12% take profit (exceeds typical max)
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("56000"),  # 12% take profit (exceeds typical max)
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         result = validator.validate(signal)
@@ -150,7 +148,7 @@ class TestSignalValidator:
         # Should still be valid but with warning
         assert result.is_valid
         assert len(result.warnings) > 0
-        assert any('Take profit' in warning for warning in result.warnings)
+        assert any("Take profit" in warning for warning in result.warnings)
 
     def test_validate_multiple_errors(self):
         """Test signal with multiple validation errors"""
@@ -160,13 +158,13 @@ class TestSignalValidator:
         )
 
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=50.0,  # Too low
-            stop_loss=Decimal('48000'),  # Poor R:R
-            take_profit=Decimal('51000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("48000"),  # Poor R:R
+            take_profit=Decimal("51000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         result = validator.validate(signal)
@@ -179,23 +177,23 @@ class TestSignalValidator:
         validator = SignalValidator(min_confidence=60.0)
 
         good_signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         bad_signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=50.0,  # Too low
-            stop_loss=Decimal('49000'),
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("49000"),
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         valid, invalid = validator.validate_batch([good_signal, bad_signal, good_signal])
@@ -219,16 +217,16 @@ class TestSignalValidator:
 
         # Create signal with stop loss 60% away from entry (should fail sanity check)
         signal = Signal(
-            entry_price=Decimal('50000'),
+            entry_price=Decimal("50000"),
             direction=SignalDirection.LONG,
             confidence=75.0,
-            stop_loss=Decimal('20000'),  # 60% away!
-            take_profit=Decimal('52000'),
-            symbol='BTCUSDT',
-            strategy_name='Strategy_A',
+            stop_loss=Decimal("20000"),  # 60% away!
+            take_profit=Decimal("52000"),
+            symbol="BTCUSDT",
+            strategy_name="Strategy_A",
         )
 
         result = validator.validate(signal)
 
         assert not result.is_valid
-        assert any('unreasonable' in error.lower() for error in result.errors)
+        assert any("unreasonable" in error.lower() for error in result.errors)

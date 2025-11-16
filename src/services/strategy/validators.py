@@ -4,11 +4,10 @@ Signal Validation Logic
 Provides validation for signals before they are published to ensure quality and safety.
 """
 
-from typing import Optional, List, Tuple
-from decimal import Decimal
 import logging
+from typing import List, Optional, Tuple
 
-from src.services.strategy.signal import Signal, SignalDirection
+from src.services.strategy.signal import Signal
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +15,12 @@ logger = logging.getLogger(__name__)
 class ValidationResult:
     """Result of signal validation"""
 
-    def __init__(self, is_valid: bool, errors: Optional[List[str]] = None, warnings: Optional[List[str]] = None):
+    def __init__(
+        self,
+        is_valid: bool,
+        errors: Optional[List[str]] = None,
+        warnings: Optional[List[str]] = None,
+    ):
         self.is_valid = is_valid
         self.errors = errors or []
         self.warnings = warnings or []
@@ -27,7 +31,9 @@ class ValidationResult:
 
     def __repr__(self) -> str:
         status = "VALID" if self.is_valid else "INVALID"
-        return f"ValidationResult({status}, errors={len(self.errors)}, warnings={len(self.warnings)})"
+        return (
+            f"ValidationResult({status}, errors={len(self.errors)}, warnings={len(self.warnings)})"
+        )
 
 
 class SignalValidator:
@@ -111,8 +117,8 @@ class SignalValidator:
             errors.append("Price levels appear unreasonable or extreme")
 
         # Check metadata for any warnings from signal creation
-        if 'risk_reward_warning' in signal.metadata:
-            warnings.append(signal.metadata['risk_reward_warning'])
+        if "risk_reward_warning" in signal.metadata:
+            warnings.append(signal.metadata["risk_reward_warning"])
 
         is_valid = len(errors) == 0
 

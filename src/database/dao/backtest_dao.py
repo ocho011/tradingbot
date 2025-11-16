@@ -5,19 +5,17 @@ This module provides specialized database operations for BacktestResult records
 including strategy comparisons, historical analysis, and performance tracking.
 """
 
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-from decimal import Decimal
 import json
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, and_, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import BacktestResult
 from src.database.dao.base import BaseDAO
-
+from src.database.models import BacktestResult
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +62,7 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
             ... )
         """
         try:
-            query = select(BacktestResult).where(
-                BacktestResult.strategy == strategy
-            )
+            query = select(BacktestResult).where(BacktestResult.strategy == strategy)
 
             if symbol:
                 query = query.where(BacktestResult.symbol == symbol)
@@ -78,19 +74,15 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
 
             result = await self.session.execute(query)
             results = result.scalars().all()
-            logger.debug(
-                f"Retrieved {len(results)} backtest results for strategy '{strategy}'"
-            )
+            logger.debug(f"Retrieved {len(results)} backtest results for strategy '{strategy}'")
             return list(results)
         except SQLAlchemyError as e:
-            logger.error(
-                f"Error getting backtest results for strategy '{strategy}': {e}"
-            )
+            logger.error(f"Error getting backtest results for strategy '{strategy}': {e}")
             raise
 
     async def get_best_results(
         self,
-        metric: str = 'sharpe_ratio',
+        metric: str = "sharpe_ratio",
         strategy: Optional[str] = None,
         symbol: Optional[str] = None,
         limit: int = 10,
@@ -133,9 +125,7 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
 
             result = await self.session.execute(query)
             results = result.scalars().all()
-            logger.debug(
-                f"Retrieved {len(results)} best backtest results by {metric}"
-            )
+            logger.debug(f"Retrieved {len(results)} best backtest results by {metric}")
             return list(results)
         except SQLAlchemyError as e:
             logger.error(f"Error getting best backtest results: {e}")
@@ -170,9 +160,7 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
             results = {}
 
             for strategy in strategies:
-                query = select(BacktestResult).where(
-                    BacktestResult.strategy == strategy
-                )
+                query = select(BacktestResult).where(BacktestResult.strategy == strategy)
 
                 if symbol:
                     query = query.where(BacktestResult.symbol == symbol)
@@ -194,19 +182,25 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
                 dd_count = len([b for b in backtest_list if b.max_drawdown])
 
                 results[strategy] = {
-                    'total_backtests': len(backtest_list),
-                    'avg_return': sum(b.total_return for b in backtest_list) / len(backtest_list),
-                    'avg_sharpe': sum(
-                        b.sharpe_ratio for b in backtest_list if b.sharpe_ratio
-                    ) / sharpe_count if sharpe_count > 0 else 0,
-                    'avg_win_rate': sum(
-                        b.win_rate for b in backtest_list if b.win_rate
-                    ) / wr_count if wr_count > 0 else 0,
-                    'best_return': max(b.total_return for b in backtest_list),
-                    'worst_return': min(b.total_return for b in backtest_list),
-                    'avg_max_drawdown': sum(
-                        b.max_drawdown for b in backtest_list if b.max_drawdown
-                    ) / dd_count if dd_count > 0 else 0,
+                    "total_backtests": len(backtest_list),
+                    "avg_return": sum(b.total_return for b in backtest_list) / len(backtest_list),
+                    "avg_sharpe": (
+                        sum(b.sharpe_ratio for b in backtest_list if b.sharpe_ratio) / sharpe_count
+                        if sharpe_count > 0
+                        else 0
+                    ),
+                    "avg_win_rate": (
+                        sum(b.win_rate for b in backtest_list if b.win_rate) / wr_count
+                        if wr_count > 0
+                        else 0
+                    ),
+                    "best_return": max(b.total_return for b in backtest_list),
+                    "worst_return": min(b.total_return for b in backtest_list),
+                    "avg_max_drawdown": (
+                        sum(b.max_drawdown for b in backtest_list if b.max_drawdown) / dd_count
+                        if dd_count > 0
+                        else 0
+                    ),
                 }
 
             logger.debug(f"Compared {len(strategies)} strategies")
@@ -258,19 +252,14 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
             result = await self.session.execute(query)
             results = result.scalars().all()
             logger.debug(
-                f"Retrieved {len(results)} backtest results "
-                f"between {start_date} and {end_date}"
+                f"Retrieved {len(results)} backtest results " f"between {start_date} and {end_date}"
             )
             return list(results)
         except SQLAlchemyError as e:
             logger.error(f"Error getting backtest results by date range: {e}")
             raise
 
-    async def create_with_config(
-        self,
-        config: Dict[str, Any],
-        **kwargs
-    ) -> BacktestResult:
+    async def create_with_config(self, config: Dict[str, Any], **kwargs) -> BacktestResult:
         """
         Create a backtest result with configuration serialized to JSON.
 
@@ -293,7 +282,7 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
         try:
             # Serialize configuration to JSON string
             config_json = json.dumps(config, default=str)
-            kwargs['configuration'] = config_json
+            kwargs["configuration"] = config_json
 
             result = await self.create(**kwargs)
             logger.info(f"Created backtest result with id={result.id}")
@@ -327,9 +316,7 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
             config = json.loads(result.configuration)
             return config
         except (SQLAlchemyError, json.JSONDecodeError) as e:
-            logger.error(
-                f"Error getting configuration for backtest {backtest_id}: {e}"
-            )
+            logger.error(f"Error getting configuration for backtest {backtest_id}: {e}")
             raise
 
     async def find_similar_configurations(
@@ -366,8 +353,7 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
             ... )
         """
         logger.info(
-            f"Finding similar configurations for strategy '{strategy}' "
-            f"(tolerance: {tolerance})"
+            f"Finding similar configurations for strategy '{strategy}' " f"(tolerance: {tolerance})"
         )
         # This would require custom logic based on configuration structure
         raise NotImplementedError(
@@ -378,7 +364,7 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
         self,
         strategy: str,
         symbol: str,
-        metric: str = 'sharpe_ratio',
+        metric: str = "sharpe_ratio",
         limit: int = 50,
     ) -> List[Dict[str, Any]]:
         """
@@ -405,10 +391,7 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
         """
         try:
             results = await self.get_best_results(
-                metric=metric,
-                strategy=strategy,
-                symbol=symbol,
-                limit=limit
+                metric=metric, strategy=strategy, symbol=symbol, limit=limit
             )
 
             history = []
@@ -418,17 +401,19 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
                 except json.JSONDecodeError:
                     config = {}
 
-                history.append({
-                    'id': result.id,
-                    'name': result.name,
-                    'created_at': result.created_at,
-                    'total_return': result.total_return,
-                    'sharpe_ratio': result.sharpe_ratio,
-                    'max_drawdown': result.max_drawdown,
-                    'win_rate': result.win_rate,
-                    'total_trades': result.total_trades,
-                    'configuration': config,
-                })
+                history.append(
+                    {
+                        "id": result.id,
+                        "name": result.name,
+                        "created_at": result.created_at,
+                        "total_return": result.total_return,
+                        "sharpe_ratio": result.sharpe_ratio,
+                        "max_drawdown": result.max_drawdown,
+                        "win_rate": result.win_rate,
+                        "total_trades": result.total_trades,
+                        "configuration": config,
+                    }
+                )
 
             logger.debug(
                 f"Retrieved optimization history for {strategy}/{symbol}: "
@@ -470,28 +455,30 @@ class BacktestResultDAO(BaseDAO[BacktestResult]):
 
             if not results:
                 return {
-                    'total_backtests': 0,
-                    'strategies_tested': 0,
-                    'symbols_tested': 0,
+                    "total_backtests": 0,
+                    "strategies_tested": 0,
+                    "symbols_tested": 0,
                 }
 
             sharpe_count = len([r for r in results if r.sharpe_ratio])
             wr_count = len([r for r in results if r.win_rate])
 
             summary = {
-                'total_backtests': len(results),
-                'strategies_tested': len(set(r.strategy for r in results)),
-                'symbols_tested': len(set(r.symbol for r in results)),
-                'avg_return': sum(r.total_return for r in results) / len(results),
-                'best_return': max(r.total_return for r in results),
-                'worst_return': min(r.total_return for r in results),
-                'avg_sharpe': sum(
-                    r.sharpe_ratio for r in results if r.sharpe_ratio
-                ) / sharpe_count if sharpe_count > 0 else 0,
-                'avg_win_rate': sum(
-                    r.win_rate for r in results if r.win_rate
-                ) / wr_count if wr_count > 0 else 0,
-                'total_trades_simulated': sum(r.total_trades for r in results),
+                "total_backtests": len(results),
+                "strategies_tested": len(set(r.strategy for r in results)),
+                "symbols_tested": len(set(r.symbol for r in results)),
+                "avg_return": sum(r.total_return for r in results) / len(results),
+                "best_return": max(r.total_return for r in results),
+                "worst_return": min(r.total_return for r in results),
+                "avg_sharpe": (
+                    sum(r.sharpe_ratio for r in results if r.sharpe_ratio) / sharpe_count
+                    if sharpe_count > 0
+                    else 0
+                ),
+                "avg_win_rate": (
+                    sum(r.win_rate for r in results if r.win_rate) / wr_count if wr_count > 0 else 0
+                ),
+                "total_trades_simulated": sum(r.total_trades for r in results),
             }
 
             logger.debug(f"Calculated backtest statistics summary: {summary}")

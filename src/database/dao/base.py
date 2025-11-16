@@ -5,21 +5,19 @@ This module provides a generic base class for all DAOs with type-safe
 async CRUD operations, pagination support, and transaction management.
 """
 
-from typing import TypeVar, Generic, Type, Optional, List, Dict, Any, Sequence
-from datetime import datetime
 import logging
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
-from sqlalchemy import select, delete, update, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models import Base
-
 
 logger = logging.getLogger(__name__)
 
 # Generic type variable for SQLAlchemy models
-ModelType = TypeVar('ModelType', bound=Base)
+ModelType = TypeVar("ModelType", bound=Base)
 
 
 class BaseDAO(Generic[ModelType]):
@@ -94,9 +92,7 @@ class BaseDAO(Generic[ModelType]):
             >>> trade = await trade_dao.get_by_id(42)
         """
         try:
-            result = await self.session.execute(
-                select(self.model).where(self.model.id == id)
-            )
+            result = await self.session.execute(select(self.model).where(self.model.id == id))
             instance = result.scalar_one_or_none()
             if instance:
                 logger.debug(f"Retrieved {self.model.__name__} with id={id}")
@@ -130,7 +126,7 @@ class BaseDAO(Generic[ModelType]):
 
             # Apply ordering
             if order_by:
-                if order_by.startswith('-'):
+                if order_by.startswith("-"):
                     # Descending order
                     column = getattr(self.model, order_by[1:])
                     query = query.order_by(column.desc())
@@ -189,7 +185,7 @@ class BaseDAO(Generic[ModelType]):
 
             # Apply ordering
             if order_by:
-                if order_by.startswith('-'):
+                if order_by.startswith("-"):
                     column = getattr(self.model, order_by[1:])
                     query = query.order_by(column.desc())
                 else:
@@ -263,9 +259,7 @@ class BaseDAO(Generic[ModelType]):
             >>> deleted = await trade_dao.delete(42)
         """
         try:
-            result = await self.session.execute(
-                delete(self.model).where(self.model.id == id)
-            )
+            result = await self.session.execute(delete(self.model).where(self.model.id == id))
             deleted = result.rowcount > 0
             if deleted:
                 logger.debug(f"Deleted {self.model.__name__} with id={id}")

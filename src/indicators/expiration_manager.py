@@ -13,27 +13,25 @@ Key Features:
 - Automatic indicator state management
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
-from typing import List, Dict, Any, Optional, Callable
 import logging
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from src.indicators.order_block import OrderBlock, OrderBlockState, OrderBlockType
-from src.indicators.fair_value_gap import FairValueGap, FVGState, FVGType
 from src.indicators.breaker_block import BreakerBlock, BreakerBlockType
+from src.indicators.fair_value_gap import FairValueGap, FVGState, FVGType
+from src.indicators.order_block import OrderBlock, OrderBlockState, OrderBlockType
 from src.models.candle import Candle
-from src.core.constants import TimeFrame
-
 
 logger = logging.getLogger(__name__)
 
 
 class ExpirationType(str, Enum):
     """Type of expiration check."""
-    TIME_BASED = "time_based"        # Expire after certain time/candles
-    PRICE_BASED = "price_based"      # Expire when price breaks through
-    BOTH = "both"                    # Require both conditions
+
+    TIME_BASED = "time_based"  # Expire after certain time/candles
+    PRICE_BASED = "price_based"  # Expire when price breaks through
+    BOTH = "both"  # Require both conditions
 
 
 @dataclass
@@ -48,6 +46,7 @@ class ExpirationConfig:
         require_close_beyond: If True, candle must close beyond level for expiration
         expiration_type: Which expiration criteria to use
     """
+
     max_age_candles: Optional[int] = None
     max_age_ms: Optional[int] = None
     price_breach_percentage: float = 100.0  # 100% = complete breakthrough
@@ -58,9 +57,7 @@ class ExpirationConfig:
         """Validate configuration."""
         if self.expiration_type == ExpirationType.TIME_BASED:
             if self.max_age_candles is None and self.max_age_ms is None:
-                raise ValueError(
-                    "TIME_BASED expiration requires max_age_candles or max_age_ms"
-                )
+                raise ValueError("TIME_BASED expiration requires max_age_candles or max_age_ms")
 
         if self.price_breach_percentage < 0 or self.price_breach_percentage > 200:
             raise ValueError(
@@ -78,26 +75,33 @@ class ExpirationRules:
     - Fair Value Gaps: Valid for ~30-50 candles or until filled
     - Breaker Blocks: Valid for ~100-200 candles (longer than OB)
     """
-    order_block: ExpirationConfig = field(default_factory=lambda: ExpirationConfig(
-        max_age_candles=100,
-        price_breach_percentage=150.0,  # Needs significant breach
-        require_close_beyond=True,
-        expiration_type=ExpirationType.BOTH
-    ))
 
-    fair_value_gap: ExpirationConfig = field(default_factory=lambda: ExpirationConfig(
-        max_age_candles=50,
-        price_breach_percentage=100.0,  # Full breakthrough
-        require_close_beyond=False,     # FVG expires on touch
-        expiration_type=ExpirationType.BOTH
-    ))
+    order_block: ExpirationConfig = field(
+        default_factory=lambda: ExpirationConfig(
+            max_age_candles=100,
+            price_breach_percentage=150.0,  # Needs significant breach
+            require_close_beyond=True,
+            expiration_type=ExpirationType.BOTH,
+        )
+    )
 
-    breaker_block: ExpirationConfig = field(default_factory=lambda: ExpirationConfig(
-        max_age_candles=200,            # Longer validity than OB
-        price_breach_percentage=150.0,
-        require_close_beyond=True,
-        expiration_type=ExpirationType.BOTH
-    ))
+    fair_value_gap: ExpirationConfig = field(
+        default_factory=lambda: ExpirationConfig(
+            max_age_candles=50,
+            price_breach_percentage=100.0,  # Full breakthrough
+            require_close_beyond=False,  # FVG expires on touch
+            expiration_type=ExpirationType.BOTH,
+        )
+    )
+
+    breaker_block: ExpirationConfig = field(
+        default_factory=lambda: ExpirationConfig(
+            max_age_candles=200,  # Longer validity than OB
+            price_breach_percentage=150.0,
+            require_close_beyond=True,
+            expiration_type=ExpirationType.BOTH,
+        )
+    )
 
 
 class IndicatorExpirationManager:
@@ -109,9 +113,7 @@ class IndicatorExpirationManager:
     """
 
     def __init__(
-        self,
-        expiration_rules: Optional[ExpirationRules] = None,
-        auto_remove_expired: bool = True
+        self, expiration_rules: Optional[ExpirationRules] = None, auto_remove_expired: bool = True
     ):
         """
         Initialize expiration manager.
@@ -126,18 +128,15 @@ class IndicatorExpirationManager:
 
         # Statistics tracking
         self.expiration_stats: Dict[str, int] = {
-            'order_blocks_expired': 0,
-            'fair_value_gaps_expired': 0,
-            'breaker_blocks_expired': 0,
-            'time_based_expirations': 0,
-            'price_based_expirations': 0
+            "order_blocks_expired": 0,
+            "fair_value_gaps_expired": 0,
+            "breaker_blocks_expired": 0,
+            "time_based_expirations": 0,
+            "price_based_expirations": 0,
         }
 
     def check_order_block_expiration(
-        self,
-        order_block: OrderBlock,
-        current_candle: Candle,
-        candles_since_origin: int
+        self, order_block: OrderBlock, current_candle: Candle, candles_since_origin: int
     ) -> bool:
         """
         Check if an Order Block should expire.
@@ -157,17 +156,10 @@ class IndicatorExpirationManager:
             return False
 
         time_expired = self._check_time_expiration(
-            config,
-            order_block.origin_timestamp,
-            current_candle.timestamp,
-            candles_since_origin
+            config, order_block.origin_timestamp, current_candle.timestamp, candles_since_origin
         )
 
-        price_expired = self._check_price_expiration_ob(
-            config,
-            order_block,
-            current_candle
-        )
+        price_expired = self._check_price_expiration_ob(config, order_block, current_candle)
 
         # Determine expiration based on type
         should_expire = False
@@ -184,10 +176,7 @@ class IndicatorExpirationManager:
         return should_expire
 
     def check_fvg_expiration(
-        self,
-        fvg: FairValueGap,
-        current_candle: Candle,
-        candles_since_origin: int
+        self, fvg: FairValueGap, current_candle: Candle, candles_since_origin: int
     ) -> bool:
         """
         Check if a Fair Value Gap should expire.
@@ -207,17 +196,10 @@ class IndicatorExpirationManager:
             return False
 
         time_expired = self._check_time_expiration(
-            config,
-            fvg.origin_timestamp,
-            current_candle.timestamp,
-            candles_since_origin
+            config, fvg.origin_timestamp, current_candle.timestamp, candles_since_origin
         )
 
-        price_expired = self._check_price_expiration_fvg(
-            config,
-            fvg,
-            current_candle
-        )
+        price_expired = self._check_price_expiration_fvg(config, fvg, current_candle)
 
         # Determine expiration
         should_expire = False
@@ -234,10 +216,7 @@ class IndicatorExpirationManager:
         return should_expire
 
     def check_breaker_block_expiration(
-        self,
-        breaker_block: BreakerBlock,
-        current_candle: Candle,
-        candles_since_transition: int
+        self, breaker_block: BreakerBlock, current_candle: Candle, candles_since_transition: int
     ) -> bool:
         """
         Check if a Breaker Block should expire.
@@ -260,14 +239,10 @@ class IndicatorExpirationManager:
             config,
             breaker_block.transition_timestamp,
             current_candle.timestamp,
-            candles_since_transition
+            candles_since_transition,
         )
 
-        price_expired = self._check_price_expiration_bb(
-            config,
-            breaker_block,
-            current_candle
-        )
+        price_expired = self._check_price_expiration_bb(config, breaker_block, current_candle)
 
         # Determine expiration
         should_expire = False
@@ -284,10 +259,7 @@ class IndicatorExpirationManager:
         return should_expire
 
     def expire_order_blocks(
-        self,
-        order_blocks: List[OrderBlock],
-        current_candle: Candle,
-        candle_history_length: int
+        self, order_blocks: List[OrderBlock], current_candle: Candle, candle_history_length: int
     ) -> List[OrderBlock]:
         """
         Check and expire Order Blocks, optionally removing them.
@@ -307,7 +279,7 @@ class IndicatorExpirationManager:
 
             if self.check_order_block_expiration(ob, current_candle, candles_since):
                 ob.mark_expired()
-                self.expiration_stats['order_blocks_expired'] += 1
+                self.expiration_stats["order_blocks_expired"] += 1
 
                 if not self.auto_remove_expired:
                     active_obs.append(ob)
@@ -317,10 +289,7 @@ class IndicatorExpirationManager:
         return active_obs
 
     def expire_fair_value_gaps(
-        self,
-        fvgs: List[FairValueGap],
-        current_candle: Candle,
-        candle_history_length: int
+        self, fvgs: List[FairValueGap], current_candle: Candle, candle_history_length: int
     ) -> List[FairValueGap]:
         """
         Check and expire Fair Value Gaps, optionally removing them.
@@ -340,7 +309,7 @@ class IndicatorExpirationManager:
 
             if self.check_fvg_expiration(fvg, current_candle, candles_since):
                 fvg.mark_expired()
-                self.expiration_stats['fair_value_gaps_expired'] += 1
+                self.expiration_stats["fair_value_gaps_expired"] += 1
 
                 if not self.auto_remove_expired:
                     active_fvgs.append(fvg)
@@ -350,10 +319,7 @@ class IndicatorExpirationManager:
         return active_fvgs
 
     def expire_breaker_blocks(
-        self,
-        breaker_blocks: List[BreakerBlock],
-        current_candle: Candle,
-        candle_history_length: int
+        self, breaker_blocks: List[BreakerBlock], current_candle: Candle, candle_history_length: int
     ) -> List[BreakerBlock]:
         """
         Check and expire Breaker Blocks, optionally removing them.
@@ -373,7 +339,7 @@ class IndicatorExpirationManager:
 
             if self.check_breaker_block_expiration(bb, current_candle, candles_since):
                 bb.mark_expired()
-                self.expiration_stats['breaker_blocks_expired'] += 1
+                self.expiration_stats["breaker_blocks_expired"] += 1
 
                 if not self.auto_remove_expired:
                     active_bbs.append(bb)
@@ -387,29 +353,26 @@ class IndicatorExpirationManager:
         config: ExpirationConfig,
         origin_timestamp: int,
         current_timestamp: int,
-        candles_since_origin: int
+        candles_since_origin: int,
     ) -> bool:
         """Check if indicator has expired based on time."""
         # Check candle-based expiration
         if config.max_age_candles is not None:
             if candles_since_origin >= config.max_age_candles:
-                self.expiration_stats['time_based_expirations'] += 1
+                self.expiration_stats["time_based_expirations"] += 1
                 return True
 
         # Check millisecond-based expiration
         if config.max_age_ms is not None:
             age_ms = current_timestamp - origin_timestamp
             if age_ms >= config.max_age_ms:
-                self.expiration_stats['time_based_expirations'] += 1
+                self.expiration_stats["time_based_expirations"] += 1
                 return True
 
         return False
 
     def _check_price_expiration_ob(
-        self,
-        config: ExpirationConfig,
-        order_block: OrderBlock,
-        current_candle: Candle
+        self, config: ExpirationConfig, order_block: OrderBlock, current_candle: Candle
     ) -> bool:
         """Check if Order Block has been invalidated by price action."""
         ob_range = order_block.get_range()
@@ -449,16 +412,13 @@ class IndicatorExpirationManager:
                     return False
 
         if breach_pct >= config.price_breach_percentage:
-            self.expiration_stats['price_based_expirations'] += 1
+            self.expiration_stats["price_based_expirations"] += 1
             return True
 
         return False
 
     def _check_price_expiration_fvg(
-        self,
-        config: ExpirationConfig,
-        fvg: FairValueGap,
-        current_candle: Candle
+        self, config: ExpirationConfig, fvg: FairValueGap, current_candle: Candle
     ) -> bool:
         """Check if FVG has been invalidated by price action."""
         gap_range = fvg.get_range()
@@ -497,16 +457,13 @@ class IndicatorExpirationManager:
                     return False
 
         if breach_pct >= config.price_breach_percentage:
-            self.expiration_stats['price_based_expirations'] += 1
+            self.expiration_stats["price_based_expirations"] += 1
             return True
 
         return False
 
     def _check_price_expiration_bb(
-        self,
-        config: ExpirationConfig,
-        breaker_block: BreakerBlock,
-        current_candle: Candle
+        self, config: ExpirationConfig, breaker_block: BreakerBlock, current_candle: Candle
     ) -> bool:
         """Check if Breaker Block has been invalidated by price action."""
         bb_range = breaker_block.get_range()
@@ -545,17 +502,13 @@ class IndicatorExpirationManager:
                     return False
 
         if breach_pct >= config.price_breach_percentage:
-            self.expiration_stats['price_based_expirations'] += 1
+            self.expiration_stats["price_based_expirations"] += 1
             return True
 
         return False
 
     def _log_expiration(
-        self,
-        indicator_type: str,
-        indicator: Any,
-        time_expired: bool,
-        price_expired: bool
+        self, indicator_type: str, indicator: Any, time_expired: bool, price_expired: bool
     ) -> None:
         """Log indicator expiration details."""
         reasons = []
@@ -566,16 +519,14 @@ class IndicatorExpirationManager:
 
         reason_str = " & ".join(reasons)
 
-        self.logger.debug(
-            f"{indicator_type} expired ({reason_str}): {indicator}"
-        )
+        self.logger.debug(f"{indicator_type} expired ({reason_str}): {indicator}")
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get expiration statistics."""
         return {
             **self.expiration_stats,
-            'total_expired': sum(self.expiration_stats.values()),
-            'auto_remove_enabled': self.auto_remove_expired
+            "total_expired": sum(self.expiration_stats.values()),
+            "auto_remove_enabled": self.auto_remove_expired,
         }
 
     def reset_statistics(self) -> None:

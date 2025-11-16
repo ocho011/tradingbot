@@ -4,25 +4,25 @@ Tests for database models and schema validation.
 Tests table creation, constraints, indexes, and data integrity.
 """
 
-import pytest
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import inspect, select
 from sqlalchemy.exc import IntegrityError
 
+from src.core.constants import TimeFrame
 from src.database import (
-    Trade,
+    BacktestResult,
     Position,
     Statistics,
-    BacktestResult,
-    init_db,
+    Trade,
     close_db,
-    get_session,
-    drop_all_tables,
     create_all_tables,
+    drop_all_tables,
+    get_session,
+    init_db,
 )
-from src.core.constants import TimeFrame
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -31,14 +31,14 @@ async def db_session():
     # Close any existing database connections
     try:
         await close_db()
-    except:
+    except Exception:
         pass
 
     # Use shared cache in-memory SQLite for tests
     # The '?cache=shared' parameter allows multiple connections to share the same in-memory database
     await init_db(
-        database_url='sqlite+aiosqlite:///:memory:?cache=shared&uri=true',
-        create_tables=False  # Don't create tables yet
+        database_url="sqlite+aiosqlite:///:memory:?cache=shared&uri=true",
+        create_tables=False,  # Don't create tables yet
     )
 
     # Drop and recreate tables for each test to ensure clean state
@@ -68,8 +68,10 @@ class TestDatabaseSchema:
         async with engine.connect() as conn:
             tables = await conn.run_sync(get_tables)
 
-        expected_tables = {'trades', 'positions', 'statistics', 'backtest_results'}
-        assert expected_tables.issubset(set(tables)), f"Missing tables: {expected_tables - set(tables)}"
+        expected_tables = {"trades", "positions", "statistics", "backtest_results"}
+        assert expected_tables.issubset(
+            set(tables)
+        ), f"Missing tables: {expected_tables - set(tables)}"
 
     async def test_trade_table_columns(self, db_session):
         """Test Trade table has required columns."""
@@ -79,16 +81,31 @@ class TestDatabaseSchema:
 
         def get_columns(sync_conn):
             inspector = inspect(sync_conn)
-            return {col['name'] for col in inspector.get_columns('trades')}
+            return {col["name"] for col in inspector.get_columns("trades")}
 
         async with engine.connect() as conn:
             columns = await conn.run_sync(get_columns)
 
         required_columns = {
-            'id', 'symbol', 'strategy', 'timeframe', 'entry_time', 'exit_time',
-            'entry_price', 'exit_price', 'quantity', 'leverage', 'side',
-            'pnl', 'pnl_percent', 'fees', 'status', 'exit_reason',
-            'created_at', 'updated_at', 'position_id'
+            "id",
+            "symbol",
+            "strategy",
+            "timeframe",
+            "entry_time",
+            "exit_time",
+            "entry_price",
+            "exit_price",
+            "quantity",
+            "leverage",
+            "side",
+            "pnl",
+            "pnl_percent",
+            "fees",
+            "status",
+            "exit_reason",
+            "created_at",
+            "updated_at",
+            "position_id",
         }
 
         assert required_columns.issubset(columns), f"Missing columns: {required_columns - columns}"
@@ -101,16 +118,16 @@ class TestDatabaseSchema:
 
         def get_indexes(sync_conn):
             inspector = inspect(sync_conn)
-            return {idx['name'] for idx in inspector.get_indexes('trades')}
+            return {idx["name"] for idx in inspector.get_indexes("trades")}
 
         async with engine.connect() as conn:
             indexes = await conn.run_sync(get_indexes)
 
         # Check that our custom indexes exist
         expected_indexes = {
-            'idx_trade_symbol_strategy',
-            'idx_trade_entry_time',
-            'idx_trade_status',
+            "idx_trade_symbol_strategy",
+            "idx_trade_entry_time",
+            "idx_trade_status",
         }
 
         assert expected_indexes.issubset(indexes), f"Missing indexes: {expected_indexes - indexes}"
@@ -124,15 +141,15 @@ class TestTradeModel:
         """Test creating a valid trade record."""
         async with get_session() as session:
             trade = Trade(
-                symbol='BTCUSDT',
-                strategy='test_strategy',
+                symbol="BTCUSDT",
+                strategy="test_strategy",
                 timeframe=TimeFrame.M15,
                 entry_time=datetime.now(timezone.utc),
-                entry_price=Decimal('50000.00'),
-                quantity=Decimal('0.1'),
+                entry_price=Decimal("50000.00"),
+                quantity=Decimal("0.1"),
                 leverage=10,
-                side='LONG',
-                status='OPEN',
+                side="LONG",
+                status="OPEN",
             )
 
             session.add(trade)
@@ -151,15 +168,15 @@ class TestTradeModel:
 
         try:
             trade = Trade(
-                symbol='BTCUSDT',
-                strategy='test_strategy',
+                symbol="BTCUSDT",
+                strategy="test_strategy",
                 timeframe=TimeFrame.M15,
                 entry_time=datetime.now(timezone.utc),
-                entry_price=Decimal('50000.00'),
-                quantity=Decimal('-0.1'),  # Invalid: negative quantity
+                entry_price=Decimal("50000.00"),
+                quantity=Decimal("-0.1"),  # Invalid: negative quantity
                 leverage=10,
-                side='LONG',
-                status='OPEN',
+                side="LONG",
+                status="OPEN",
             )
 
             session.add(trade)
@@ -178,15 +195,15 @@ class TestTradeModel:
 
         try:
             trade = Trade(
-                symbol='BTCUSDT',
-                strategy='test_strategy',
+                symbol="BTCUSDT",
+                strategy="test_strategy",
                 timeframe=TimeFrame.M15,
                 entry_time=datetime.now(timezone.utc),
-                entry_price=Decimal('50000.00'),
-                quantity=Decimal('0.1'),
+                entry_price=Decimal("50000.00"),
+                quantity=Decimal("0.1"),
                 leverage=0,  # Invalid: zero leverage
-                side='LONG',
-                status='OPEN',
+                side="LONG",
+                status="OPEN",
             )
 
             session.add(trade)
@@ -205,15 +222,15 @@ class TestTradeModel:
 
         try:
             trade = Trade(
-                symbol='BTCUSDT',
-                strategy='test_strategy',
+                symbol="BTCUSDT",
+                strategy="test_strategy",
                 timeframe=TimeFrame.M15,
                 entry_time=datetime.now(timezone.utc),
-                entry_price=Decimal('50000.00'),
-                quantity=Decimal('0.1'),
+                entry_price=Decimal("50000.00"),
+                quantity=Decimal("0.1"),
                 leverage=10,
-                side='INVALID',  # Invalid side
-                status='OPEN',
+                side="INVALID",  # Invalid side
+                status="OPEN",
             )
 
             session.add(trade)
@@ -229,26 +246,26 @@ class TestTradeModel:
             # Create test trades
             trades = [
                 Trade(
-                    symbol='BTCUSDT',
-                    strategy='test',
+                    symbol="BTCUSDT",
+                    strategy="test",
                     timeframe=TimeFrame.M15,
                     entry_time=datetime.now(timezone.utc),
-                    entry_price=Decimal('50000'),
-                    quantity=Decimal('0.1'),
+                    entry_price=Decimal("50000"),
+                    quantity=Decimal("0.1"),
                     leverage=10,
-                    side='LONG',
-                    status='OPEN',
+                    side="LONG",
+                    status="OPEN",
                 ),
                 Trade(
-                    symbol='ETHUSDT',
-                    strategy='test',
+                    symbol="ETHUSDT",
+                    strategy="test",
                     timeframe=TimeFrame.M15,
                     entry_time=datetime.now(timezone.utc),
-                    entry_price=Decimal('3000'),
-                    quantity=Decimal('1.0'),
+                    entry_price=Decimal("3000"),
+                    quantity=Decimal("1.0"),
                     leverage=10,
-                    side='LONG',
-                    status='OPEN',
+                    side="LONG",
+                    status="OPEN",
                 ),
             ]
 
@@ -257,13 +274,11 @@ class TestTradeModel:
             await session.commit()
 
             # Query BTC trades
-            result = await session.execute(
-                select(Trade).where(Trade.symbol == 'BTCUSDT')
-            )
+            result = await session.execute(select(Trade).where(Trade.symbol == "BTCUSDT"))
             btc_trades = result.scalars().all()
 
             assert len(btc_trades) == 1
-            assert btc_trades[0].symbol == 'BTCUSDT'
+            assert btc_trades[0].symbol == "BTCUSDT"
 
 
 @pytest.mark.unit
@@ -274,14 +289,14 @@ class TestPositionModel:
         """Test creating a valid position record."""
         async with get_session() as session:
             position = Position(
-                symbol='BTCUSDT',
-                strategy='test_strategy',
+                symbol="BTCUSDT",
+                strategy="test_strategy",
                 timeframe=TimeFrame.H1,
-                side='LONG',
-                size=Decimal('0.5'),
-                entry_price=Decimal('50000.00'),
+                side="LONG",
+                size=Decimal("0.5"),
+                entry_price=Decimal("50000.00"),
                 leverage=10,
-                status='OPEN',
+                status="OPEN",
                 opened_at=datetime.now(timezone.utc),
             )
 
@@ -300,14 +315,14 @@ class TestPositionModel:
 
         try:
             position = Position(
-                symbol='BTCUSDT',
-                strategy='test_strategy',
+                symbol="BTCUSDT",
+                strategy="test_strategy",
                 timeframe=TimeFrame.H1,
-                side='LONG',
-                size=Decimal('0'),  # Invalid: zero size
-                entry_price=Decimal('50000.00'),
+                side="LONG",
+                size=Decimal("0"),  # Invalid: zero size
+                entry_price=Decimal("50000.00"),
                 leverage=10,
-                status='OPEN',
+                status="OPEN",
                 opened_at=datetime.now(timezone.utc),
             )
 
@@ -324,14 +339,14 @@ class TestPositionModel:
 
         async with get_session() as session:
             position = Position(
-                symbol='BTCUSDT',
-                strategy='test_strategy',
+                symbol="BTCUSDT",
+                strategy="test_strategy",
                 timeframe=TimeFrame.H1,
-                side='LONG',
-                size=Decimal('0.5'),
-                entry_price=Decimal('50000.00'),
+                side="LONG",
+                size=Decimal("0.5"),
+                entry_price=Decimal("50000.00"),
                 leverage=10,
-                status='OPEN',
+                status="OPEN",
                 opened_at=datetime.now(timezone.utc),
             )
 
@@ -340,15 +355,15 @@ class TestPositionModel:
 
             # Add trades to position
             trade = Trade(
-                symbol='BTCUSDT',
-                strategy='test_strategy',
+                symbol="BTCUSDT",
+                strategy="test_strategy",
                 timeframe=TimeFrame.H1,
                 entry_time=datetime.now(timezone.utc),
-                entry_price=Decimal('50000'),
-                quantity=Decimal('0.5'),
+                entry_price=Decimal("50000"),
+                quantity=Decimal("0.5"),
                 leverage=10,
-                side='LONG',
-                status='OPEN',
+                side="LONG",
+                status="OPEN",
                 position_id=position.id,
             )
 
@@ -357,13 +372,15 @@ class TestPositionModel:
 
             # Query with eager loading to load relationships
             result = await session.execute(
-                select(Position).where(Position.id == position.id).options(selectinload(Position.trades))
+                select(Position)
+                .where(Position.id == position.id)
+                .options(selectinload(Position.trades))
             )
             loaded_position = result.scalar_one()
 
             # Verify relationship
             assert len(loaded_position.trades) == 1
-            assert loaded_position.trades[0].symbol == 'BTCUSDT'
+            assert loaded_position.trades[0].symbol == "BTCUSDT"
 
 
 @pytest.mark.unit
@@ -374,17 +391,17 @@ class TestStatisticsModel:
         """Test creating statistics record."""
         async with get_session() as session:
             stats = Statistics(
-                strategy='test_strategy',
-                period_type='DAILY',
+                strategy="test_strategy",
+                period_type="DAILY",
                 period_start=datetime.now(timezone.utc).replace(hour=0, minute=0, second=0),
                 period_end=datetime.now(timezone.utc).replace(hour=23, minute=59, second=59),
                 total_trades=100,
                 winning_trades=60,
                 losing_trades=40,
                 win_rate=60.0,
-                total_pnl=Decimal('5000.00'),
-                gross_profit=Decimal('8000.00'),
-                gross_loss=Decimal('-3000.00'),
+                total_pnl=Decimal("5000.00"),
+                gross_profit=Decimal("8000.00"),
+                gross_loss=Decimal("-3000.00"),
             )
 
             session.add(stats)
@@ -402,8 +419,8 @@ class TestStatisticsModel:
         # Create first statistics record
         async with get_session() as session:
             stats1 = Statistics(
-                strategy='test_strategy',
-                period_type='DAILY',
+                strategy="test_strategy",
+                period_type="DAILY",
                 period_start=period_start,
                 period_end=datetime.now(timezone.utc),
                 total_trades=100,
@@ -417,8 +434,8 @@ class TestStatisticsModel:
 
         try:
             stats2 = Statistics(
-                strategy='test_strategy',
-                period_type='DAILY',
+                strategy="test_strategy",
+                period_type="DAILY",
                 period_start=period_start,  # Same period
                 period_end=datetime.now(timezone.utc),
                 total_trades=200,
@@ -439,16 +456,16 @@ class TestBacktestResultModel:
         """Test creating backtest result record."""
         async with get_session() as session:
             backtest = BacktestResult(
-                name='Test Backtest 1',
-                strategy='test_strategy',
-                symbol='BTCUSDT',
+                name="Test Backtest 1",
+                strategy="test_strategy",
+                symbol="BTCUSDT",
                 timeframe=TimeFrame.H1,
                 start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
                 end_date=datetime(2024, 12, 31, tzinfo=timezone.utc),
-                initial_capital=Decimal('10000.00'),
-                final_capital=Decimal('15000.00'),
+                initial_capital=Decimal("10000.00"),
+                final_capital=Decimal("15000.00"),
                 total_return=50.0,
-                total_pnl=Decimal('5000.00'),
+                total_pnl=Decimal("5000.00"),
                 total_trades=250,
                 winning_trades=150,
                 losing_trades=100,
@@ -470,17 +487,17 @@ class TestBacktestResultModel:
 
         try:
             backtest = BacktestResult(
-                name='Invalid Backtest',
-                strategy='test_strategy',
-                symbol='BTCUSDT',
+                name="Invalid Backtest",
+                strategy="test_strategy",
+                symbol="BTCUSDT",
                 timeframe=TimeFrame.H1,
                 start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
                 end_date=datetime(2024, 12, 31, tzinfo=timezone.utc),
-                initial_capital=Decimal('-1000.00'),  # Invalid: negative capital
-                final_capital=Decimal('0.00'),
+                initial_capital=Decimal("-1000.00"),  # Invalid: negative capital
+                final_capital=Decimal("0.00"),
                 total_return=0.0,
-                total_pnl=Decimal('0.00'),
-                configuration='{}',
+                total_pnl=Decimal("0.00"),
+                configuration="{}",
             )
 
             session.add(backtest)
@@ -505,18 +522,18 @@ class TestDatabasePerformance:
             trades = []
             for i in range(1000):
                 trade = Trade(
-                    symbol='BTCUSDT',
-                    strategy='test_strategy',
+                    symbol="BTCUSDT",
+                    strategy="test_strategy",
                     timeframe=TimeFrame.M15,
                     entry_time=datetime.now(timezone.utc),
-                    entry_price=Decimal('50000.00') + Decimal(i),
-                    quantity=Decimal('0.1'),
+                    entry_price=Decimal("50000.00") + Decimal(i),
+                    quantity=Decimal("0.1"),
                     leverage=10,
-                    side='LONG',
-                    status='CLOSED',
+                    side="LONG",
+                    status="CLOSED",
                     exit_time=datetime.now(timezone.utc),
-                    exit_price=Decimal('50100.00') + Decimal(i),
-                    pnl=Decimal('10.00'),
+                    exit_price=Decimal("50100.00") + Decimal(i),
+                    pnl=Decimal("10.00"),
                 )
                 trades.append(trade)
 

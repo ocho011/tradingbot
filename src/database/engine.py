@@ -5,21 +5,20 @@ This module provides async SQLAlchemy engine setup, session factory,
 and connection pool management for the trading bot database.
 """
 
-import os
-from typing import AsyncGenerator, Optional
-from contextlib import asynccontextmanager
 import logging
+import os
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, Optional
 
 from sqlalchemy.ext.asyncio import (
-    create_async_engine,
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
-    AsyncEngine,
+    create_async_engine,
 )
 from sqlalchemy.pool import NullPool, QueuePool
 
 from src.database.models import Base
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,20 +40,20 @@ def get_database_url() -> str:
         DB_PATH: Path to SQLite database file (default: ./data/tradingbot.db)
     """
     # Check for full DATABASE_URL first
-    db_url = os.getenv('DATABASE_URL')
+    db_url = os.getenv("DATABASE_URL")
     if db_url:
         # Convert postgresql:// to postgresql+asyncpg:// if needed
-        if db_url.startswith('postgresql://'):
-            db_url = db_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+        if db_url.startswith("postgresql://"):
+            db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return db_url
 
     # Default to SQLite with aiosqlite driver
-    db_path = os.getenv('DB_PATH', './data/tradingbot.db')
+    db_path = os.getenv("DB_PATH", "./data/tradingbot.db")
 
     # Ensure data directory exists
-    os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else './data', exist_ok=True)
+    os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else "./data", exist_ok=True)
 
-    return f'sqlite+aiosqlite:///{db_path}'
+    return f"sqlite+aiosqlite:///{db_path}"
 
 
 def create_engine(
@@ -81,12 +80,12 @@ def create_engine(
         database_url = get_database_url()
 
     # SQLite doesn't support connection pooling
-    if database_url.startswith('sqlite'):
+    if database_url.startswith("sqlite"):
         engine = create_async_engine(
             database_url,
             echo=echo,
             poolclass=NullPool,  # No pooling for SQLite
-            connect_args={'check_same_thread': False}  # Allow multi-threaded access
+            connect_args={"check_same_thread": False},  # Allow multi-threaded access
         )
         logger.info(f"Created SQLite async engine: {database_url}")
     else:
@@ -114,11 +113,8 @@ def get_engine() -> AsyncEngine:
     Raises:
         RuntimeError: If engine hasn't been initialized
     """
-    global _engine
     if _engine is None:
-        raise RuntimeError(
-            "Database engine not initialized. Call init_db() first."
-        )
+        raise RuntimeError("Database engine not initialized. Call init_db() first.")
     return _engine
 
 
@@ -132,11 +128,8 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     Raises:
         RuntimeError: If session factory hasn't been initialized
     """
-    global _session_factory
     if _session_factory is None:
-        raise RuntimeError(
-            "Session factory not initialized. Call init_db() first."
-        )
+        raise RuntimeError("Session factory not initialized. Call init_db() first.")
     return _session_factory
 
 
@@ -271,8 +264,9 @@ async def health_check() -> bool:
     """
     try:
         from sqlalchemy import text
+
         async with get_session() as session:
-            await session.execute(text('SELECT 1'))
+            await session.execute(text("SELECT 1"))
         return True
     except Exception as e:
         logger.error(f"Database health check failed: {e}")

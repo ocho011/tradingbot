@@ -10,7 +10,7 @@ Multi-condition approach combining:
 
 import logging
 from datetime import datetime
-from typing import Optional, Dict, List
+from typing import Optional
 
 from src.core.constants import PositionSide, TimeFrame
 from src.strategies.base_strategy import BaseStrategy, TradingSignal
@@ -71,9 +71,7 @@ class StrategyC(BaseStrategy):
         # Validate weights sum to 1.0
         total_weight = trend_weight + entry_zone_weight + liquidity_weight + timing_weight
         if abs(total_weight - 1.0) > 0.01:
-            raise ValueError(
-                f"Condition weights must sum to 1.0, got {total_weight:.2f}"
-            )
+            raise ValueError(f"Condition weights must sum to 1.0, got {total_weight:.2f}")
 
         self.trend_weight = trend_weight
         self.entry_zone_weight = entry_zone_weight
@@ -288,9 +286,7 @@ class StrategyC(BaseStrategy):
         m15_data = indicators.get(self.mid_tf.value, {})
 
         # Look for Order Blocks aligned with bias
-        ob_zones = self._find_aligned_order_blocks(
-            m15_data.get("order_blocks", []), bias
-        )
+        ob_zones = self._find_aligned_order_blocks(m15_data.get("order_blocks", []), bias)
 
         # Look for Fair Value Gaps aligned with bias
         fvg_zones = self._find_aligned_fvg(m15_data.get("fvg", []), bias)
@@ -586,9 +582,7 @@ class StrategyC(BaseStrategy):
             reference_level = entry_zone.get("high", current_price * 1.02)
 
         stop_loss = self.calculate_stop_loss(current_price, direction, reference_level)
-        take_profit = self.calculate_take_profit(
-            current_price, stop_loss, self.risk_reward_ratio
-        )
+        take_profit = self.calculate_take_profit(current_price, stop_loss, self.risk_reward_ratio)
 
         return TradingSignal(
             strategy_name=self.name,

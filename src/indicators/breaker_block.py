@@ -7,22 +7,22 @@ or vice versa. This represents a key concept in ICT methodology where institutio
 levels flip their market structure role.
 """
 
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any
-import logging
+from typing import Any, Dict, List, Optional
 
-from src.indicators.order_block import OrderBlock, OrderBlockType, OrderBlockState
-from src.models.candle import Candle
 from src.core.constants import TimeFrame
-
+from src.indicators.order_block import OrderBlock, OrderBlockState, OrderBlockType
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 
 
 class BreakerBlockType(str, Enum):
     """Type of Breaker Block based on new role after transition."""
+
     BULLISH = "BULLISH"  # Former bearish OB, now acts as support
     BEARISH = "BEARISH"  # Former bullish OB, now acts as resistance
 
@@ -81,7 +81,9 @@ class BreakerBlock:
         if self.volume < 0:
             raise ValueError(f"Volume must be non-negative, got {self.volume}")
         if self.breach_percentage < 0:
-            raise ValueError(f"Breach percentage must be non-negative, got {self.breach_percentage}")
+            raise ValueError(
+                f"Breach percentage must be non-negative, got {self.breach_percentage}"
+            )
 
     def get_range(self) -> float:
         """Get the price range of the breaker block."""
@@ -129,39 +131,42 @@ class BreakerBlock:
     def get_role_description(self) -> str:
         """Get a human-readable description of the role transition."""
         if self.type == BreakerBlockType.BULLISH:
-            return f"Former resistance (bearish OB) → Now support (bullish BB)"
+            return "Former resistance (bearish OB) → Now support (bullish BB)"
         else:
-            return f"Former support (bullish OB) → Now resistance (bearish BB)"
+            return "Former support (bullish OB) → Now resistance (bearish BB)"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert breaker block to dictionary."""
         return {
-            'type': self.type.value,
-            'original_type': self.original_type.value,
-            'role_transition': self.get_role_description(),
-            'high': self.high,
-            'low': self.low,
-            'origin_timestamp': self.origin_timestamp,
-            'origin_datetime': datetime.fromtimestamp(self.origin_timestamp / 1000).isoformat(),
-            'transition_timestamp': self.transition_timestamp,
-            'transition_datetime': datetime.fromtimestamp(self.transition_timestamp / 1000).isoformat(),
-            'transition_candle_index': self.transition_candle_index,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe.value,
-            'strength': self.strength,
-            'volume': self.volume,
-            'original_ob_volume': self.original_ob_volume,
-            'original_test_count': self.original_test_count,
-            'breach_percentage': self.breach_percentage,
-            'state': self.state,
-            'last_tested_timestamp': self.last_tested_timestamp,
-            'last_tested_datetime': (
+            "type": self.type.value,
+            "original_type": self.original_type.value,
+            "role_transition": self.get_role_description(),
+            "high": self.high,
+            "low": self.low,
+            "origin_timestamp": self.origin_timestamp,
+            "origin_datetime": datetime.fromtimestamp(self.origin_timestamp / 1000).isoformat(),
+            "transition_timestamp": self.transition_timestamp,
+            "transition_datetime": datetime.fromtimestamp(
+                self.transition_timestamp / 1000
+            ).isoformat(),
+            "transition_candle_index": self.transition_candle_index,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe.value,
+            "strength": self.strength,
+            "volume": self.volume,
+            "original_ob_volume": self.original_ob_volume,
+            "original_test_count": self.original_test_count,
+            "breach_percentage": self.breach_percentage,
+            "state": self.state,
+            "last_tested_timestamp": self.last_tested_timestamp,
+            "last_tested_datetime": (
                 datetime.fromtimestamp(self.last_tested_timestamp / 1000).isoformat()
-                if self.last_tested_timestamp else None
+                if self.last_tested_timestamp
+                else None
             ),
-            'test_count': self.test_count,
-            'range': self.get_range(),
-            'midpoint': self.get_midpoint()
+            "test_count": self.test_count,
+            "range": self.get_range(),
+            "midpoint": self.get_midpoint(),
         }
 
     def __repr__(self) -> str:
@@ -190,7 +195,7 @@ class BreakerBlockDetector:
         self,
         breach_threshold_percentage: float = 0.5,
         min_breach_candle_body_ratio: float = 0.3,
-        require_close_beyond: bool = True
+        require_close_beyond: bool = True,
     ):
         """
         Initialize Breaker Block detector.
@@ -205,11 +210,7 @@ class BreakerBlockDetector:
         self.require_close_beyond = require_close_beyond
         self.logger = logging.getLogger(f"{__name__}.BreakerBlockDetector")
 
-    def calculate_breach_percentage(
-        self,
-        order_block: OrderBlock,
-        breach_price: float
-    ) -> float:
+    def calculate_breach_percentage(self, order_block: OrderBlock, breach_price: float) -> float:
         """
         Calculate how much price breached beyond the Order Block level.
 
@@ -237,11 +238,7 @@ class BreakerBlockDetector:
 
         return (breach_distance / ob_range) * 100
 
-    def is_order_block_breached(
-        self,
-        order_block: OrderBlock,
-        candle: Candle
-    ) -> bool:
+    def is_order_block_breached(self, order_block: OrderBlock, candle: Candle) -> bool:
         """
         Check if a candle breaches an Order Block beyond the threshold.
 
@@ -284,17 +281,16 @@ class BreakerBlockDetector:
             return False
 
         # Check candle body strength
-        body_ratio = candle.get_body_size() / candle.get_total_range() if candle.get_total_range() > 0 else 0
+        body_ratio = (
+            candle.get_body_size() / candle.get_total_range() if candle.get_total_range() > 0 else 0
+        )
         if body_ratio < self.min_breach_candle_body_ratio:
             return False
 
         return True
 
     def convert_to_breaker_block(
-        self,
-        order_block: OrderBlock,
-        breach_candle: Candle,
-        breach_candle_index: int
+        self, order_block: OrderBlock, breach_candle: Candle, breach_candle_index: int
     ) -> BreakerBlock:
         """
         Convert a breached Order Block into a Breaker Block.
@@ -337,7 +333,7 @@ class BreakerBlockDetector:
             original_ob_volume=order_block.volume,
             original_test_count=order_block.test_count,
             breach_percentage=breach_pct,
-            state="ACTIVE"
+            state="ACTIVE",
         )
 
         self.logger.info(
@@ -350,10 +346,7 @@ class BreakerBlockDetector:
         return breaker_block
 
     def detect_breaker_blocks(
-        self,
-        order_blocks: List[OrderBlock],
-        candles: List[Candle],
-        start_index: int = 0
+        self, order_blocks: List[OrderBlock], candles: List[Candle], start_index: int = 0
     ) -> List[BreakerBlock]:
         """
         Detect Breaker Blocks from Order Blocks and candle data.
@@ -409,17 +402,12 @@ class BreakerBlockDetector:
         # Sort by transition timestamp
         breaker_blocks.sort(key=lambda bb: bb.transition_timestamp)
 
-        self.logger.info(
-            f"Detected {len(breaker_blocks)} Breaker Block transitions"
-        )
+        self.logger.info(f"Detected {len(breaker_blocks)} Breaker Block transitions")
 
         return breaker_blocks
 
     def update_breaker_block_states(
-        self,
-        breaker_blocks: List[BreakerBlock],
-        candles: List[Candle],
-        start_index: int = 0
+        self, breaker_blocks: List[BreakerBlock], candles: List[Candle], start_index: int = 0
     ) -> None:
         """
         Update the states of Breaker Blocks based on price action.

@@ -11,12 +11,20 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Depends, status, Security, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, Field
 import uvicorn
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Security,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
 
 from src.api.middleware import configure_security_middleware
 from src.api.websocket import WebSocketManager
@@ -45,16 +53,21 @@ security_manager: Optional[SecurityManager] = None
 # Request/Response Models
 # ============================================================================
 
+
 class HealthResponse(BaseModel):
     """Health check response."""
+
     status: str = Field(..., description="Health status: healthy, degraded, unhealthy")
     timestamp: datetime = Field(default_factory=datetime.now)
     uptime_seconds: float = Field(..., description="System uptime in seconds")
-    components: Dict[str, str] = Field(default_factory=dict, description="Component health statuses")
+    components: Dict[str, str] = Field(
+        default_factory=dict, description="Component health statuses"
+    )
 
 
 class SystemStatusResponse(BaseModel):
     """Detailed system status response."""
+
     system_state: str = Field(..., description="Current system state")
     environment: str = Field(..., description="Environment: testnet or mainnet")
     trading_mode: str = Field(..., description="Trading mode")
@@ -65,6 +78,7 @@ class SystemStatusResponse(BaseModel):
 
 class ConfigUpdateRequest(BaseModel):
     """Configuration update request."""
+
     section: str = Field(..., description="Configuration section to update")
     updates: Dict[str, Any] = Field(..., description="Configuration updates")
     validate: bool = Field(True, description="Validate before applying")
@@ -72,6 +86,7 @@ class ConfigUpdateRequest(BaseModel):
 
 class ConfigUpdateResponse(BaseModel):
     """Configuration update response."""
+
     success: bool
     message: str
     section: str
@@ -81,16 +96,19 @@ class ConfigUpdateResponse(BaseModel):
 
 class EnvironmentSwitchRequest(BaseModel):
     """Environment switch request."""
+
     to_testnet: bool = Field(..., description="True for testnet, False for mainnet")
 
 
 class RollbackRequest(BaseModel):
     """Configuration rollback request."""
+
     steps: int = Field(1, ge=1, le=10, description="Number of steps to rollback")
 
 
 class MetricsResponse(BaseModel):
     """Metrics response."""
+
     timestamp: datetime = Field(default_factory=datetime.now)
     system_metrics: Dict[str, Any] = Field(default_factory=dict)
     component_metrics: Dict[str, Any] = Field(default_factory=dict)
@@ -99,6 +117,7 @@ class MetricsResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Standard error response."""
+
     error: str
     detail: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.now)
@@ -108,8 +127,9 @@ class ErrorResponse(BaseModel):
 # Authentication & Authorization
 # ============================================================================
 
+
 async def verify_token(
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(security),
 ) -> Dict[str, Any]:
     """
     Verify authentication token.
@@ -146,7 +166,7 @@ async def verify_token(
     return {
         "user": "authenticated_user",
         "role": "admin",  # Could be: admin, trader, read-only
-        "token": token
+        "token": token,
     }
 
 
@@ -166,7 +186,7 @@ async def require_admin(_user: Dict[str, Any] = Depends(verify_token)) -> Dict[s
     if _user.get("role") != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required for this operation"
+            detail="Admin privileges required for this operation",
         )
     return _user
 
@@ -175,6 +195,7 @@ async def require_admin(_user: Dict[str, Any] = Depends(verify_token)) -> Dict[s
 # Application Lifecycle
 # ============================================================================
 
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """
@@ -182,8 +203,6 @@ async def lifespan(_app: FastAPI):
 
     Handles startup and shutdown of the trading system and all services.
     """
-    global orchestrator, config_manager, metrics_collector, monitoring_system, event_bus, ws_manager, security_manager
-
     logger.info("Starting API server and trading system...")
 
     try:
@@ -197,12 +216,13 @@ async def lifespan(_app: FastAPI):
         # Configure security middleware if security manager is available
         if security_manager:
             import os
+
             configure_security_middleware(
                 app=_app,
                 security_manager=security_manager,
                 rate_limit_enabled=os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true",
                 ip_whitelist_enabled=os.getenv("IP_WHITELIST_ENABLED", "false").lower() == "true",
-                security_headers_enabled=True
+                security_headers_enabled=True,
             )
             logger.info("Security middleware configured")
 
@@ -275,12 +295,13 @@ app.add_middleware(
 # Health & Status Endpoints
 # ============================================================================
 
+
 @app.get(
     "/health",
     response_model=HealthResponse,
     summary="Health Check",
     description="Quick health check endpoint for load balancers and monitoring systems",
-    tags=["System"]
+    tags=["System"],
 )
 async def health_check() -> HealthResponse:
     """
@@ -293,27 +314,20 @@ async def health_check() -> HealthResponse:
         # Calculate uptime
         uptime = 0.0
         if monitoring_system:
-            uptime = (datetime.now() - monitoring_system._metrics_collector._start_time).total_seconds()
+            uptime = (
+                datetime.now() - monitoring_system._metrics_collector._start_time
+            ).total_seconds()
 
         # Get component health if available
         components = {}
         if monitoring_system:
             health_checks = monitoring_system.get_health_status()
-            components = {
-                check.component: check.status.value
-                for check in health_checks
-            }
+            components = {check.component: check.status.value for check in health_checks}
 
         # Determine overall health
         if components:
-            unhealthy_count = sum(
-                1 for status in components.values()
-                if status == "unhealthy"
-            )
-            degraded_count = sum(
-                1 for status in components.values()
-                if status == "degraded"
-            )
+            unhealthy_count = sum(1 for status in components.values() if status == "unhealthy")
+            degraded_count = sum(1 for status in components.values() if status == "degraded")
 
             if unhealthy_count > 0:
                 overall_status = "unhealthy"
@@ -324,26 +338,18 @@ async def health_check() -> HealthResponse:
         else:
             overall_status = "healthy"
 
-        return HealthResponse(
-            status=overall_status,
-            uptime_seconds=uptime,
-            components=components
-        )
+        return HealthResponse(status=overall_status, uptime_seconds=uptime, components=components)
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        return HealthResponse(
-            status="unhealthy",
-            uptime_seconds=0.0,
-            components={"error": str(e)}
-        )
+        return HealthResponse(status="unhealthy", uptime_seconds=0.0, components={"error": str(e)})
 
 
 @app.get(
     "/metrics",
     summary="Prometheus Metrics",
     description="Prometheus metrics endpoint for scraping",
-    tags=["System"]
+    tags=["System"],
 )
 async def get_metrics():
     """
@@ -352,16 +358,14 @@ async def get_metrics():
     Returns metrics in Prometheus text format for scraping.
     No authentication required to allow Prometheus to scrape metrics.
     """
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
     from src.monitoring.metrics import trading_metrics
 
     # Generate Prometheus metrics
     metrics_output = generate_latest(trading_metrics.get_registry())
 
-    return Response(
-        content=metrics_output,
-        media_type=CONTENT_TYPE_LATEST
-    )
+    return Response(content=metrics_output, media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get(
@@ -369,11 +373,9 @@ async def get_metrics():
     response_model=SystemStatusResponse,
     summary="System Status",
     description="Get detailed system status including all services and components",
-    tags=["System"]
+    tags=["System"],
 )
-async def get_system_status(
-    _user: Dict[str, Any] = Depends(verify_token)
-) -> SystemStatusResponse:
+async def get_system_status(_user: Dict[str, Any] = Depends(verify_token)) -> SystemStatusResponse:
     """
     Get comprehensive system status.
 
@@ -402,21 +404,23 @@ async def get_system_status(
         # Calculate uptime
         uptime = 0.0
         if monitoring_system:
-            uptime = (datetime.now() - monitoring_system._metrics_collector._start_time).total_seconds()
+            uptime = (
+                datetime.now() - monitoring_system._metrics_collector._start_time
+            ).total_seconds()
 
         return SystemStatusResponse(
             system_state=system_state,
             environment=environment,
             trading_mode=trading_mode,
             services=services,
-            uptime_seconds=uptime
+            uptime_seconds=uptime,
         )
 
     except Exception as e:
         logger.error(f"Failed to get system status: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve system status: {str(e)}"
+            detail=f"Failed to retrieve system status: {str(e)}",
         )
 
 
@@ -424,15 +428,14 @@ async def get_system_status(
 # Configuration Management Endpoints
 # ============================================================================
 
+
 @app.get(
     "/config",
     summary="Get Configuration",
     description="Get current system configuration",
-    tags=["Configuration"]
+    tags=["Configuration"],
 )
-async def get_configuration(
-    _user: Dict[str, Any] = Depends(verify_token)
-) -> Dict[str, Any]:
+async def get_configuration(_user: Dict[str, Any] = Depends(verify_token)) -> Dict[str, Any]:
     """
     Get current system configuration.
 
@@ -441,7 +444,7 @@ async def get_configuration(
     if not config_manager:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Configuration manager not available"
+            detail="Configuration manager not available",
         )
 
     try:
@@ -456,13 +459,13 @@ async def get_configuration(
                 "file_watching_enabled": config_status.get("file_watching_enabled"),
                 "auto_save_enabled": config_status.get("auto_save_enabled"),
             },
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
     except Exception as e:
         logger.error(f"Failed to get configuration: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve configuration: {str(e)}"
+            detail=f"Failed to retrieve configuration: {str(e)}",
         )
 
 
@@ -471,11 +474,10 @@ async def get_configuration(
     response_model=ConfigUpdateResponse,
     summary="Update Configuration",
     description="Update specific configuration section at runtime",
-    tags=["Configuration"]
+    tags=["Configuration"],
 )
 async def update_configuration(
-    request: ConfigUpdateRequest,
-    _user: Dict[str, Any] = Depends(require_admin)
+    request: ConfigUpdateRequest, _user: Dict[str, Any] = Depends(require_admin)
 ) -> ConfigUpdateResponse:
     """
     Update configuration at runtime.
@@ -486,27 +488,25 @@ async def update_configuration(
     if not config_manager:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Configuration manager not available"
+            detail="Configuration manager not available",
         )
 
     try:
         success = config_manager.update_config(
-            section=request.section,
-            updates=request.updates,
-            validate=request.validate
+            section=request.section, updates=request.updates, validate=request.validate
         )
 
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Configuration update failed validation"
+                detail="Configuration update failed validation",
             )
 
         return ConfigUpdateResponse(
             success=True,
             message=f"Configuration section '{request.section}' updated successfully",
             section=request.section,
-            applied_updates=request.updates
+            applied_updates=request.updates,
         )
 
     except HTTPException:
@@ -516,7 +516,7 @@ async def update_configuration(
         logger.error(f"Configuration update failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Configuration update failed: {str(e)}"
+            detail=f"Configuration update failed: {str(e)}",
         )
 
 
@@ -524,11 +524,10 @@ async def update_configuration(
     "/config/switch-environment",
     summary="Switch Environment",
     description="Switch between testnet and mainnet environments",
-    tags=["Configuration"]
+    tags=["Configuration"],
 )
 async def switch_environment(
-    request: EnvironmentSwitchRequest,
-    _user: Dict[str, Any] = Depends(require_admin)
+    request: EnvironmentSwitchRequest, _user: Dict[str, Any] = Depends(require_admin)
 ) -> Dict[str, Any]:
     """
     Switch between testnet and mainnet.
@@ -539,7 +538,7 @@ async def switch_environment(
     if not config_manager:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Configuration manager not available"
+            detail="Configuration manager not available",
         )
 
     try:
@@ -547,8 +546,7 @@ async def switch_environment(
 
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Environment switch failed"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Environment switch failed"
             )
 
         target_env = "testnet" if request.to_testnet else "mainnet"
@@ -558,14 +556,14 @@ async def switch_environment(
             "message": f"Successfully switched to {target_env}",
             "environment": target_env,
             "warning": "System restart recommended for full effect",
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
 
     except Exception as e:
         logger.error(f"Environment switch failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Environment switch failed: {str(e)}"
+            detail=f"Environment switch failed: {str(e)}",
         )
 
 
@@ -573,11 +571,10 @@ async def switch_environment(
     "/config/rollback",
     summary="Rollback Configuration",
     description="Rollback to previous configuration state",
-    tags=["Configuration"]
+    tags=["Configuration"],
 )
 async def rollback_configuration(
-    request: RollbackRequest,
-    _user: Dict[str, Any] = Depends(require_admin)
+    request: RollbackRequest, _user: Dict[str, Any] = Depends(require_admin)
 ) -> Dict[str, Any]:
     """
     Rollback configuration to previous state.
@@ -587,7 +584,7 @@ async def rollback_configuration(
     if not config_manager:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Configuration manager not available"
+            detail="Configuration manager not available",
         )
 
     try:
@@ -596,14 +593,14 @@ async def rollback_configuration(
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Configuration rollback failed - no history available"
+                detail="Configuration rollback failed - no history available",
             )
 
         return {
             "success": True,
             "message": f"Successfully rolled back {request.steps} step(s)",
             "steps": request.steps,
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
 
     except HTTPException:
@@ -613,7 +610,7 @@ async def rollback_configuration(
         logger.error(f"Configuration rollback failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Configuration rollback failed: {str(e)}"
+            detail=f"Configuration rollback failed: {str(e)}",
         )
 
 
@@ -621,11 +618,10 @@ async def rollback_configuration(
     "/config/history",
     summary="Configuration History",
     description="Get configuration change history",
-    tags=["Configuration"]
+    tags=["Configuration"],
 )
 async def get_config_history(
-    limit: int = 10,
-    _user: Dict[str, Any] = Depends(verify_token)
+    limit: int = 10, _user: Dict[str, Any] = Depends(verify_token)
 ) -> Dict[str, Any]:
     """
     Get configuration change history.
@@ -635,7 +631,7 @@ async def get_config_history(
     if not config_manager:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Configuration manager not available"
+            detail="Configuration manager not available",
         )
 
     try:
@@ -645,14 +641,14 @@ async def get_config_history(
             "success": True,
             "history": history,
             "count": len(history),
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
 
     except Exception as e:
         logger.error(f"Failed to get configuration history: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve configuration history: {str(e)}"
+            detail=f"Failed to retrieve configuration history: {str(e)}",
         )
 
 
@@ -660,15 +656,16 @@ async def get_config_history(
 # Metrics & Monitoring Endpoints
 # ============================================================================
 
+
 @app.get(
-    "/metrics",
+    "/api/metrics",
     response_model=MetricsResponse,
     summary="System Metrics",
     description="Get comprehensive system metrics and performance data",
-    tags=["Metrics"]
+    tags=["Metrics"],
 )
-async def get_metrics(
-    _user: Dict[str, Any] = Depends(verify_token)
+async def get_system_metrics(
+    _user: Dict[str, Any] = Depends(verify_token),
 ) -> MetricsResponse:
     """
     Get comprehensive system metrics.
@@ -687,15 +684,13 @@ async def get_metrics(
                 "cpu_percent": sys_metrics.get_cpu_usage(),
                 "memory_percent": sys_metrics.get_memory_usage(),
                 "disk_percent": sys_metrics.get_disk_usage(),
-                "uptime_seconds": (datetime.now() - monitoring_system._metrics_collector._start_time).total_seconds()
+                "uptime_seconds": (
+                    datetime.now() - monitoring_system._metrics_collector._start_time
+                ).total_seconds(),
             }
 
             # Performance metrics (would be collected from components)
-            performance_metrics = {
-                "api_latency_ms": 0,
-                "throughput_per_sec": 0,
-                "error_rate": 0
-            }
+            performance_metrics = {"api_latency_ms": 0, "throughput_per_sec": 0, "error_rate": 0}
 
         if metrics_collector:
             # Component-specific metrics
@@ -705,14 +700,14 @@ async def get_metrics(
         return MetricsResponse(
             system_metrics=system_metrics,
             component_metrics=component_metrics,
-            performance_metrics=performance_metrics
+            performance_metrics=performance_metrics,
         )
 
     except Exception as e:
         logger.error(f"Failed to get metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve metrics: {str(e)}"
+            detail=f"Failed to retrieve metrics: {str(e)}",
         )
 
 
@@ -720,11 +715,10 @@ async def get_metrics(
     "/metrics/components/{component_name}",
     summary="Component Metrics",
     description="Get metrics for a specific component",
-    tags=["Metrics"]
+    tags=["Metrics"],
 )
 async def get_component_metrics(
-    component_name: str,
-    _user: Dict[str, Any] = Depends(verify_token)
+    component_name: str, _user: Dict[str, Any] = Depends(verify_token)
 ) -> Dict[str, Any]:
     """
     Get metrics for a specific component.
@@ -735,21 +729,20 @@ async def get_component_metrics(
     if not monitoring_system:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Monitoring system not available"
+            detail="Monitoring system not available",
         )
 
     try:
         # Get component health
         health_checks = monitoring_system.get_health_status()
         component_health = next(
-            (check for check in health_checks if check.component == component_name),
-            None
+            (check for check in health_checks if check.component == component_name), None
         )
 
         if not component_health:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Component '{component_name}' not found"
+                detail=f"Component '{component_name}' not found",
             )
 
         return {
@@ -758,7 +751,7 @@ async def get_component_metrics(
             "message": component_health.message,
             "details": component_health.details,
             "response_time_ms": component_health.response_time_ms,
-            "timestamp": component_health.timestamp
+            "timestamp": component_health.timestamp,
         }
 
     except HTTPException:
@@ -767,13 +760,14 @@ async def get_component_metrics(
         logger.error(f"Failed to get component metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve component metrics: {str(e)}"
+            detail=f"Failed to retrieve component metrics: {str(e)}",
         )
 
 
 # ============================================================================
 # WebSocket Endpoints
 # ============================================================================
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -826,11 +820,9 @@ async def websocket_endpoint(websocket: WebSocket):
     "/ws/stats",
     summary="WebSocket Statistics",
     description="Get WebSocket connection statistics",
-    tags=["WebSocket"]
+    tags=["WebSocket"],
 )
-async def get_websocket_stats(
-    _user: Dict[str, Any] = Depends(verify_token)
-) -> Dict[str, Any]:
+async def get_websocket_stats(_user: Dict[str, Any] = Depends(verify_token)) -> Dict[str, Any]:
     """
     Get WebSocket statistics.
 
@@ -840,27 +832,24 @@ async def get_websocket_stats(
     if not ws_manager:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="WebSocket service not available"
+            detail="WebSocket service not available",
         )
 
     try:
         stats = ws_manager.get_stats()
-        return {
-            "success": True,
-            "stats": stats,
-            "timestamp": datetime.now()
-        }
+        return {"success": True, "stats": stats, "timestamp": datetime.now()}
     except Exception as e:
         logger.error(f"Failed to get WebSocket stats: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve WebSocket statistics: {str(e)}"
+            detail=f"Failed to retrieve WebSocket statistics: {str(e)}",
         )
 
 
 # ============================================================================
 # Error Handlers
 # ============================================================================
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_request, exc: HTTPException):
@@ -870,8 +859,8 @@ async def http_exception_handler(_request, exc: HTTPException):
         content={
             "error": exc.detail,
             "status_code": exc.status_code,
-            "timestamp": datetime.now().isoformat()
-        }
+            "timestamp": datetime.now().isoformat(),
+        },
     )
 
 
@@ -885,14 +874,15 @@ async def general_exception_handler(_request, exc: Exception):
         content={
             "error": "Internal server error",
             "detail": str(exc) if logger.level <= logging.DEBUG else None,
-            "timestamp": datetime.now().isoformat()
-        }
+            "timestamp": datetime.now().isoformat(),
+        },
     )
 
 
 # ============================================================================
 # Server Runner
 # ============================================================================
+
 
 def run_server(
     host: str = "0.0.0.0",

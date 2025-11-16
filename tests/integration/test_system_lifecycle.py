@@ -13,24 +13,24 @@ Tests the main entry point (__main__.py) including:
 import logging
 import os
 import signal
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from src.__main__ import (
-    validate_environment,
+    EnvironmentValidationError,
+    initialize_system,
     setup_logging,
     setup_signal_handlers,
-    initialize_system,
-    start_system,
     shutdown_system,
-    EnvironmentValidationError,
+    start_system,
+    validate_environment,
 )
-
 
 # ============================================================================
 # Environment Validation Tests
 # ============================================================================
+
 
 class TestEnvironmentValidation:
     """Test environment validation logic."""
@@ -95,6 +95,7 @@ class TestEnvironmentValidation:
 # Logging Configuration Tests
 # ============================================================================
 
+
 class TestLoggingSetup:
     """Test logging configuration."""
 
@@ -153,6 +154,7 @@ class TestLoggingSetup:
 # Signal Handler Tests
 # ============================================================================
 
+
 class TestSignalHandlers:
     """Test signal handler configuration."""
 
@@ -188,6 +190,7 @@ class TestSignalHandlers:
 # ============================================================================
 # System Lifecycle Tests
 # ============================================================================
+
 
 @pytest.mark.asyncio
 class TestSystemLifecycle:
@@ -260,6 +263,7 @@ class TestSystemLifecycle:
 # ============================================================================
 # Integration Test: Complete Lifecycle
 # ============================================================================
+
 
 @pytest.mark.asyncio
 class TestCompleteSystemLifecycle:
@@ -359,6 +363,7 @@ class TestCompleteSystemLifecycle:
 # ============================================================================
 # Test Utilities
 # ============================================================================
+
 
 @pytest.fixture
 def clean_environment(monkeypatch):

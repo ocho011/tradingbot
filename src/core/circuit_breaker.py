@@ -3,14 +3,13 @@ Circuit Breaker Pattern Implementation
 Provides fault tolerance and prevents cascading failures.
 """
 
-import time
 import logging
-from enum import Enum
-from typing import Callable, Any, Optional
-from dataclasses import dataclass, field
-from threading import Lock
+import time
 from collections import deque
-from datetime import datetime, timedelta
+from dataclasses import dataclass, field
+from enum import Enum
+from threading import Lock
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +87,8 @@ class CircuitBreakerStats:
             return 0.0
 
         slow_calls = sum(
-            1 for call_type, duration, _ in self.recent_calls
+            1
+            for call_type, duration, _ in self.recent_calls
             if call_type in ("success", "failure") and duration > threshold
         )
         return slow_calls / len(self.recent_calls)
@@ -300,8 +300,7 @@ class CircuitBreaker:
             if self._state == CircuitState.OPEN:
                 self.stats.record_rejection()
                 raise CircuitBreakerError(
-                    f"Circuit breaker '{self.name}' is OPEN",
-                    stats=self.stats
+                    f"Circuit breaker '{self.name}' is OPEN", stats=self.stats
                 )
 
             # Limit concurrent calls in half-open state
@@ -310,7 +309,7 @@ class CircuitBreaker:
                     self.stats.record_rejection()
                     raise CircuitBreakerError(
                         f"Circuit breaker '{self.name}' is HALF_OPEN (max calls reached)",
-                        stats=self.stats
+                        stats=self.stats,
                     )
                 self._half_open_calls += 1
 
@@ -329,6 +328,7 @@ class CircuitBreaker:
 
     def __call__(self, func: Callable) -> Callable:
         """Decorator for protecting functions."""
+
         def wrapper(*args, **kwargs):
             return self.call(func, *args, **kwargs)
 

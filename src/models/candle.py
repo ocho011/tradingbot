@@ -5,13 +5,12 @@ This module provides the Candle class for representing candlestick data
 with validation, normalization, and utility methods.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
-import logging
+from typing import Any, Dict, Optional
 
 from src.core.constants import TimeFrame
-
 
 logger = logging.getLogger(__name__)
 
@@ -143,11 +142,11 @@ class Candle:
         """
         # Mapping of timeframes to milliseconds
         timeframe_ms = {
-            TimeFrame.M1: 60 * 1000,           # 1 minute
-            TimeFrame.M5: 5 * 60 * 1000,       # 5 minutes
-            TimeFrame.M15: 15 * 60 * 1000,     # 15 minutes
-            TimeFrame.M30: 30 * 60 * 1000,     # 30 minutes
-            TimeFrame.H1: 60 * 60 * 1000,      # 1 hour
+            TimeFrame.M1: 60 * 1000,  # 1 minute
+            TimeFrame.M5: 5 * 60 * 1000,  # 5 minutes
+            TimeFrame.M15: 15 * 60 * 1000,  # 15 minutes
+            TimeFrame.M30: 30 * 60 * 1000,  # 30 minutes
+            TimeFrame.H1: 60 * 60 * 1000,  # 1 hour
             TimeFrame.H4: 4 * 60 * 60 * 1000,  # 4 hours
             TimeFrame.D1: 24 * 60 * 60 * 1000,  # 1 day
         }
@@ -204,16 +203,16 @@ class Candle:
             Dictionary with all candle data including ISO datetime
         """
         return {
-            'symbol': self.symbol,
-            'timeframe': self.timeframe.value,
-            'timestamp': self.timestamp,
-            'datetime': self.get_datetime_iso(),
-            'open': self.open,
-            'high': self.high,
-            'low': self.low,
-            'close': self.close,
-            'volume': self.volume,
-            'is_closed': self.is_closed,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe.value,
+            "timestamp": self.timestamp,
+            "datetime": self.get_datetime_iso(),
+            "open": self.open,
+            "high": self.high,
+            "low": self.low,
+            "close": self.close,
+            "volume": self.volume,
+            "is_closed": self.is_closed,
         }
 
     def get_datetime(self) -> datetime:
@@ -306,7 +305,7 @@ class Candle:
         return body_percent <= threshold_percent
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Candle':
+    def from_dict(cls, data: Dict[str, Any]) -> "Candle":
         """
         Create Candle instance from dictionary.
 
@@ -319,31 +318,42 @@ class Candle:
         Raises:
             ValueError: If required fields are missing or invalid
         """
-        required_fields = ['symbol', 'timeframe', 'timestamp', 'open', 'high', 'low', 'close', 'volume']
+        required_fields = [
+            "symbol",
+            "timeframe",
+            "timestamp",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+        ]
         missing_fields = [field for field in required_fields if field not in data]
 
         if missing_fields:
             raise ValueError(f"Missing required fields: {missing_fields}")
 
         # Handle timeframe conversion
-        timeframe = data['timeframe']
+        timeframe = data["timeframe"]
         if isinstance(timeframe, str):
             timeframe = TimeFrame(timeframe)
 
         return cls(
-            symbol=data['symbol'],
+            symbol=data["symbol"],
             timeframe=timeframe,
-            timestamp=int(data['timestamp']),
-            open=float(data['open']),
-            high=float(data['high']),
-            low=float(data['low']),
-            close=float(data['close']),
-            volume=float(data['volume']),
-            is_closed=data.get('is_closed', False)
+            timestamp=int(data["timestamp"]),
+            open=float(data["open"]),
+            high=float(data["high"]),
+            low=float(data["low"]),
+            close=float(data["close"]),
+            volume=float(data["volume"]),
+            is_closed=data.get("is_closed", False),
         )
 
     @classmethod
-    def from_ccxt_ohlcv(cls, symbol: str, timeframe: TimeFrame, ohlcv: list, is_closed: bool = False) -> 'Candle':
+    def from_ccxt_ohlcv(
+        cls, symbol: str, timeframe: TimeFrame, ohlcv: list, is_closed: bool = False
+    ) -> "Candle":
         """
         Create Candle from CCXT OHLCV array format.
 
@@ -360,7 +370,9 @@ class Candle:
             ValueError: If OHLCV array is invalid
         """
         if not ohlcv or len(ohlcv) < 6:
-            raise ValueError(f"Invalid OHLCV array. Expected 6 elements, got {len(ohlcv) if ohlcv else 0}")
+            raise ValueError(
+                f"Invalid OHLCV array. Expected 6 elements, got {len(ohlcv) if ohlcv else 0}"
+            )
 
         return cls(
             symbol=symbol,
@@ -371,7 +383,7 @@ class Candle:
             low=float(ohlcv[3]),
             close=float(ohlcv[4]),
             volume=float(ohlcv[5]),
-            is_closed=is_closed
+            is_closed=is_closed,
         )
 
     def __repr__(self) -> str:

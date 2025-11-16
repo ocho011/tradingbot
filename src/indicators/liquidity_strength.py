@@ -7,44 +7,44 @@ This module implements real-time tracking of:
 - State transitions with event publishing
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any, Tuple
-import logging
+from typing import Any, Dict, List, Optional
 
-from src.models.candle import Candle
-from src.core.constants import TimeFrame, EventType
+from src.core.constants import EventType, TimeFrame
 from src.core.events import Event, EventBus
 from src.indicators.liquidity_zone import (
-    LiquidityLevel, LiquidityType, LiquidityState,
-    LiquidityZoneDetector
-)
-from src.indicators.trend_recognition import (
-    TrendDirection, TrendState, TrendRecognitionEngine
+    LiquidityLevel,
+    LiquidityState,
 )
 from src.indicators.market_structure_break import (
-    BreakOfMarketStructure, BMSType, MarketStructureBreakDetector
+    BMSType,
+    BreakOfMarketStructure,
 )
-
+from src.indicators.trend_recognition import TrendDirection, TrendState
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 
 
 class MarketState(str, Enum):
     """Current state of the market structure."""
-    BULLISH = "BULLISH"      # Uptrend with BMS confirmation
-    BEARISH = "BEARISH"      # Downtrend with BMS confirmation
-    RANGING = "RANGING"      # No clear trend direction
+
+    BULLISH = "BULLISH"  # Uptrend with BMS confirmation
+    BEARISH = "BEARISH"  # Downtrend with BMS confirmation
+    RANGING = "RANGING"  # No clear trend direction
     TRANSITIONING = "TRANSITIONING"  # Trend changing
 
 
 class LiquidityStrengthLevel(str, Enum):
     """Classification of liquidity strength."""
-    VERY_WEAK = "VERY_WEAK"      # 0-20
-    WEAK = "WEAK"                # 21-40
-    MODERATE = "MODERATE"        # 41-60
-    STRONG = "STRONG"            # 61-80
+
+    VERY_WEAK = "VERY_WEAK"  # 0-20
+    WEAK = "WEAK"  # 21-40
+    MODERATE = "MODERATE"  # 41-60
+    STRONG = "STRONG"  # 61-80
     VERY_STRONG = "VERY_STRONG"  # 81-100
 
 
@@ -76,17 +76,17 @@ class LiquidityStrengthMetrics:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
         return {
-            'level': self.level.to_dict(),
-            'base_strength': self.base_strength,
-            'touch_strength': self.touch_strength,
-            'volume_strength': self.volume_strength,
-            'recency_strength': self.recency_strength,
-            'total_strength': self.total_strength,
-            'strength_level': self.strength_level.value,
-            'last_calculated': self.last_calculated,
-            'last_calculated_datetime': datetime.fromtimestamp(
+            "level": self.level.to_dict(),
+            "base_strength": self.base_strength,
+            "touch_strength": self.touch_strength,
+            "volume_strength": self.volume_strength,
+            "recency_strength": self.recency_strength,
+            "total_strength": self.total_strength,
+            "strength_level": self.strength_level.value,
+            "last_calculated": self.last_calculated,
+            "last_calculated_datetime": datetime.fromtimestamp(
                 self.last_calculated / 1000
-            ).isoformat()
+            ).isoformat(),
         }
 
 
@@ -126,24 +126,24 @@ class MarketStateData:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
         return {
-            'state': self.state.value,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe.value,
-            'trend_direction': self.trend_direction.value,
-            'trend_strength': self.trend_strength,
-            'bms_count': self.bms_count,
-            'last_bms': self.last_bms.to_dict() if self.last_bms else None,
-            'liquidity_profile': self.liquidity_profile,
-            'state_duration_candles': self.state_duration_candles,
-            'state_start_timestamp': self.state_start_timestamp,
-            'state_start_datetime': datetime.fromtimestamp(
+            "state": self.state.value,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe.value,
+            "trend_direction": self.trend_direction.value,
+            "trend_strength": self.trend_strength,
+            "bms_count": self.bms_count,
+            "last_bms": self.last_bms.to_dict() if self.last_bms else None,
+            "liquidity_profile": self.liquidity_profile,
+            "state_duration_candles": self.state_duration_candles,
+            "state_start_timestamp": self.state_start_timestamp,
+            "state_start_datetime": datetime.fromtimestamp(
                 self.state_start_timestamp / 1000
             ).isoformat(),
-            'last_update_timestamp': self.last_update_timestamp,
-            'last_update_datetime': datetime.fromtimestamp(
+            "last_update_timestamp": self.last_update_timestamp,
+            "last_update_datetime": datetime.fromtimestamp(
                 self.last_update_timestamp / 1000
             ).isoformat(),
-            'confidence_score': self.confidence_score
+            "confidence_score": self.confidence_score,
         }
 
 
@@ -166,7 +166,7 @@ class LiquidityStrengthCalculator:
         volume_weight: float = 0.25,
         recency_weight: float = 0.15,
         max_age_candles: int = 200,
-        min_touches_for_strong: int = 3
+        min_touches_for_strong: int = 3,
     ):
         """
         Initialize Liquidity Strength Calculator.
@@ -182,9 +182,7 @@ class LiquidityStrengthCalculator:
         # Validate weights sum to 1.0
         total_weight = base_weight + touch_weight + volume_weight + recency_weight
         if not (0.99 <= total_weight <= 1.01):
-            raise ValueError(
-                f"Weights must sum to 1.0, got {total_weight}"
-            )
+            raise ValueError(f"Weights must sum to 1.0, got {total_weight}")
 
         self.base_weight = base_weight
         self.touch_weight = touch_weight
@@ -193,15 +191,10 @@ class LiquidityStrengthCalculator:
         self.max_age_candles = max_age_candles
         self.min_touches_for_strong = min_touches_for_strong
 
-        self.logger = logging.getLogger(
-            f"{__name__}.LiquidityStrengthCalculator"
-        )
+        self.logger = logging.getLogger(f"{__name__}.LiquidityStrengthCalculator")
 
     def calculate_strength(
-        self,
-        level: LiquidityLevel,
-        candles: List[Candle],
-        current_index: int
+        self, level: LiquidityLevel, candles: List[Candle], current_index: int
     ) -> LiquidityStrengthMetrics:
         """
         Calculate comprehensive strength for a liquidity level.
@@ -221,21 +214,17 @@ class LiquidityStrengthCalculator:
         touch_strength = self._calculate_touch_strength(level)
 
         # Volume strength (0-100 based on volume profile)
-        volume_strength = self._calculate_volume_strength(
-            level, candles
-        )
+        volume_strength = self._calculate_volume_strength(level, candles)
 
         # Recency strength (0-100 based on age)
-        recency_strength = self._calculate_recency_strength(
-            level, current_index
-        )
+        recency_strength = self._calculate_recency_strength(level, current_index)
 
         # Weighted total
         total_strength = (
-            base_strength * self.base_weight +
-            touch_strength * self.touch_weight +
-            volume_strength * self.volume_weight +
-            recency_strength * self.recency_weight
+            base_strength * self.base_weight
+            + touch_strength * self.touch_weight
+            + volume_strength * self.volume_weight
+            + recency_strength * self.recency_weight
         )
         total_strength = min(100, max(0, total_strength))
 
@@ -250,13 +239,10 @@ class LiquidityStrengthCalculator:
             recency_strength=recency_strength,
             total_strength=total_strength,
             strength_level=strength_level,
-            last_calculated=candles[current_index].timestamp
+            last_calculated=candles[current_index].timestamp,
         )
 
-    def _calculate_touch_strength(
-        self,
-        level: LiquidityLevel
-    ) -> float:
+    def _calculate_touch_strength(self, level: LiquidityLevel) -> float:
         """
         Calculate strength from touch count.
 
@@ -275,14 +261,11 @@ class LiquidityStrengthCalculator:
         # Each touch adds less value than the previous
         # 1 touch = 20, 2 = 35, 3 = 50, 5 = 65, 10 = 85, 20 = 100
         import math
+
         touch_score = 20 * math.log(level.touch_count + 1) / math.log(1.5)
         return min(100, max(0, touch_score))
 
-    def _calculate_volume_strength(
-        self,
-        level: LiquidityLevel,
-        candles: List[Candle]
-    ) -> float:
+    def _calculate_volume_strength(self, level: LiquidityLevel, candles: List[Candle]) -> float:
         """
         Calculate strength from volume profile.
 
@@ -309,11 +292,7 @@ class LiquidityStrengthCalculator:
         volume_score = 25 + (volume_ratio - 0.5) * 50
         return min(100, max(0, volume_score))
 
-    def _calculate_recency_strength(
-        self,
-        level: LiquidityLevel,
-        current_index: int
-    ) -> float:
+    def _calculate_recency_strength(self, level: LiquidityLevel, current_index: int) -> float:
         """
         Calculate strength from recency (time decay).
 
@@ -359,10 +338,7 @@ class LiquidityStrengthCalculator:
             return LiquidityStrengthLevel.VERY_WEAK
 
     def calculate_all_strengths(
-        self,
-        levels: List[LiquidityLevel],
-        candles: List[Candle],
-        current_index: int
+        self, levels: List[LiquidityLevel], candles: List[Candle], current_index: int
     ) -> List[LiquidityStrengthMetrics]:
         """
         Calculate strength for all liquidity levels.
@@ -379,9 +355,7 @@ class LiquidityStrengthCalculator:
         for level in levels:
             # Only calculate for active/partial levels
             if level.state in (LiquidityState.ACTIVE, LiquidityState.PARTIAL):
-                strength_metrics = self.calculate_strength(
-                    level, candles, current_index
-                )
+                strength_metrics = self.calculate_strength(level, candles, current_index)
                 metrics.append(strength_metrics)
 
         return metrics
@@ -409,7 +383,7 @@ class MarketStateTracker:
         min_trend_strength: float = 40.0,
         min_confidence_for_state: float = 60.0,
         state_change_threshold: float = 30.0,
-        event_bus: Optional[EventBus] = None
+        event_bus: Optional[EventBus] = None,
     ):
         """
         Initialize Market State Tracker.
@@ -438,7 +412,7 @@ class MarketStateTracker:
         trend_state: Optional[TrendState],
         bms_list: List[BreakOfMarketStructure],
         buy_side_levels: List[LiquidityLevel],
-        sell_side_levels: List[LiquidityLevel]
+        sell_side_levels: List[LiquidityLevel],
     ) -> Optional[MarketStateData]:
         """
         Update market state based on current indicators.
@@ -457,9 +431,7 @@ class MarketStateTracker:
             return None
 
         # Determine new state
-        new_market_state = self._determine_market_state(
-            trend_state, bms_list
-        )
+        new_market_state = self._determine_market_state(trend_state, bms_list)
 
         # Calculate confidence
         confidence = self._calculate_state_confidence(
@@ -467,19 +439,16 @@ class MarketStateTracker:
         )
 
         # Build liquidity profile
-        liquidity_profile = self._build_liquidity_profile(
-            buy_side_levels, sell_side_levels
-        )
+        liquidity_profile = self._build_liquidity_profile(buy_side_levels, sell_side_levels)
 
         # Check for state change
         if self._should_change_state(new_market_state, confidence):
             # Count BMS in recent period
             recent_bms = [
-                bms for bms in bms_list
-                if bms.bms_type == (
-                    BMSType.BULLISH if new_market_state == MarketState.BULLISH
-                    else BMSType.BEARISH
-                )
+                bms
+                for bms in bms_list
+                if bms.bms_type
+                == (BMSType.BULLISH if new_market_state == MarketState.BULLISH else BMSType.BEARISH)
             ]
 
             new_state_data = MarketStateData(
@@ -494,7 +463,7 @@ class MarketStateTracker:
                 state_duration_candles=0,
                 state_start_timestamp=candles[-1].timestamp,
                 last_update_timestamp=candles[-1].timestamp,
-                confidence_score=confidence
+                confidence_score=confidence,
             )
 
             # Update current state
@@ -521,9 +490,7 @@ class MarketStateTracker:
         return None
 
     def _determine_market_state(
-        self,
-        trend_state: Optional[TrendState],
-        bms_list: List[BreakOfMarketStructure]
+        self, trend_state: Optional[TrendState], bms_list: List[BreakOfMarketStructure]
     ) -> MarketState:
         """
         Determine market state from trend and BMS data.
@@ -574,7 +541,7 @@ class MarketStateTracker:
         trend_state: Optional[TrendState],
         bms_list: List[BreakOfMarketStructure],
         buy_side_levels: List[LiquidityLevel],
-        sell_side_levels: List[LiquidityLevel]
+        sell_side_levels: List[LiquidityLevel],
     ) -> float:
         """
         Calculate confidence in current state determination.
@@ -601,23 +568,15 @@ class MarketStateTracker:
 
         # BMS confidence (0-35 points)
         if bms_list:
-            avg_bms_confidence = sum(
-                b.confidence_score for b in bms_list
-            ) / len(bms_list)
+            avg_bms_confidence = sum(b.confidence_score for b in bms_list) / len(bms_list)
             bms_confidence = min(35, avg_bms_confidence * 0.35)
         else:
             bms_confidence = 0
 
         # Liquidity alignment confidence (0-25 points)
         # Check if liquidity levels align with trend direction
-        buy_swept = sum(
-            1 for l in buy_side_levels
-            if l.state == LiquidityState.SWEPT
-        )
-        sell_swept = sum(
-            1 for l in sell_side_levels
-            if l.state == LiquidityState.SWEPT
-        )
+        buy_swept = sum(1 for l in buy_side_levels if l.state == LiquidityState.SWEPT)
+        sell_swept = sum(1 for l in sell_side_levels if l.state == LiquidityState.SWEPT)
         total_swept = buy_swept + sell_swept
 
         if total_swept > 0:
@@ -626,18 +585,12 @@ class MarketStateTracker:
         else:
             liquidity_confidence = 15  # Neutral
 
-        total_confidence = (
-            trend_confidence +
-            bms_confidence +
-            liquidity_confidence
-        )
+        total_confidence = trend_confidence + bms_confidence + liquidity_confidence
 
         return min(100, max(0, total_confidence))
 
     def _build_liquidity_profile(
-        self,
-        buy_side_levels: List[LiquidityLevel],
-        sell_side_levels: List[LiquidityLevel]
+        self, buy_side_levels: List[LiquidityLevel], sell_side_levels: List[LiquidityLevel]
     ) -> Dict[str, Any]:
         """
         Build summary of liquidity levels.
@@ -649,37 +602,36 @@ class MarketStateTracker:
         Returns:
             Liquidity profile dictionary
         """
+
         def count_by_state(levels: List[LiquidityLevel]) -> Dict[str, int]:
             return {
-                'active': sum(1 for l in levels if l.state == LiquidityState.ACTIVE),
-                'partial': sum(1 for l in levels if l.state == LiquidityState.PARTIAL),
-                'swept': sum(1 for l in levels if l.state == LiquidityState.SWEPT)
+                "active": sum(1 for l in levels if l.state == LiquidityState.ACTIVE),
+                "partial": sum(1 for l in levels if l.state == LiquidityState.PARTIAL),
+                "swept": sum(1 for l in levels if l.state == LiquidityState.SWEPT),
             }
 
         return {
-            'buy_side': {
-                'total': len(buy_side_levels),
-                'by_state': count_by_state(buy_side_levels),
-                'avg_strength': (
+            "buy_side": {
+                "total": len(buy_side_levels),
+                "by_state": count_by_state(buy_side_levels),
+                "avg_strength": (
                     sum(l.strength for l in buy_side_levels) / len(buy_side_levels)
-                    if buy_side_levels else 0.0
-                )
+                    if buy_side_levels
+                    else 0.0
+                ),
             },
-            'sell_side': {
-                'total': len(sell_side_levels),
-                'by_state': count_by_state(sell_side_levels),
-                'avg_strength': (
+            "sell_side": {
+                "total": len(sell_side_levels),
+                "by_state": count_by_state(sell_side_levels),
+                "avg_strength": (
                     sum(l.strength for l in sell_side_levels) / len(sell_side_levels)
-                    if sell_side_levels else 0.0
-                )
-            }
+                    if sell_side_levels
+                    else 0.0
+                ),
+            },
         }
 
-    def _should_change_state(
-        self,
-        new_state: MarketState,
-        confidence: float
-    ) -> bool:
+    def _should_change_state(self, new_state: MarketState, confidence: float) -> bool:
         """
         Check if state should change.
 
@@ -707,9 +659,7 @@ class MarketStateTracker:
         return confidence_diff >= self.state_change_threshold
 
     def _publish_state_change_event(
-        self,
-        old_state: MarketStateData,
-        new_state: MarketStateData
+        self, old_state: MarketStateData, new_state: MarketStateData
     ) -> None:
         """
         Publish market state change event.
@@ -726,15 +676,16 @@ class MarketStateTracker:
             event_type=EventType.MARKET_STRUCTURE_CHANGE,
             timestamp=datetime.now(),
             data={
-                'old_state': old_state.to_dict(),
-                'new_state': new_state.to_dict(),
-                'change_type': 'state_change'
+                "old_state": old_state.to_dict(),
+                "new_state": new_state.to_dict(),
+                "change_type": "state_change",
             },
-            source="MarketStateTracker"
+            source="MarketStateTracker",
         )
 
         # Publish asynchronously
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
@@ -753,10 +704,7 @@ class MarketStateTracker:
         """
         return self._current_state
 
-    def get_state_history(
-        self,
-        limit: Optional[int] = None
-    ) -> List[MarketStateData]:
+    def get_state_history(self, limit: Optional[int] = None) -> List[MarketStateData]:
         """
         Get market state history.
 

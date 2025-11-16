@@ -8,22 +8,22 @@ WebSocket stream subscriptions, and basic API key validation for Binance cryptoc
 import asyncio
 import logging
 import time
-from typing import Dict, Any, Optional, List, Set
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Set
+
 import ccxt.pro as ccxt
 
 from src.core.config import BinanceConfig
-from src.core.events import Event, EventBus
 from src.core.constants import EventType, TimeFrame
-from src.services.exchange.permissions import PermissionVerifier, PermissionType
-
+from src.core.events import Event, EventBus
+from src.services.exchange.permissions import PermissionType, PermissionVerifier
 
 logger = logging.getLogger(__name__)
 
 
 class BinanceConnectionError(Exception):
     """Raised when Binance connection fails."""
-    pass
+
 
 
 class BinanceManager:
@@ -46,9 +46,7 @@ class BinanceManager:
     """
 
     def __init__(
-        self,
-        config: Optional[BinanceConfig] = None,
-        event_bus: Optional[EventBus] = None
+        self, config: Optional[BinanceConfig] = None, event_bus: Optional[EventBus] = None
     ):
         """
         Initialize Binance manager.
@@ -114,15 +112,17 @@ class BinanceManager:
             logger.info(f"Creating ccxt.binance instance for {env_name}...")
 
             # Initialize ccxt Binance exchange with active credentials
-            self.exchange = ccxt.binance({
-                'apiKey': self.config.active_api_key,
-                'secret': self.config.active_secret_key,
-                'enableRateLimit': True,  # Respect rate limits
-                'options': {
-                    'defaultType': 'future',  # Use futures trading
-                    'adjustForTimeDifference': True,  # Auto-sync time
+            self.exchange = ccxt.binance(
+                {
+                    "apiKey": self.config.active_api_key,
+                    "secret": self.config.active_secret_key,
+                    "enableRateLimit": True,  # Respect rate limits
+                    "options": {
+                        "defaultType": "future",  # Use futures trading
+                        "adjustForTimeDifference": True,  # Auto-sync time
+                    },
                 }
-            })
+            )
 
             # Configure testnet if enabled
             if self.config.testnet:
@@ -134,7 +134,7 @@ class BinanceManager:
                 exchange=self.exchange,
                 event_bus=self.event_bus,
                 cache_ttl=3600,  # 1 hour cache
-                revalidate_interval=3600  # Re-validate every hour
+                revalidate_interval=3600,  # Re-validate every hour
             )
 
             logger.info(f"Binance exchange initialized (testnet={self.config.testnet})")
@@ -166,7 +166,7 @@ class BinanceManager:
 
             # Fetch server time as connection test
             response = await self.exchange.fetch_time()
-            server_time = response if isinstance(response, int) else response.get('timestamp')
+            server_time = response if isinstance(response, int) else response.get("timestamp")
 
             if server_time:
                 self._connected = True
@@ -175,16 +175,18 @@ class BinanceManager:
 
                 # Publish connection event if event bus available
                 if self.event_bus:
-                    await self.event_bus.publish(Event(
-                        event_type=EventType.EXCHANGE_CONNECTED,
-                        priority=7,
-                        data={
-                            'exchange': 'binance',
-                            'testnet': self.config.testnet,
-                            'server_time': server_time
-                        },
-                        source='BinanceManager'
-                    ))
+                    await self.event_bus.publish(
+                        Event(
+                            event_type=EventType.EXCHANGE_CONNECTED,
+                            priority=7,
+                            data={
+                                "exchange": "binance",
+                                "testnet": self.config.testnet,
+                                "server_time": server_time,
+                            },
+                            source="BinanceManager",
+                        )
+                    )
 
                 return True
             else:
@@ -197,23 +199,23 @@ class BinanceManager:
 
             # Publish connection error event
             if self.event_bus:
-                await self.event_bus.publish(Event(
-                    event_type=EventType.EXCHANGE_ERROR,
-                    priority=8,
-                    data={
-                        'exchange': 'binance',
-                        'error': str(e),
-                        'testnet': self.config.testnet
-                    },
-                    source='BinanceManager'
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        event_type=EventType.EXCHANGE_ERROR,
+                        priority=8,
+                        data={
+                            "exchange": "binance",
+                            "error": str(e),
+                            "testnet": self.config.testnet,
+                        },
+                        source="BinanceManager",
+                    )
+                )
 
             raise BinanceConnectionError(error_msg) from e
 
     async def validate_api_permissions(
-        self,
-        force_refresh: bool = False,
-        start_monitoring: bool = True
+        self, force_refresh: bool = False, start_monitoring: bool = True
     ) -> Dict[str, bool]:
         """
         Validate API key permissions with enhanced caching and monitoring.
@@ -390,9 +392,11 @@ class BinanceManager:
             positions = await self.exchange.fetch_positions(symbols)
 
             # Filter out zero positions
-            active_positions = [p for p in positions if float(p.get('contracts', 0)) != 0]
+            active_positions = [p for p in positions if float(p.get("contracts", 0)) != 0]
 
-            logger.debug(f"Retrieved {len(active_positions)} active positions (of {len(positions)} total)")
+            logger.debug(
+                f"Retrieved {len(active_positions)} active positions (of {len(positions)} total)"
+            )
             return active_positions
 
         except Exception as e:
@@ -401,10 +405,7 @@ class BinanceManager:
             raise BinanceConnectionError(error_msg) from e
 
     async def fetch_orders(
-        self,
-        symbol: Optional[str] = None,
-        since: Optional[int] = None,
-        limit: Optional[int] = None
+        self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Fetch order history.
@@ -447,10 +448,7 @@ class BinanceManager:
             raise BinanceConnectionError(error_msg) from e
 
     async def fetch_open_orders(
-        self,
-        symbol: Optional[str] = None,
-        since: Optional[int] = None,
-        limit: Optional[int] = None
+        self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Fetch currently open orders.
@@ -481,10 +479,7 @@ class BinanceManager:
             raise BinanceConnectionError(error_msg) from e
 
     async def fetch_closed_orders(
-        self,
-        symbol: Optional[str] = None,
-        since: Optional[int] = None,
-        limit: Optional[int] = None
+        self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Fetch closed (filled/canceled) orders.
@@ -554,9 +549,9 @@ class BinanceManager:
     async def fetch_ohlcv(
         self,
         symbol: str,
-        timeframe: str = '1m',
+        timeframe: str = "1m",
         since: Optional[int] = None,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
     ) -> List[List]:
         """
         Fetch OHLCV (candlestick) data.
@@ -666,11 +661,7 @@ class BinanceManager:
         """Check if using testnet."""
         return self.config.testnet
 
-    async def subscribe_candles(
-        self,
-        symbol: str,
-        timeframes: List[TimeFrame]
-    ) -> None:
+    async def subscribe_candles(self, symbol: str, timeframes: List[TimeFrame]) -> None:
         """
         Subscribe to candle (OHLCV) streams for specified symbol and timeframes.
 
@@ -704,8 +695,7 @@ class BinanceManager:
 
             # Create listener task for this symbol-timeframe combination
             task = asyncio.create_task(
-                self._watch_candles(symbol, timeframe),
-                name=subscription_key
+                self._watch_candles(symbol, timeframe), name=subscription_key
             )
             self._ws_tasks[subscription_key] = task
 
@@ -744,27 +734,29 @@ class BinanceManager:
 
                     # Parse candle data: [timestamp, open, high, low, close, volume]
                     candle_data = {
-                        'symbol': symbol,
-                        'timeframe': timeframe.value,
-                        'timestamp': latest_candle[0],
-                        'datetime': datetime.fromtimestamp(latest_candle[0] / 1000).isoformat(),
-                        'open': latest_candle[1],
-                        'high': latest_candle[2],
-                        'low': latest_candle[3],
-                        'close': latest_candle[4],
-                        'volume': latest_candle[5],
+                        "symbol": symbol,
+                        "timeframe": timeframe.value,
+                        "timestamp": latest_candle[0],
+                        "datetime": datetime.fromtimestamp(latest_candle[0] / 1000).isoformat(),
+                        "open": latest_candle[1],
+                        "high": latest_candle[2],
+                        "low": latest_candle[3],
+                        "close": latest_candle[4],
+                        "volume": latest_candle[5],
                     }
 
                     # Validate candle data
                     if self._validate_candle(candle_data):
                         # Publish to event bus
                         if self.event_bus:
-                            await self.event_bus.publish(Event(
-                                event_type=EventType.CANDLE_RECEIVED,
-                                priority=6,
-                                data=candle_data,
-                                source='BinanceManager'
-                            ))
+                            await self.event_bus.publish(
+                                Event(
+                                    event_type=EventType.CANDLE_RECEIVED,
+                                    priority=6,
+                                    data=candle_data,
+                                    source="BinanceManager",
+                                )
+                            )
 
                             logger.debug(
                                 f"Published candle: {symbol} {timeframe.value} "
@@ -776,14 +768,18 @@ class BinanceManager:
                     raise
 
                 except Exception as e:
-                    logger.error(f"Error watching candles for {subscription_key}: {e}", exc_info=True)
+                    logger.error(
+                        f"Error watching candles for {subscription_key}: {e}", exc_info=True
+                    )
                     # Continue watching despite errors
                     await asyncio.sleep(1)
 
         except asyncio.CancelledError:
             logger.info(f"Candle watcher stopped for {subscription_key}")
         except Exception as e:
-            logger.error(f"Fatal error in candle watcher for {subscription_key}: {e}", exc_info=True)
+            logger.error(
+                f"Fatal error in candle watcher for {subscription_key}: {e}", exc_info=True
+            )
         finally:
             # Cleanup subscription tracking
             if symbol in self._ws_subscriptions:
@@ -819,21 +815,25 @@ class BinanceManager:
                         # Check if connection was previously unhealthy
                         if not self._ws_connection_healthy:
                             self._ws_connection_healthy = True
-                            logger.info(f"✓ WebSocket connection restored (response time: {response_time:.3f}s)")
+                            logger.info(
+                                f"✓ WebSocket connection restored (response time: {response_time:.3f}s)"
+                            )
 
                             # Publish connection restored event
                             if self.event_bus:
-                                await self.event_bus.publish(Event(
-                                    event_type=EventType.EXCHANGE_CONNECTED,
-                                    priority=7,
-                                    data={
-                                        'exchange': 'binance',
-                                        'testnet': self.config.testnet,
-                                        'response_time': response_time,
-                                        'message': 'WebSocket connection restored'
-                                    },
-                                    source='BinanceManager.Heartbeat'
-                                ))
+                                await self.event_bus.publish(
+                                    Event(
+                                        event_type=EventType.EXCHANGE_CONNECTED,
+                                        priority=7,
+                                        data={
+                                            "exchange": "binance",
+                                            "testnet": self.config.testnet,
+                                            "response_time": response_time,
+                                            "message": "WebSocket connection restored",
+                                        },
+                                        source="BinanceManager.Heartbeat",
+                                    )
+                                )
                         else:
                             logger.debug(f"Heartbeat OK (response time: {response_time:.3f}s)")
 
@@ -843,20 +843,24 @@ class BinanceManager:
                         if time_since_last > self._heartbeat_timeout:
                             if self._ws_connection_healthy:
                                 self._ws_connection_healthy = False
-                                logger.warning(f"⚠ WebSocket connection timeout detected ({time_since_last:.1f}s)")
+                                logger.warning(
+                                    f"⚠ WebSocket connection timeout detected ({time_since_last:.1f}s)"
+                                )
 
                                 # Publish connection lost event
                                 if self.event_bus:
-                                    await self.event_bus.publish(Event(
-                                        event_type=EventType.EXCHANGE_DISCONNECTED,
-                                        priority=8,
-                                        data={
-                                            'exchange': 'binance',
-                                            'reason': 'heartbeat_timeout',
-                                            'timeout_seconds': time_since_last
-                                        },
-                                        source='BinanceManager.Heartbeat'
-                                    ))
+                                    await self.event_bus.publish(
+                                        Event(
+                                            event_type=EventType.EXCHANGE_DISCONNECTED,
+                                            priority=8,
+                                            data={
+                                                "exchange": "binance",
+                                                "reason": "heartbeat_timeout",
+                                                "timeout_seconds": time_since_last,
+                                            },
+                                            source="BinanceManager.Heartbeat",
+                                        )
+                                    )
 
                                 # Trigger reconnection
                                 if self._reconnect_enabled and not self._is_reconnecting:
@@ -873,20 +877,24 @@ class BinanceManager:
                     # Mark connection as unhealthy on errors
                     if self._ws_connection_healthy:
                         self._ws_connection_healthy = False
-                        logger.warning("⚠ WebSocket connection marked unhealthy due to heartbeat error")
+                        logger.warning(
+                            "⚠ WebSocket connection marked unhealthy due to heartbeat error"
+                        )
 
                         # Publish connection error event
                         if self.event_bus:
-                            await self.event_bus.publish(Event(
-                                event_type=EventType.EXCHANGE_ERROR,
-                                priority=8,
-                                data={
-                                    'exchange': 'binance',
-                                    'error': str(e),
-                                    'source': 'heartbeat_monitor'
-                                },
-                                source='BinanceManager.Heartbeat'
-                            ))
+                            await self.event_bus.publish(
+                                Event(
+                                    event_type=EventType.EXCHANGE_ERROR,
+                                    priority=8,
+                                    data={
+                                        "exchange": "binance",
+                                        "error": str(e),
+                                        "source": "heartbeat_monitor",
+                                    },
+                                    source="BinanceManager.Heartbeat",
+                                )
+                            )
 
                         # Trigger reconnection on heartbeat errors
                         if self._reconnect_enabled and not self._is_reconnecting:
@@ -923,11 +931,12 @@ class BinanceManager:
         self._ws_connection_healthy = True
 
         self._heartbeat_task = asyncio.create_task(
-            self._heartbeat_monitor(),
-            name="heartbeat_monitor"
+            self._heartbeat_monitor(), name="heartbeat_monitor"
         )
 
-        logger.info(f"✓ Heartbeat monitor started (interval: {self._heartbeat_interval}s, timeout: {self._heartbeat_timeout}s)")
+        logger.info(
+            f"✓ Heartbeat monitor started (interval: {self._heartbeat_interval}s, timeout: {self._heartbeat_timeout}s)"
+        )
 
     async def stop_heartbeat_monitor(self) -> None:
         """
@@ -982,18 +991,20 @@ class BinanceManager:
 
                 # Publish reconnection attempt event
                 if self.event_bus:
-                    await self.event_bus.publish(Event(
-                        event_type=EventType.EXCHANGE_ERROR,
-                        priority=7,
-                        data={
-                            'exchange': 'binance',
-                            'event': 'reconnection_attempt',
-                            'attempt': self._reconnect_attempts,
-                            'max_attempts': self._reconnect_max_retries,
-                            'delay': self._reconnect_current_delay
-                        },
-                        source='BinanceManager.Reconnect'
-                    ))
+                    await self.event_bus.publish(
+                        Event(
+                            event_type=EventType.EXCHANGE_ERROR,
+                            priority=7,
+                            data={
+                                "exchange": "binance",
+                                "event": "reconnection_attempt",
+                                "attempt": self._reconnect_attempts,
+                                "max_attempts": self._reconnect_max_retries,
+                                "delay": self._reconnect_current_delay,
+                            },
+                            source="BinanceManager.Reconnect",
+                        )
+                    )
 
                 # Wait with exponential backoff delay
                 await asyncio.sleep(self._reconnect_current_delay)
@@ -1012,16 +1023,18 @@ class BinanceManager:
 
                     # Publish successful reconnection event
                     if self.event_bus:
-                        await self.event_bus.publish(Event(
-                            event_type=EventType.EXCHANGE_CONNECTED,
-                            priority=7,
-                            data={
-                                'exchange': 'binance',
-                                'event': 'reconnection_successful',
-                                'attempts_taken': self._reconnect_attempts
-                            },
-                            source='BinanceManager.Reconnect'
-                        ))
+                        await self.event_bus.publish(
+                            Event(
+                                event_type=EventType.EXCHANGE_CONNECTED,
+                                priority=7,
+                                data={
+                                    "exchange": "binance",
+                                    "event": "reconnection_successful",
+                                    "attempts_taken": self._reconnect_attempts,
+                                },
+                                source="BinanceManager.Reconnect",
+                            )
+                        )
 
                     # Resubscribe to all previous streams
                     if self._ws_subscriptions:
@@ -1030,11 +1043,14 @@ class BinanceManager:
                             for timeframe in timeframes:
                                 subscription_key = f"{symbol}:{timeframe.value}"
                                 # Check if task still exists and is running
-                                if subscription_key not in self._ws_tasks or self._ws_tasks[subscription_key].done():
+                                if (
+                                    subscription_key not in self._ws_tasks
+                                    or self._ws_tasks[subscription_key].done()
+                                ):
                                     # Recreate the task
                                     task = asyncio.create_task(
                                         self._watch_candles(symbol, timeframe),
-                                        name=subscription_key
+                                        name=subscription_key,
                                     )
                                     self._ws_tasks[subscription_key] = task
                                     logger.info(f"✓ Resubscribed to {subscription_key}")
@@ -1046,8 +1062,7 @@ class BinanceManager:
 
                     # Calculate next delay with exponential backoff
                     self._reconnect_current_delay = min(
-                        self._reconnect_current_delay * 2,
-                        self._reconnect_max_delay
+                        self._reconnect_current_delay * 2, self._reconnect_max_delay
                     )
 
                     # Check if max retries reached
@@ -1059,18 +1074,20 @@ class BinanceManager:
 
                         # Publish max retries exceeded event
                         if self.event_bus:
-                            await self.event_bus.publish(Event(
-                                event_type=EventType.EXCHANGE_ERROR,
-                                priority=9,
-                                data={
-                                    'exchange': 'binance',
-                                    'event': 'reconnection_failed',
-                                    'reason': 'max_retries_exceeded',
-                                    'attempts': self._reconnect_attempts,
-                                    'last_error': str(e)
-                                },
-                                source='BinanceManager.Reconnect'
-                            ))
+                            await self.event_bus.publish(
+                                Event(
+                                    event_type=EventType.EXCHANGE_ERROR,
+                                    priority=9,
+                                    data={
+                                        "exchange": "binance",
+                                        "event": "reconnection_failed",
+                                        "reason": "max_retries_exceeded",
+                                        "attempts": self._reconnect_attempts,
+                                        "last_error": str(e),
+                                    },
+                                    source="BinanceManager.Reconnect",
+                                )
+                            )
 
                         break
 
@@ -1095,19 +1112,30 @@ class BinanceManager:
         """
         try:
             # Check required fields
-            required_fields = ['symbol', 'timeframe', 'timestamp', 'open', 'high', 'low', 'close', 'volume']
+            required_fields = [
+                "symbol",
+                "timeframe",
+                "timestamp",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+            ]
             if not all(field in candle_data for field in required_fields):
                 logger.warning(f"Candle missing required fields: {candle_data}")
                 return False
 
             # Check OHLC relationships
-            if not (candle_data['low'] <= candle_data['open'] <= candle_data['high'] and
-                    candle_data['low'] <= candle_data['close'] <= candle_data['high']):
+            if not (
+                candle_data["low"] <= candle_data["open"] <= candle_data["high"]
+                and candle_data["low"] <= candle_data["close"] <= candle_data["high"]
+            ):
                 logger.warning(f"Invalid OHLC relationships in candle: {candle_data}")
                 return False
 
             # Check for negative values
-            if any(candle_data[field] < 0 for field in ['open', 'high', 'low', 'close', 'volume']):
+            if any(candle_data[field] < 0 for field in ["open", "high", "low", "close", "volume"]):
                 logger.warning(f"Negative values in candle: {candle_data}")
                 return False
 
@@ -1202,12 +1230,14 @@ class BinanceManager:
 
                 # Publish disconnection event
                 if self.event_bus:
-                    await self.event_bus.publish(Event(
-                        event_type=EventType.EXCHANGE_DISCONNECTED,
-                        priority=7,
-                        data={'exchange': 'binance'},
-                        source='BinanceManager'
-                    ))
+                    await self.event_bus.publish(
+                        Event(
+                            event_type=EventType.EXCHANGE_DISCONNECTED,
+                            priority=7,
+                            data={"exchange": "binance"},
+                            source="BinanceManager",
+                        )
+                    )
 
             except Exception as e:
                 logger.error(f"Error closing Binance connection: {e}", exc_info=True)

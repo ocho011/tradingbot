@@ -7,17 +7,20 @@ Tests cover:
 - Change detection and notifications
 - Error handling and recovery
 """
+
 import asyncio
-import pytest
 import time
 from unittest.mock import AsyncMock
+
+import pytest
+
+from src.core.constants import EventType
 from src.core.events import EventBus
 from src.services.exchange.permissions import (
-    PermissionVerifier,
     PermissionStatus,
     PermissionType,
+    PermissionVerifier,
 )
-from src.core.constants import EventType
 
 
 class TestPermissionStatus:
@@ -82,26 +85,27 @@ class TestPermissionStatus:
             last_checked=current_time,
             last_changed=current_time,
             check_count=5,
-            error_count=2
+            error_count=2,
         )
         result = status.to_dict()
-        assert result['read'] is True
-        assert result['trade'] is False
-        assert result['last_checked'] == current_time
-        assert result['last_changed'] == current_time
-        assert result['check_count'] == 5
-        assert result['error_count'] == 2
-        assert 'last_checked_datetime' in result
-        assert 'last_changed_datetime' in result
+        assert result["read"] is True
+        assert result["trade"] is False
+        assert result["last_checked"] == current_time
+        assert result["last_changed"] == current_time
+        assert result["check_count"] == 5
+        assert result["error_count"] == 2
+        assert "last_checked_datetime" in result
+        assert "last_changed_datetime" in result
 
 
 class TestPermissionVerifier:
     """Test PermissionVerifier class."""
+
     @pytest.fixture
     def mock_exchange(self):
         """Create mock ccxt exchange."""
         exchange = AsyncMock()
-        exchange.fetch_balance = AsyncMock(return_value={'USDT': {'free': 1000}})
+        exchange.fetch_balance = AsyncMock(return_value={"USDT": {"free": 1000}})
         exchange.fetch_open_orders = AsyncMock(return_value=[])
         return exchange
 
@@ -119,15 +123,15 @@ class TestPermissionVerifier:
             exchange=mock_exchange,
             event_bus=mock_event_bus,
             cache_ttl=3600,
-            revalidate_interval=3600
+            revalidate_interval=3600,
         )
 
     @pytest.mark.asyncio
     async def test_verify_permissions_success(self, verifier, mock_exchange):
         """Test successful permission verification."""
         permissions = await verifier.verify_permissions()
-        assert permissions['read'] is True
-        assert permissions['trade'] is True
+        assert permissions["read"] is True
+        assert permissions["trade"] is True
         assert mock_exchange.fetch_balance.called
         assert mock_exchange.fetch_open_orders.called
 
@@ -136,16 +140,16 @@ class TestPermissionVerifier:
         """Test read permission denied."""
         mock_exchange.fetch_balance.side_effect = Exception("Permission denied")
         permissions = await verifier.verify_permissions()
-        assert permissions['read'] is False
-        assert permissions['trade'] is True
+        assert permissions["read"] is False
+        assert permissions["trade"] is True
 
     @pytest.mark.asyncio
     async def test_verify_trade_permission_denied(self, verifier, mock_exchange):
         """Test trade permission denied."""
         mock_exchange.fetch_open_orders.side_effect = Exception("Permission denied")
         permissions = await verifier.verify_permissions()
-        assert permissions['read'] is True
-        assert permissions['trade'] is False
+        assert permissions["read"] is True
+        assert permissions["trade"] is False
 
     @pytest.mark.asyncio
     async def test_permission_caching(self, verifier, mock_exchange):
@@ -192,13 +196,12 @@ class TestPermissionVerifier:
         # Force new verification
         await verifier.verify_permissions(force_refresh=True)
         # Check that change event was published
-        published_events = [
-            call.args[0] for call in mock_event_bus.publish.call_args_list
-        ]
+        published_events = [call.args[0] for call in mock_event_bus.publish.call_args_list]
         change_events = [
-            e for e in published_events
+            e
+            for e in published_events
             if e.event_type == EventType.EXCHANGE_ERROR
-            and e.data.get('event') == 'permissions_changed'
+            and e.data.get("event") == "permissions_changed"
         ]
         assert len(change_events) > 0
 
@@ -210,12 +213,9 @@ class TestPermissionVerifier:
         mock_exchange.fetch_open_orders.side_effect = Exception("Permission denied")
         await verifier.verify_permissions()
         # Check for insufficient permissions event
-        published_events = [
-            call.args[0] for call in mock_event_bus.publish.call_args_list
-        ]
+        published_events = [call.args[0] for call in mock_event_bus.publish.call_args_list]
         warning_events = [
-            e for e in published_events
-            if e.data.get('event') == 'insufficient_permissions'
+            e for e in published_events if e.data.get("event") == "insufficient_permissions"
         ]
         assert len(warning_events) > 0
 
@@ -231,12 +231,9 @@ class TestPermissionVerifier:
         # Check consecutive error counter
         assert verifier._consecutive_errors >= 3
         # Should emit error event at threshold (3)
-        published_events = [
-            call.args[0] for call in mock_event_bus.publish.call_args_list
-        ]
+        published_events = [call.args[0] for call in mock_event_bus.publish.call_args_list]
         failure_events = [
-            e for e in published_events
-            if e.data.get('event') == 'permission_verification_failures'
+            e for e in published_events if e.data.get("event") == "permission_verification_failures"
         ]
         assert len(failure_events) > 0
 
@@ -256,8 +253,8 @@ class TestPermissionVerifier:
         # Even though both checks failed, we should get cached data
         # The permissions will be updated to reflect the failure
         assert isinstance(permissions, dict)
-        assert 'read' in permissions
-        assert 'trade' in permissions
+        assert "read" in permissions
+        assert "trade" in permissions
 
     @pytest.mark.asyncio
     async def test_get_status(self, verifier):
@@ -265,11 +262,11 @@ class TestPermissionVerifier:
         await verifier.verify_permissions()
         status = verifier.get_status()
         assert isinstance(status, dict)
-        assert 'read' in status
-        assert 'trade' in status
-        assert 'last_checked' in status
-        assert 'check_count' in status
-        assert status['check_count'] > 0
+        assert "read" in status
+        assert "trade" in status
+        assert "last_checked" in status
+        assert "check_count" in status
+        assert status["check_count"] > 0
 
     @pytest.mark.asyncio
     async def test_is_permission_granted(self, verifier):
@@ -323,7 +320,7 @@ class TestPermissionVerifier:
         # Cause an error
         mock_exchange.fetch_balance.side_effect = [
             Exception("Error"),
-            {'USDT': {'free': 1000}},  # Success after error
+            {"USDT": {"free": 1000}},  # Success after error
         ]
         await verifier.start_periodic_validation()
         await asyncio.sleep(0.3)
@@ -334,11 +331,12 @@ class TestPermissionVerifier:
 
 class TestPermissionVerifierIntegration:
     """Integration tests for permission verification with BinanceManager."""
+
     @pytest.fixture
     def mock_exchange(self):
         """Create mock exchange for integration tests."""
         exchange = AsyncMock()
-        exchange.fetch_balance = AsyncMock(return_value={'USDT': {'free': 1000}})
+        exchange.fetch_balance = AsyncMock(return_value={"USDT": {"free": 1000}})
         exchange.fetch_open_orders = AsyncMock(return_value=[])
         exchange.fetch_time = AsyncMock(return_value=int(time.time() * 1000))
         return exchange
@@ -355,19 +353,19 @@ class TestPermissionVerifierIntegration:
             exchange=mock_exchange,
             event_bus=event_bus,
             cache_ttl=1,  # Short TTL for testing
-            revalidate_interval=0.5  # Short interval
+            revalidate_interval=0.5,  # Short interval
         )
         # Initial verification
         permissions = await verifier.verify_permissions()
-        assert permissions['read'] is True
-        assert permissions['trade'] is True
+        assert permissions["read"] is True
+        assert permissions["trade"] is True
         # Start periodic monitoring
         await verifier.start_periodic_validation()
         # Wait for a validation cycle
         await asyncio.sleep(0.7)
         # Check status
         status = verifier.get_status()
-        assert status['check_count'] >= 2  # Initial + at least one periodic
+        assert status["check_count"] >= 2  # Initial + at least one periodic
         # Stop monitoring
         await verifier.stop_periodic_validation()
 
@@ -377,10 +375,7 @@ class TestPermissionVerifierIntegration:
         # Use mock event bus to capture events
         mock_event_bus = AsyncMock(spec=EventBus)
         mock_event_bus.publish = AsyncMock()
-        verifier = PermissionVerifier(
-            exchange=mock_exchange,
-            event_bus=mock_event_bus
-        )
+        verifier = PermissionVerifier(exchange=mock_exchange, event_bus=mock_event_bus)
         # Initial verification with full permissions
         await verifier.verify_permissions()
         # Simulate permission change
@@ -388,11 +383,8 @@ class TestPermissionVerifierIntegration:
         # Verify again - this should detect the change
         await verifier.verify_permissions(force_refresh=True)
         # Check for permission change event in published events
-        published_events = [
-            call.args[0] for call in mock_event_bus.publish.call_args_list
-        ]
+        published_events = [call.args[0] for call in mock_event_bus.publish.call_args_list]
         change_events = [
-            e for e in published_events
-            if e.data.get('event') == 'permissions_changed'
+            e for e in published_events if e.data.get("event") == "permissions_changed"
         ]
         assert len(change_events) > 0

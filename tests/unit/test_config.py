@@ -1,12 +1,13 @@
 """
 Unit tests for configuration module.
 """
+
 from src.core.config import (
-    Settings,
     BinanceConfig,
-    TradingConfig,
     DatabaseConfig,
     LoggingConfig,
+    Settings,
+    TradingConfig,
 )
 
 
@@ -39,9 +40,7 @@ class TestBinanceConfig:
     def test_binance_config_has_required_fields(self):
         """Test that BinanceConfig has all required fields."""
         # This will use environment variables or defaults
-        config = BinanceConfig(
-            api_key="test_key", secret_key="test_secret", testnet=True
-        )
+        config = BinanceConfig(api_key="test_key", secret_key="test_secret", testnet=True)
         assert config.api_key == "test_key"
         assert config.secret_key == "test_secret"
         assert config.testnet is True

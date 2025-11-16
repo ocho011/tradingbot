@@ -4,20 +4,21 @@ PositionManager 테스트.
 포지션 생명주기 관리, PnL 계산, 이벤트 발행, 데이터베이스 동기화를 검증합니다.
 """
 
-import pytest
 from decimal import Decimal
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.events import EventBus
 from src.core.constants import EventType, PositionSide
-from src.database.models import Base, Position as PositionModel
+from src.core.events import EventBus
+from src.database.models import Base
+from src.database.models import Position as PositionModel
 from src.services.position.position_manager import (
+    PositionInfo,
     PositionManager,
     PositionStatus,
-    PositionInfo,
 )
 
 
@@ -200,9 +201,7 @@ class TestPositionManager:
         assert position.status == PositionStatus.OPENED
 
         # 데이터베이스 확인
-        db_position = db_session.query(PositionModel).filter_by(
-            symbol="BTCUSDT"
-        ).first()
+        db_position = db_session.query(PositionModel).filter_by(symbol="BTCUSDT").first()
         assert db_position is not None
         assert db_position.status == "OPEN"
         assert db_position.size == Decimal("0.1")
@@ -265,9 +264,7 @@ class TestPositionManager:
         assert updated.unrealized_pnl_percent == pytest.approx(20.0, rel=0.01)
 
         # 데이터베이스 동기화 확인
-        db_position = db_session.query(PositionModel).filter_by(
-            symbol="BTCUSDT"
-        ).first()
+        db_position = db_session.query(PositionModel).filter_by(symbol="BTCUSDT").first()
         assert db_position.current_price == Decimal("51000")
         assert db_position.unrealized_pnl == Decimal("100")
 
@@ -307,9 +304,7 @@ class TestPositionManager:
         assert updated.size == Decimal("0.10")
 
         # 데이터베이스 확인
-        db_position = db_session.query(PositionModel).filter_by(
-            symbol="BTCUSDT"
-        ).first()
+        db_position = db_session.query(PositionModel).filter_by(symbol="BTCUSDT").first()
         assert db_position.size == Decimal("0.10")
 
     @pytest.mark.asyncio
@@ -352,9 +347,7 @@ class TestPositionManager:
         assert closed.closed_at is not None
 
         # 데이터베이스 확인
-        db_position = db_session.query(PositionModel).filter_by(
-            symbol="BTCUSDT"
-        ).first()
+        db_position = db_session.query(PositionModel).filter_by(symbol="BTCUSDT").first()
         assert db_position.status == "CLOSED"
         assert float(db_position.realized_pnl) == pytest.approx(95.0, rel=0.01)
         assert db_position.closed_at is not None
@@ -413,9 +406,7 @@ class TestPositionManager:
         assert len(all_positions) == 2
 
         # 상태별 조회
-        open_positions = position_manager.get_all_positions(
-            status=PositionStatus.OPENED
-        )
+        open_positions = position_manager.get_all_positions(status=PositionStatus.OPENED)
         assert len(open_positions) == 2
 
     @pytest.mark.asyncio

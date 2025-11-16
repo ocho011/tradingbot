@@ -5,16 +5,17 @@ Tests complete pipeline flow from candle reception to position management,
 data integrity, performance metrics, and backpressure handling.
 """
 
-import pytest
 import asyncio
 from dataclasses import asdict
 from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
 
-from src.core.orchestrator import TradingSystemOrchestrator, SystemState
-from src.core.events import Event, EventBus
+import pytest
+
 from src.core.constants import EventType, TimeFrame
+from src.core.events import Event, EventBus
+from src.core.orchestrator import SystemState, TradingSystemOrchestrator
 from src.models.candle import Candle
 from src.services.candle_storage import CandleStorage
 
@@ -118,7 +119,7 @@ async def pipeline_orchestrator():
 
     # Also need to update the metrics reference in all handlers
     for handler in orch._pipeline_handlers:
-        if hasattr(handler, 'metrics'):
+        if hasattr(handler, "metrics"):
             handler.metrics = mock_metrics
 
     # Make get_pipeline_stats return current values dynamically
@@ -159,7 +160,7 @@ async def pipeline_orchestrator():
         orch._state = SystemState.STOPPING
 
     # Stop backpressure monitoring if it exists
-    if hasattr(orch, '_backpressure_check_task') and orch._backpressure_check_task:
+    if hasattr(orch, "_backpressure_check_task") and orch._backpressure_check_task:
         orch._backpressure_check_task.cancel()
         try:
             await orch._backpressure_check_task
@@ -172,7 +173,7 @@ async def pipeline_orchestrator():
         orch.event_bus._running = False
 
         # Cancel the dispatcher task if it exists
-        if hasattr(orch.event_bus, '_dispatcher_task') and orch.event_bus._dispatcher_task:
+        if hasattr(orch.event_bus, "_dispatcher_task") and orch.event_bus._dispatcher_task:
             orch.event_bus._dispatcher_task.cancel()
             try:
                 await orch.event_bus._dispatcher_task
@@ -191,7 +192,7 @@ def sample_candle():
         high=Decimal("50100.00"),
         low=Decimal("49900.00"),
         close=Decimal("50050.00"),
-        volume=Decimal("100.5")
+        volume=Decimal("100.5"),
     )
 
 
@@ -199,7 +200,9 @@ class TestEndToEndPipelineFlow:
     """Test complete end-to-end pipeline data flow."""
 
     @pytest.mark.asyncio
-    async def test_candle_flows_through_complete_pipeline(self, pipeline_orchestrator, sample_candle):
+    async def test_candle_flows_through_complete_pipeline(
+        self, pipeline_orchestrator, sample_candle
+    ):
         """Test that candle flows through all pipeline stages."""
         orch = pipeline_orchestrator
 
@@ -209,7 +212,7 @@ class TestEndToEndPipelineFlow:
             EventType.INDICATORS_UPDATED: False,
             EventType.SIGNAL_GENERATED: False,
             EventType.RISK_CHECK_PASSED: False,
-            EventType.ORDER_PLACED: False
+            EventType.ORDER_PLACED: False,
         }
 
         # Create event handler to track pipeline progress
@@ -238,7 +241,7 @@ class TestEndToEndPipelineFlow:
             priority=5,
             event_type=EventType.CANDLE_RECEIVED,
             data={"candle": asdict(sample_candle)},
-            source="test"
+            source="test",
         )
         await orch.event_bus.publish(candle_event)
 
@@ -250,18 +253,14 @@ class TestEndToEndPipelineFlow:
 
         # Check candle storage
         stored_candles = orch.candle_storage.get_candles(
-            sample_candle.symbol,
-            sample_candle.timeframe,
-            limit=1
+            sample_candle.symbol, sample_candle.timeframe, limit=1
         )
         assert len(stored_candles) > 0
         assert stored_candles[0].close == sample_candle.close
 
     @pytest.mark.asyncio
     async def test_pipeline_processes_multiple_candles_sequentially(
-        self,
-        pipeline_orchestrator,
-        sample_candle
+        self, pipeline_orchestrator, sample_candle
     ):
         """Test pipeline handles multiple candles in sequence."""
         orch = pipeline_orchestrator
@@ -292,14 +291,14 @@ class TestEndToEndPipelineFlow:
                 high=sample_candle.high + Decimal(i),
                 low=sample_candle.low + Decimal(i),
                 close=sample_candle.close + Decimal(i),
-                volume=sample_candle.volume
+                volume=sample_candle.volume,
             )
 
             event = Event(
                 priority=5,
                 event_type=EventType.CANDLE_RECEIVED,
                 data={"candle": asdict(candle)},
-                source="test"
+                source="test",
             )
             await orch.event_bus.publish(event)
 
@@ -310,11 +309,7 @@ class TestEndToEndPipelineFlow:
         assert len(candles_processed) == 5
 
         # Verify candles in storage
-        stored = orch.candle_storage.get_candles(
-            "BTCUSDT",
-            TimeFrame.M15,
-            limit=5
-        )
+        stored = orch.candle_storage.get_candles("BTCUSDT", TimeFrame.M15, limit=5)
         assert len(stored) == 5
 
 
@@ -323,9 +318,7 @@ class TestDataIntegrity:
 
     @pytest.mark.asyncio
     async def test_candle_data_preserved_through_storage(
-        self,
-        pipeline_orchestrator,
-        sample_candle
+        self, pipeline_orchestrator, sample_candle
     ):
         """Test that candle data is not corrupted in storage."""
         orch = pipeline_orchestrator
@@ -335,7 +328,7 @@ class TestDataIntegrity:
             priority=5,
             event_type=EventType.CANDLE_RECEIVED,
             data={"candle": asdict(sample_candle)},
-            source="test"
+            source="test",
         )
         await orch.event_bus.publish(event)
 
@@ -344,8 +337,7 @@ class TestDataIntegrity:
 
         # Retrieve and verify
         stored = orch.candle_storage.get_latest_candle(
-            sample_candle.symbol,
-            sample_candle.timeframe
+            sample_candle.symbol, sample_candle.timeframe
         )
 
         assert stored is not None
@@ -360,9 +352,7 @@ class TestDataIntegrity:
 
     @pytest.mark.asyncio
     async def test_indicator_calculation_uses_correct_data(
-        self,
-        pipeline_orchestrator,
-        sample_candle
+        self, pipeline_orchestrator, sample_candle
     ):
         """Test that indicators use correct candle data."""
         orch = pipeline_orchestrator
@@ -378,7 +368,7 @@ class TestDataIntegrity:
                 high=Decimal("50100.00") + Decimal(i * 10),
                 low=Decimal("49900.00") + Decimal(i * 10),
                 close=Decimal("50050.00") + Decimal(i * 10),
-                volume=Decimal("100.0") + Decimal(i)
+                volume=Decimal("100.0") + Decimal(i),
             )
             candles.append(candle)
 
@@ -388,7 +378,7 @@ class TestDataIntegrity:
                 priority=5,
                 event_type=EventType.CANDLE_RECEIVED,
                 data={"candle": asdict(candle)},
-                source="test"
+                source="test",
             )
             await orch.event_bus.publish(event)
 
@@ -396,11 +386,7 @@ class TestDataIntegrity:
         await asyncio.sleep(1.0)
 
         # Verify candles in storage match published candles
-        stored_candles = orch.candle_storage.get_candles(
-            "BTCUSDT",
-            TimeFrame.M15,
-            limit=50
-        )
+        stored_candles = orch.candle_storage.get_candles("BTCUSDT", TimeFrame.M15, limit=50)
 
         assert len(stored_candles) == 50
         for i, stored in enumerate(stored_candles):
@@ -434,14 +420,14 @@ class TestPipelinePerformance:
                 high=Decimal("50100.00"),
                 low=Decimal("49900.00"),
                 close=Decimal("50050.00"),
-                volume=Decimal("100.0")
+                volume=Decimal("100.0"),
             )
 
             event = Event(
                 priority=5,
                 event_type=EventType.CANDLE_RECEIVED,
                 data={"candle": asdict(candle)},
-                source="test"
+                source="test",
             )
             await orch.event_bus.publish(event)
 
@@ -465,7 +451,7 @@ class TestPipelinePerformance:
             priority=5,
             event_type=EventType.CANDLE_RECEIVED,
             data={"candle": asdict(sample_candle)},
-            source="test"
+            source="test",
         )
         await orch.event_bus.publish(event)
 
@@ -497,14 +483,14 @@ class TestPipelinePerformance:
                 high=Decimal("50100.00"),
                 low=Decimal("49900.00"),
                 close=Decimal("50050.00"),
-                volume=Decimal("100.0")
+                volume=Decimal("100.0"),
             )
 
             event = Event(
                 priority=5,
                 event_type=EventType.CANDLE_RECEIVED,
                 data={"candle": asdict(candle)},
-                source="test"
+                source="test",
             )
             await orch.event_bus.publish(event)
 
@@ -564,10 +550,10 @@ class TestBackpressureHandling:
                         high=Decimal("50100.00"),
                         low=Decimal("49900.00"),
                         close=Decimal("50050.00"),
-                        volume=Decimal("100.0")
+                        volume=Decimal("100.0"),
                     )
                 },
-                source="test"
+                source="test",
             )
             await orch.event_bus.publish(event)
 
@@ -593,7 +579,7 @@ class TestErrorPropagation:
             priority=5,
             event_type=EventType.CANDLE_RECEIVED,
             data={"candle": None},  # Invalid data
-            source="test"
+            source="test",
         )
 
         # Publish invalid event
@@ -638,7 +624,7 @@ class TestErrorPropagation:
             priority=5,
             event_type=EventType.CANDLE_RECEIVED,
             data={"candle": asdict(sample_candle)},
-            source="test"
+            source="test",
         )
         await orch.event_bus.publish(event)
 
@@ -647,8 +633,7 @@ class TestErrorPropagation:
 
         # Pipeline should still process the candle despite handler error
         stored = orch.candle_storage.get_latest_candle(
-            sample_candle.symbol,
-            sample_candle.timeframe
+            sample_candle.symbol, sample_candle.timeframe
         )
         assert stored is not None
 
@@ -671,11 +656,7 @@ class TestPipelineIntegrationWithSystemStats:
         assert "processing_times" in stats["pipeline"]
 
     @pytest.mark.asyncio
-    async def test_pipeline_stats_update_in_real_time(
-        self,
-        pipeline_orchestrator,
-        sample_candle
-    ):
+    async def test_pipeline_stats_update_in_real_time(self, pipeline_orchestrator, sample_candle):
         """Test that pipeline stats update in real-time."""
         orch = pipeline_orchestrator
 
@@ -688,7 +669,7 @@ class TestPipelineIntegrationWithSystemStats:
             priority=5,
             event_type=EventType.CANDLE_RECEIVED,
             data={"candle": asdict(sample_candle)},
-            source="test"
+            source="test",
         )
         await orch.event_bus.publish(event)
 
@@ -744,14 +725,14 @@ class TestPipelineShutdown:
                 high=Decimal("50100.00"),
                 low=Decimal("49900.00"),
                 close=Decimal("50050.00"),
-                volume=Decimal("100.0")
+                volume=Decimal("100.0"),
             )
 
             event = Event(
                 priority=5,
                 event_type=EventType.CANDLE_RECEIVED,
                 data={"candle": asdict(candle)},
-                source="test"
+                source="test",
             )
             await orch.event_bus.publish(event)
 

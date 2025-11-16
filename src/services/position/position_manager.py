@@ -9,16 +9,16 @@
 """
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from src.core.events import Event, EventBus
 from src.core.constants import EventType, PositionSide
+from src.core.events import Event, EventBus
 from src.database.models import Position as PositionModel
 from src.monitoring.metrics import update_position_pnl
 
@@ -32,8 +32,8 @@ class PositionStatus(str, Enum):
     포지션의 현재 상태를 표현합니다.
     """
 
-    OPENED = "OPEN"      # 포지션 열림
-    CLOSED = "CLOSED"    # 포지션 닫힘
+    OPENED = "OPEN"  # 포지션 열림
+    CLOSED = "CLOSED"  # 포지션 닫힘
     UPDATED = "UPDATED"  # 포지션 업데이트됨 (크기, 가격 변경)
 
 
@@ -130,11 +130,7 @@ class PositionManager:
     실시간 PnL 계산 및 데이터베이스 동기화를 수행합니다.
     """
 
-    def __init__(
-        self,
-        db_session: Session,
-        event_bus: Optional[EventBus] = None
-    ):
+    def __init__(self, db_session: Session, event_bus: Optional[EventBus] = None):
         """
         PositionManager 초기화.
 
@@ -235,11 +231,7 @@ class PositionManager:
         self._stats["total_opened"] += 1
 
         # 이벤트 발행
-        await self._publish_event(
-            EventType.POSITION_OPENED,
-            position,
-            priority=7
-        )
+        await self._publish_event(EventType.POSITION_OPENED, position, priority=7)
 
         logger.info(
             f"Position opened: {symbol} {side.value} size={size} "
@@ -288,16 +280,10 @@ class PositionManager:
         position.unrealized_pnl_percent = pnl_percent
 
         # Update P&L metrics
-        update_position_pnl(
-            symbol=symbol,
-            side=position.side.value,
-            pnl=float(pnl)
-        )
+        update_position_pnl(symbol=symbol, side=position.side.value, pnl=float(pnl))
 
         # 데이터베이스 동기화
-        db_position = self.db_session.query(PositionModel).filter_by(
-            id=position.id
-        ).first()
+        db_position = self.db_session.query(PositionModel).filter_by(id=position.id).first()
 
         if db_position:
             db_position.current_price = current_price
@@ -318,11 +304,7 @@ class PositionManager:
             should_publish = True
 
         if should_publish:
-            await self._publish_event(
-                EventType.POSITION_UPDATED,
-                position,
-                priority=5
-            )
+            await self._publish_event(EventType.POSITION_UPDATED, position, priority=5)
 
         return position
 
@@ -364,16 +346,10 @@ class PositionManager:
         position.closed_at = datetime.now(timezone.utc)
 
         # Reset P&L metrics to 0 when position is closed
-        update_position_pnl(
-            symbol=symbol,
-            side=position.side.value,
-            pnl=0.0
-        )
+        update_position_pnl(symbol=symbol, side=position.side.value, pnl=0.0)
 
         # 데이터베이스 동기화
-        db_position = self.db_session.query(PositionModel).filter_by(
-            id=position.id
-        ).first()
+        db_position = self.db_session.query(PositionModel).filter_by(id=position.id).first()
 
         if db_position:
             db_position.status = "CLOSED"
@@ -398,7 +374,7 @@ class PositionManager:
                 "exit_reason": exit_reason,
                 "realized_pnl": str(realized_pnl),
                 "fees": str(fees),
-            }
+            },
         )
 
         logger.info(
@@ -436,10 +412,7 @@ class PositionManager:
         if status is None:
             return list(self._positions.values())
 
-        return [
-            pos for pos in self._positions.values()
-            if pos.status == status
-        ]
+        return [pos for pos in self._positions.values() if pos.status == status]
 
     def get_open_positions(self) -> List[PositionInfo]:
         """
@@ -515,6 +488,4 @@ class PositionManager:
 
         await self.event_bus.publish(event)
 
-        logger.debug(
-            f"Published {event_type.value} event for {position.symbol}"
-        )
+        logger.debug(f"Published {event_type.value} event for {position.symbol}")

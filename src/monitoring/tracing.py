@@ -9,27 +9,25 @@ Provides comprehensive tracing for the trading system including:
 - Performance-optimized sampling strategies
 """
 
-import os
 import logging
-from typing import Optional, Dict, Any, Callable
-from functools import wraps
+import os
 from contextlib import contextmanager
+from functools import wraps
+from typing import Any, Callable, Dict, Optional
 
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION
-from opentelemetry.sdk.trace.sampling import (
-    TraceIdRatioBased,
-    ParentBased,
-    ALWAYS_ON,
-    ALWAYS_OFF,
-)
-from opentelemetry.trace import Status, StatusCode, Span
+from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
+from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.sampling import (
+    ParentBased,
+    TraceIdRatioBased,
+)
+from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
 

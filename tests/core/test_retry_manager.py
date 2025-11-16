@@ -5,28 +5,28 @@ Tests for RetryManager.
 import pytest
 
 from src.core.retry_manager import (
-    RetryManager,
-    RetryConfig,
-    RetryStrategy,
     ErrorClassification,
     RetryAttempt,
+    RetryConfig,
+    RetryManager,
+    RetryStrategy,
 )
 
 
 # 테스트용 예외 클래스들
 class RetryableError(Exception):
     """재시도 가능한 테스트 에러."""
-    pass
+
 
 
 class NonRetryableError(Exception):
     """재시도 불가능한 테스트 에러."""
-    pass
+
 
 
 class SpecialError(Exception):
     """특수 처리가 필요한 테스트 에러."""
-    pass
+
 
 
 class TestRetryConfig:
@@ -419,9 +419,7 @@ class TestRetryHistory:
         retry_manager = RetryManager(config)
 
         # 히스토리에 직접 추가
-        retry_manager._retry_history.append(
-            RetryAttempt(1, RetryableError("test"), 1.0, None)
-        )
+        retry_manager._retry_history.append(RetryAttempt(1, RetryableError("test"), 1.0, None))
         assert len(retry_manager.get_retry_history()) == 1
 
         retry_manager.clear_history()
@@ -466,6 +464,7 @@ class TestErrorClassification:
 
     def test_classify_special_exception(self):
         """특수 처리가 필요한 예외 분류."""
+
         def dummy_handler(e):
             pass
 

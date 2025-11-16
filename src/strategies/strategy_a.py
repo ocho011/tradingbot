@@ -320,7 +320,9 @@ class StrategyA(BaseStrategy):
         position = m1_analysis.get("position_in_zone", 0.5)
         position_bonus = 0.05 * (1.0 - abs(position - 0.5) * 2)  # Max bonus at edges
 
-        total_confidence = base_confidence + trend_bonus + zone_quality + m1_confirmation + position_bonus
+        total_confidence = (
+            base_confidence + trend_bonus + zone_quality + m1_confirmation + position_bonus
+        )
 
         return min(total_confidence, 1.0)
 
@@ -343,9 +345,7 @@ class StrategyA(BaseStrategy):
             reference_level = entry_zone.get("high", current_price * 1.02)
 
         stop_loss = self.calculate_stop_loss(current_price, direction, reference_level)
-        take_profit = self.calculate_take_profit(
-            current_price, stop_loss, self.risk_reward_ratio
-        )
+        take_profit = self.calculate_take_profit(current_price, stop_loss, self.risk_reward_ratio)
 
         return TradingSignal(
             strategy_name=self.name,

@@ -2,20 +2,21 @@
 Unit tests for Higher High/Lower Low Trend Recognition Engine.
 """
 
-import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from src.indicators.trend_recognition import (
-    TrendRecognitionEngine,
-    TrendPattern,
-    TrendDirection,
-    TrendStrength,
-    TrendStructure,
-    TrendState
-)
-from src.models.candle import Candle
+import pytest
+
 from src.core.constants import TimeFrame
 from src.indicators.liquidity_zone import SwingPoint
+from src.indicators.trend_recognition import (
+    TrendDirection,
+    TrendPattern,
+    TrendRecognitionEngine,
+    TrendState,
+    TrendStrength,
+    TrendStructure,
+)
+from src.models.candle import Candle
 
 
 class TestTrendRecognitionEngine:
@@ -28,7 +29,7 @@ class TestTrendRecognitionEngine:
             min_swing_strength=3,
             min_patterns_for_confirmation=2,
             min_price_change_atr_multiple=0.5,
-            atr_period=14
+            atr_period=14,
         )
 
     @pytest.fixture
@@ -45,7 +46,7 @@ class TestTrendRecognitionEngine:
         close: float,
         volume: float = 1000.0,
         symbol: str = "BTCUSDT",
-        timeframe: TimeFrame = TimeFrame.M15
+        timeframe: TimeFrame = TimeFrame.M15,
     ) -> Candle:
         """Helper to create test candles."""
         return Candle(
@@ -56,7 +57,7 @@ class TestTrendRecognitionEngine:
             close=close,
             volume=volume,
             symbol=symbol,
-            timeframe=timeframe
+            timeframe=timeframe,
         )
 
     def create_uptrend_candles(self, base_timestamp: int, count: int = 50) -> list[Candle]:
@@ -96,7 +97,7 @@ class TestTrendRecognitionEngine:
                 high=high,
                 low=low,
                 close=close,
-                volume=1000.0 + (i * 10)
+                volume=1000.0 + (i * 10),
             )
             candles.append(candle)
 
@@ -138,7 +139,7 @@ class TestTrendRecognitionEngine:
                 high=high,
                 low=low,
                 close=close,
-                volume=1000.0 + (i * 10)
+                volume=1000.0 + (i * 10),
             )
             candles.append(candle)
 
@@ -170,7 +171,7 @@ class TestTrendRecognitionEngine:
                 high=high,
                 low=low,
                 close=close,
-                volume=1000.0
+                volume=1000.0,
             )
             candles.append(candle)
 
@@ -193,8 +194,7 @@ class TestTrendRecognitionEngine:
     def test_calculate_atr_insufficient_data(self, engine, base_timestamp):
         """Test ATR calculation with insufficient data."""
         candles = [
-            self.create_candle(base_timestamp + i * 60000, 100, 101, 99, 100.5)
-            for i in range(5)
+            self.create_candle(base_timestamp + i * 60000, 100, 101, 99, 100.5) for i in range(5)
         ]
 
         atr = engine.calculate_atr(candles, period=14)
@@ -226,8 +226,7 @@ class TestTrendRecognitionEngine:
     def test_detect_swings_insufficient_data(self, engine, base_timestamp):
         """Test swing detection with insufficient candles."""
         candles = [
-            self.create_candle(base_timestamp + i * 60000, 100, 101, 99, 100.5)
-            for i in range(5)
+            self.create_candle(base_timestamp + i * 60000, 100, 101, 99, 100.5) for i in range(5)
         ]
 
         swing_highs = engine.detect_swing_highs(candles)
@@ -322,7 +321,12 @@ class TestTrendRecognitionEngine:
         structures, direction = engine.analyze_trend_patterns(candles)
 
         # Ranging market should have mixed or uncertain direction
-        assert direction in (TrendDirection.RANGING, TrendDirection.TRANSITION, TrendDirection.UPTREND, TrendDirection.DOWNTREND)
+        assert direction in (
+            TrendDirection.RANGING,
+            TrendDirection.TRANSITION,
+            TrendDirection.UPTREND,
+            TrendDirection.DOWNTREND,
+        )
 
     # ==================== Trend Strength Tests ====================
 
@@ -341,7 +345,9 @@ class TestTrendRecognitionEngine:
         candles = self.create_ranging_candles(base_timestamp, count=30)
         structures, direction = engine.analyze_trend_patterns(candles)
 
-        strength, strength_level = engine.calculate_trend_strength(structures, TrendDirection.RANGING)
+        strength, strength_level = engine.calculate_trend_strength(
+            structures, TrendDirection.RANGING
+        )
 
         assert strength == 0.0
         assert strength_level == TrendStrength.VERY_WEAK
@@ -387,8 +393,7 @@ class TestTrendRecognitionEngine:
 
         # Create downtrend
         downtrend_candles = self.create_downtrend_candles(
-            base_timestamp + (30 * 15 * 60 * 1000),
-            count=30
+            base_timestamp + (30 * 15 * 60 * 1000), count=30
         )
 
         # Detect trend on new data
@@ -406,10 +411,7 @@ class TestTrendRecognitionEngine:
         assert first_trend is not None
 
         # Add a few more candles with same trend
-        more_candles = self.create_uptrend_candles(
-            base_timestamp + (50 * 15 * 60 * 1000),
-            count=10
-        )
+        more_candles = self.create_uptrend_candles(base_timestamp + (50 * 15 * 60 * 1000), count=10)
         all_candles = candles + more_candles
 
         # Second detection - might or might not detect change depending on strength
@@ -515,14 +517,14 @@ class TestTrendRecognitionEngine:
             previous_swing_index=10,
             swing_length=10,
             price_change=5.0,
-            price_change_pct=5.0
+            price_change_pct=5.0,
         )
 
         data = structure.to_dict()
 
-        assert data['pattern'] == 'HIGHER_HIGH'
-        assert data['price'] == 105.0
-        assert 'datetime' in data
+        assert data["pattern"] == "HIGHER_HIGH"
+        assert data["price"] == 105.0
+        assert "datetime" in data
 
     def test_trend_state_to_dict(self, base_timestamp):
         """Test TrendState serialization."""
@@ -536,16 +538,16 @@ class TestTrendRecognitionEngine:
             start_candle_index=0,
             last_update_timestamp=base_timestamp + 1000000,
             pattern_count=5,
-            is_confirmed=True
+            is_confirmed=True,
         )
 
         data = state.to_dict()
 
-        assert data['direction'] == 'UPTREND'
-        assert data['strength'] == 75.0
-        assert data['strength_level'] == 'STRONG'
-        assert 'start_datetime' in data
-        assert 'last_update_datetime' in data
+        assert data["direction"] == "UPTREND"
+        assert data["strength"] == 75.0
+        assert data["strength_level"] == "STRONG"
+        assert "start_datetime" in data
+        assert "last_update_datetime" in data
 
     # ==================== Edge Cases ====================
 

@@ -8,18 +8,18 @@ with dynamic configuration, resource monitoring, and state management.
 
 import asyncio
 import logging
-import psutil
-from typing import Dict, List, Optional, Set
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from threading import RLock
+from typing import Dict, List, Optional, Set
+
+import psutil
 
 from src.core.constants import EventType, TimeFrame
 from src.core.events import Event, EventBus
 from src.models.candle import Candle
 from src.services.candle_storage import CandleStorage
 from src.services.exchange.realtime_processor import RealtimeCandleProcessor
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +36,15 @@ class SymbolConfig:
     def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
-            'symbol': self.symbol,
-            'timeframes': [tf.value for tf in sorted(
-                self.timeframes,
-                key=lambda x: Candle.get_timeframe_milliseconds(x))],
-            'enabled': self.enabled,
-            'added_at': self.added_at.isoformat()
+            "symbol": self.symbol,
+            "timeframes": [
+                tf.value
+                for tf in sorted(
+                    self.timeframes, key=lambda x: Candle.get_timeframe_milliseconds(x)
+                )
+            ],
+            "enabled": self.enabled,
+            "added_at": self.added_at.isoformat(),
         }
 
 
@@ -62,15 +65,15 @@ class SystemMetrics:
     def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
-            'cpu_percent': round(self.cpu_percent, 2),
-            'memory_percent': round(self.memory_percent, 2),
-            'memory_mb': round(self.memory_mb, 2),
-            'process_memory_mb': round(self.process_memory_mb, 2),
-            'candle_storage_mb': round(self.candle_storage_mb, 2),
-            'total_candles': self.total_candles,
-            'active_symbols': self.active_symbols,
-            'active_timeframes': self.active_timeframes,
-            'timestamp': self.timestamp.isoformat()
+            "cpu_percent": round(self.cpu_percent, 2),
+            "memory_percent": round(self.memory_percent, 2),
+            "memory_mb": round(self.memory_mb, 2),
+            "process_memory_mb": round(self.process_memory_mb, 2),
+            "candle_storage_mb": round(self.candle_storage_mb, 2),
+            "total_candles": self.total_candles,
+            "active_symbols": self.active_symbols,
+            "active_timeframes": self.active_timeframes,
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
@@ -101,7 +104,7 @@ class CandleDataManager:
         event_bus: EventBus,
         max_candles_per_storage: int = 500,
         enable_monitoring: bool = True,
-        monitoring_interval: int = 60
+        monitoring_interval: int = 60,
     ):
         """
         Initialize the candle data manager.
@@ -121,10 +124,7 @@ class CandleDataManager:
         self._storage = CandleStorage(max_candles=max_candles_per_storage)
 
         # Real-time processor (shared across all symbols/timeframes)
-        self._processor = RealtimeCandleProcessor(
-            event_bus=event_bus,
-            storage=self._storage
-        )
+        self._processor = RealtimeCandleProcessor(event_bus=event_bus, storage=self._storage)
 
         # Symbol configurations
         self._symbols: Dict[str, SymbolConfig] = {}
@@ -175,10 +175,7 @@ class CandleDataManager:
         logger.info("CandleDataManager stopped")
 
     async def add_symbol(
-        self,
-        symbol: str,
-        timeframes: List[TimeFrame],
-        replace: bool = False
+        self, symbol: str, timeframes: List[TimeFrame], replace: bool = False
     ) -> None:
         """
         Add a new symbol with specified timeframes to manage.
@@ -208,10 +205,11 @@ class CandleDataManager:
                 if replace:
                     # Replace entire configuration
                     self._symbols[symbol_upper] = SymbolConfig(
-                        symbol=symbol_upper,
-                        timeframes=set(timeframes)
+                        symbol=symbol_upper, timeframes=set(timeframes)
                     )
-                    logger.info(f"Replaced symbol configuration: {symbol_upper} with {len(timeframes)} timeframes")
+                    logger.info(
+                        f"Replaced symbol configuration: {symbol_upper} with {len(timeframes)} timeframes"
+                    )
                 else:
                     # Merge with existing timeframes
                     existing = self._symbols[symbol_upper]
@@ -226,8 +224,7 @@ class CandleDataManager:
             else:
                 # New symbol
                 self._symbols[symbol_upper] = SymbolConfig(
-                    symbol=symbol_upper,
-                    timeframes=set(timeframes)
+                    symbol=symbol_upper, timeframes=set(timeframes)
                 )
                 logger.info(
                     f"Added new symbol: {symbol_upper} with timeframes: "
@@ -235,22 +232,21 @@ class CandleDataManager:
                 )
 
         # Publish event for symbol addition
-        await self.event_bus.publish(Event(
-            event_type=EventType.SYSTEM_START,  # Reusing existing event type
-            priority=5,
-            data={
-                'action': 'symbol_added',
-                'symbol': symbol_upper,
-                'timeframes': [tf.value for tf in timeframes]
-            },
-            source='CandleDataManager'
-        ))
+        await self.event_bus.publish(
+            Event(
+                event_type=EventType.SYSTEM_START,  # Reusing existing event type
+                priority=5,
+                data={
+                    "action": "symbol_added",
+                    "symbol": symbol_upper,
+                    "timeframes": [tf.value for tf in timeframes],
+                },
+                source="CandleDataManager",
+            )
+        )
 
     async def remove_symbol(
-        self,
-        symbol: str,
-        timeframes: Optional[List[TimeFrame]] = None,
-        clear_data: bool = False
+        self, symbol: str, timeframes: Optional[List[TimeFrame]] = None, clear_data: bool = False
     ) -> bool:
         """
         Remove a symbol or specific timeframes from management.
@@ -366,10 +362,7 @@ class CandleDataManager:
             return self._symbols[symbol_upper].to_dict()
 
     def get_candles(
-        self,
-        symbol: str,
-        timeframe: TimeFrame,
-        limit: Optional[int] = None
+        self, symbol: str, timeframe: TimeFrame, limit: Optional[int] = None
     ) -> List[Candle]:
         """
         Get candles for a specific symbol and timeframe.
@@ -456,9 +449,7 @@ class CandleDataManager:
         # Active symbols/timeframes
         with self._lock:
             active_symbols = len(self._symbols)
-            active_timeframes = sum(
-                len(config.timeframes) for config in self._symbols.values()
-            )
+            active_timeframes = sum(len(config.timeframes) for config in self._symbols.values())
 
         return SystemMetrics(
             cpu_percent=cpu_percent,
@@ -468,7 +459,7 @@ class CandleDataManager:
             candle_storage_mb=storage_stats.memory_mb,
             total_candles=storage_stats.total_candles,
             active_symbols=active_symbols,
-            active_timeframes=active_timeframes
+            active_timeframes=active_timeframes,
         )
 
     def get_dashboard_state(self) -> dict:
@@ -485,10 +476,7 @@ class CandleDataManager:
         """
         with self._lock:
             # Symbol information
-            symbols_info = {
-                symbol: config.to_dict()
-                for symbol, config in self._symbols.items()
-            }
+            symbols_info = {symbol: config.to_dict() for symbol, config in self._symbols.items()}
 
             # Storage statistics
             storage_stats = self._storage.get_stats()
@@ -503,14 +491,14 @@ class CandleDataManager:
             uptime_seconds = (datetime.now(timezone.utc) - self._start_time).total_seconds()
 
             return {
-                'total_symbols': len(self._symbols),
-                'symbols': symbols_info,
-                'storage': storage_stats.to_dict(),
-                'processor': processor_stats,
-                'metrics': metrics,
-                'uptime_seconds': round(uptime_seconds, 1),
-                'started_at': self._start_time.isoformat(),
-                'monitoring_enabled': self._enable_monitoring
+                "total_symbols": len(self._symbols),
+                "symbols": symbols_info,
+                "storage": storage_stats.to_dict(),
+                "processor": processor_stats,
+                "metrics": metrics,
+                "uptime_seconds": round(uptime_seconds, 1),
+                "started_at": self._start_time.isoformat(),
+                "monitoring_enabled": self._enable_monitoring,
             }
 
     def get_memory_usage_summary(self) -> dict:
@@ -533,14 +521,14 @@ class CandleDataManager:
                     estimated_bytes = candle_count * 200
 
                     timeframe_breakdown[timeframe.value] = {
-                        'candles': candle_count,
-                        'estimated_mb': round(estimated_bytes / (1024 * 1024), 3)
+                        "candles": candle_count,
+                        "estimated_mb": round(estimated_bytes / (1024 * 1024), 3),
                     }
                     symbol_memory += estimated_bytes
 
                 summary[symbol] = {
-                    'total_mb': round(symbol_memory / (1024 * 1024), 3),
-                    'timeframes': timeframe_breakdown
+                    "total_mb": round(symbol_memory / (1024 * 1024), 3),
+                    "timeframes": timeframe_breakdown,
                 }
 
             return summary
@@ -575,11 +563,11 @@ class CandleDataManager:
         memory_freed_mb = before_metrics.process_memory_mb - after_metrics.process_memory_mb
 
         result = {
-            'gc_objects_collected': collected,
-            'memory_freed_mb': round(memory_freed_mb, 2),
-            'before_memory_mb': round(before_metrics.process_memory_mb, 2),
-            'after_memory_mb': round(after_metrics.process_memory_mb, 2),
-            'aggressive': aggressive
+            "gc_objects_collected": collected,
+            "memory_freed_mb": round(memory_freed_mb, 2),
+            "before_memory_mb": round(before_metrics.process_memory_mb, 2),
+            "after_memory_mb": round(after_metrics.process_memory_mb, 2),
+            "aggressive": aggressive,
         }
 
         logger.info(

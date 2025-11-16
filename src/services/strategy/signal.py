@@ -4,16 +4,17 @@ Trading Signal Data Class
 Defines the core Signal data structure with validation and metadata.
 """
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, Dict, Any
-import uuid
+from typing import Any, Dict
 
 
 class SignalDirection(Enum):
     """Trading signal direction"""
+
     LONG = "LONG"
     SHORT = "SHORT"
 
@@ -103,7 +104,7 @@ class Signal:
         # Warn if risk-reward ratio is unfavorable (less than 1:1)
         if risk_reward_ratio < 1.0:
             # Store warning in metadata rather than raising
-            self.metadata['risk_reward_warning'] = (
+            self.metadata["risk_reward_warning"] = (
                 f"Unfavorable risk-reward ratio: {risk_reward_ratio:.2f}:1"
             )
 
@@ -145,21 +146,21 @@ class Signal:
     def to_dict(self) -> Dict[str, Any]:
         """Convert signal to dictionary for serialization"""
         return {
-            'signal_id': self.signal_id,
-            'symbol': self.symbol,
-            'strategy_name': self.strategy_name,
-            'entry_price': str(self.entry_price),
-            'direction': self.direction.value,
-            'confidence': self.confidence,
-            'stop_loss': str(self.stop_loss),
-            'take_profit': str(self.take_profit),
-            'risk_amount': str(self.risk_amount),
-            'reward_amount': str(self.reward_amount),
-            'risk_reward_ratio': self.risk_reward_ratio,
-            'stop_loss_pct': self.stop_loss_pct,
-            'take_profit_pct': self.take_profit_pct,
-            'timestamp': self.timestamp.isoformat(),
-            'metadata': self.metadata,
+            "signal_id": self.signal_id,
+            "symbol": self.symbol,
+            "strategy_name": self.strategy_name,
+            "entry_price": str(self.entry_price),
+            "direction": self.direction.value,
+            "confidence": self.confidence,
+            "stop_loss": str(self.stop_loss),
+            "take_profit": str(self.take_profit),
+            "risk_amount": str(self.risk_amount),
+            "reward_amount": str(self.reward_amount),
+            "risk_reward_ratio": self.risk_reward_ratio,
+            "stop_loss_pct": self.stop_loss_pct,
+            "take_profit_pct": self.take_profit_pct,
+            "timestamp": self.timestamp.isoformat(),
+            "metadata": self.metadata,
         }
 
     def __repr__(self) -> str:

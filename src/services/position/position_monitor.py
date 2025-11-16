@@ -11,18 +11,19 @@
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
-from src.core.events import Event, EventBus
 from src.core.constants import EventType, PositionSide
-from src.services.position.position_manager import PositionManager
+from src.core.events import Event, EventBus
 from src.services.exchange.binance_manager import BinanceManager
+from src.services.position.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 
 
 class SyncStatus:
     """동기화 상태."""
+
     SYNCED = "synced"
     CONFLICT = "conflict"
     RECOVERY_NEEDED = "recovery_needed"
@@ -90,8 +91,7 @@ class PositionMonitor:
 
             # 로컬 포지션 조회
             local_positions = {
-                pos.symbol: pos
-                for pos in self.position_manager.get_open_positions()
+                pos.symbol: pos for pos in self.position_manager.get_open_positions()
             }
 
             recovered = 0
@@ -134,13 +134,15 @@ class PositionMonitor:
                     await self.position_manager.update_position(symbol, mark_price)
 
                     recovered += 1
-                    details.append({
-                        "action": "recovered",
-                        "symbol": symbol,
-                        "side": side.value,
-                        "size": str(size),
-                        "entry_price": str(entry_price),
-                    })
+                    details.append(
+                        {
+                            "action": "recovered",
+                            "symbol": symbol,
+                            "side": side.value,
+                            "size": str(size),
+                            "entry_price": str(entry_price),
+                        }
+                    )
 
                 else:
                     # 로컬 포지션과 비교
@@ -167,14 +169,16 @@ class PositionMonitor:
 
                     if conflict_detected:
                         conflicts += 1
-                        details.append({
-                            "action": "conflict",
-                            "symbol": symbol,
-                            "local_size": str(local_pos.size),
-                            "exchange_size": str(size),
-                            "local_entry": str(local_pos.entry_price),
-                            "exchange_entry": str(entry_price),
-                        })
+                        details.append(
+                            {
+                                "action": "conflict",
+                                "symbol": symbol,
+                                "local_size": str(local_pos.size),
+                                "exchange_size": str(size),
+                                "local_entry": str(local_pos.entry_price),
+                                "exchange_entry": str(entry_price),
+                            }
+                        )
 
                         # 충돌 이벤트 발행
                         await self._publish_conflict_event(symbol, local_pos, ex_pos)
@@ -183,16 +187,16 @@ class PositionMonitor:
             exchange_symbols = {pos.get("symbol") for pos in exchange_positions}
             for symbol, local_pos in local_positions.items():
                 if symbol not in exchange_symbols:
-                    logger.warning(
-                        f"Position exists locally but not on exchange: {symbol}"
-                    )
+                    logger.warning(f"Position exists locally but not on exchange: {symbol}")
                     conflicts += 1
-                    details.append({
-                        "action": "orphaned",
-                        "symbol": symbol,
-                        "local_size": str(local_pos.size),
-                        "local_entry": str(local_pos.entry_price),
-                    })
+                    details.append(
+                        {
+                            "action": "orphaned",
+                            "symbol": symbol,
+                            "local_size": str(local_pos.size),
+                            "local_entry": str(local_pos.entry_price),
+                        }
+                    )
 
             # 통계 업데이트
             self._stats["total_recoveries"] += recovered
@@ -207,8 +211,7 @@ class PositionMonitor:
             }
 
             logger.info(
-                f"Position recovery completed: "
-                f"recovered={recovered}, conflicts={conflicts}"
+                f"Position recovery completed: " f"recovered={recovered}, conflicts={conflicts}"
             )
 
             # 복구 이벤트 발행
@@ -235,8 +238,7 @@ class PositionMonitor:
 
             # 로컬 포지션 조회
             local_positions = {
-                pos.symbol: pos
-                for pos in self.position_manager.get_open_positions()
+                pos.symbol: pos for pos in self.position_manager.get_open_positions()
             }
 
             updated = 0
@@ -343,10 +345,7 @@ class PositionMonitor:
         logger.debug("Published position recovery event")
 
     async def _publish_conflict_event(
-        self,
-        symbol: str,
-        local_pos: Any,
-        exchange_pos: Dict[str, Any]
+        self, symbol: str, local_pos: Any, exchange_pos: Dict[str, Any]
     ) -> None:
         """
         포지션 충돌 이벤트 발행.

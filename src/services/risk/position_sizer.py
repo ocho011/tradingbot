@@ -8,18 +8,17 @@ Calculates position sizes using:
 """
 
 import logging
-from typing import Dict, Any, Optional
-from decimal import Decimal, ROUND_DOWN
+from decimal import ROUND_DOWN, Decimal
+from typing import Any, Dict, Optional
 
-from src.services.exchange.binance_manager import BinanceManager, BinanceConnectionError
-
+from src.services.exchange.binance_manager import BinanceConnectionError, BinanceManager
 
 logger = logging.getLogger(__name__)
 
 
 class PositionSizingError(Exception):
     """Raised when position sizing calculation fails."""
-    pass
+
 
 
 class PositionSizer:
@@ -48,7 +47,7 @@ class PositionSizer:
         leverage: int = 5,
         min_position_size: float = 10.0,
         max_position_size: Optional[float] = None,
-        precision: int = 8
+        precision: int = 8,
     ):
         """
         Initialize position sizer.
@@ -96,7 +95,7 @@ class PositionSizer:
             f"min={min_position_size} USDT, max={max_position_size} USDT"
         )
 
-    async def get_account_balance(self, currency: str = 'USDT') -> Decimal:
+    async def get_account_balance(self, currency: str = "USDT") -> Decimal:
         """
         Get available account balance for specified currency.
 
@@ -113,11 +112,11 @@ class PositionSizer:
             balance_data = await self.binance_manager.fetch_balance()
 
             # Get free balance for the currency
-            free_balance = balance_data.get('free', {}).get(currency, 0)
+            free_balance = balance_data.get("free", {}).get(currency, 0)
 
             if free_balance is None or free_balance == 0:
                 logger.warning(f"No available {currency} balance found")
-                return Decimal('0')
+                return Decimal("0")
 
             balance = Decimal(str(free_balance))
             logger.debug(f"Available {currency} balance: {balance}")
@@ -145,10 +144,8 @@ class PositionSizer:
         Returns:
             Risk amount (2% of balance)
         """
-        risk_amount = balance * (self.risk_percentage / Decimal('100'))
-        logger.debug(
-            f"Risk calculation: {balance} * {self.risk_percentage}% = {risk_amount} USDT"
-        )
+        risk_amount = balance * (self.risk_percentage / Decimal("100"))
+        logger.debug(f"Risk calculation: {balance} * {self.risk_percentage}% = {risk_amount} USDT")
         return risk_amount
 
     def apply_leverage(self, risk_amount: Decimal) -> Decimal:
@@ -216,7 +213,7 @@ class PositionSizer:
         Returns:
             Rounded position size
         """
-        quantize_value = Decimal('1') / Decimal(10 ** self.precision)
+        quantize_value = Decimal("1") / Decimal(10**self.precision)
         rounded = position_size.quantize(quantize_value, rounding=ROUND_DOWN)
 
         if rounded != position_size:
@@ -225,9 +222,7 @@ class PositionSizer:
         return rounded
 
     async def calculate_position_size(
-        self,
-        currency: str = 'USDT',
-        custom_balance: Optional[float] = None
+        self, currency: str = "USDT", custom_balance: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Calculate position size based on current account balance or custom balance.
@@ -266,9 +261,7 @@ class PositionSizer:
                 balance = await self.get_account_balance(currency)
 
             if balance <= 0:
-                raise PositionSizingError(
-                    f"Insufficient {currency} balance: {balance}"
-                )
+                raise PositionSizingError(f"Insufficient {currency} balance: {balance}")
 
             # Step 2: Calculate risk amount (2% of balance)
             risk_amount = self.calculate_risk_amount(balance)
@@ -284,16 +277,18 @@ class PositionSizer:
 
             # Prepare result
             result = {
-                'balance': float(balance),
-                'risk_amount': float(risk_amount),
-                'position_size_base': float(risk_amount),  # Without leverage
-                'position_size': float(position_size),
-                'leverage': self.leverage,
-                'risk_percentage': float(self.risk_percentage),
-                'currency': currency,
-                'valid': True,
-                'min_position_size': float(self.min_position_size),
-                'max_position_size': float(self.max_position_size) if self.max_position_size else None
+                "balance": float(balance),
+                "risk_amount": float(risk_amount),
+                "position_size_base": float(risk_amount),  # Without leverage
+                "position_size": float(position_size),
+                "leverage": self.leverage,
+                "risk_percentage": float(self.risk_percentage),
+                "currency": currency,
+                "valid": True,
+                "min_position_size": float(self.min_position_size),
+                "max_position_size": (
+                    float(self.max_position_size) if self.max_position_size else None
+                ),
             }
 
             logger.info(
@@ -312,10 +307,7 @@ class PositionSizer:
             raise PositionSizingError(error_msg) from e
 
     def calculate_quantity_for_symbol(
-        self,
-        position_size_usdt: float,
-        entry_price: float,
-        symbol_precision: int = 3
+        self, position_size_usdt: float, entry_price: float, symbol_precision: int = 3
     ) -> float:
         """
         Calculate trading quantity for a symbol given position size and entry price.
@@ -343,7 +335,7 @@ class PositionSizer:
         quantity = Decimal(str(position_size_usdt)) / Decimal(str(entry_price))
 
         # Round to symbol precision
-        quantize_value = Decimal('1') / Decimal(10 ** symbol_precision)
+        quantize_value = Decimal("1") / Decimal(10**symbol_precision)
         quantity = quantity.quantize(quantize_value, rounding=ROUND_DOWN)
 
         logger.debug(
@@ -358,7 +350,7 @@ class PositionSizer:
         risk_percentage: Optional[float] = None,
         leverage: Optional[int] = None,
         min_position_size: Optional[float] = None,
-        max_position_size: Optional[float] = None
+        max_position_size: Optional[float] = None,
     ) -> None:
         """
         Update position sizing parameters.
@@ -404,9 +396,9 @@ class PositionSizer:
             Dictionary with current parameters
         """
         return {
-            'risk_percentage': float(self.risk_percentage),
-            'leverage': self.leverage,
-            'min_position_size': float(self.min_position_size),
-            'max_position_size': float(self.max_position_size) if self.max_position_size else None,
-            'precision': self.precision
+            "risk_percentage": float(self.risk_percentage),
+            "leverage": self.leverage,
+            "min_position_size": float(self.min_position_size),
+            "max_position_size": float(self.max_position_size) if self.max_position_size else None,
+            "precision": self.precision,
         }

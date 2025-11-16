@@ -10,20 +10,19 @@ Tests verify:
 - Integration with trading components
 """
 
+
 import pytest
-from decimal import Decimal
-from prometheus_client import CollectorRegistry, REGISTRY
+from prometheus_client import CollectorRegistry
 
 from src.monitoring.metrics import (
+    ExecutionTimer,
     TradingMetrics,
-    record_signal_generated,
+    record_api_error,
     record_order_execution,
     record_risk_violation,
-    update_position_pnl,
+    record_signal_generated,
     record_websocket_connection,
-    record_api_error,
-    ExecutionTimer,
-    trading_metrics
+    update_position_pnl,
 )
 
 
@@ -66,16 +65,12 @@ class TestSignalMetrics:
 
         # Record a signal
         test_metrics.signals_generated.labels(
-            strategy="Strategy_A",
-            symbol="BTCUSDT",
-            direction="LONG"
+            strategy="Strategy_A", symbol="BTCUSDT", direction="LONG"
         ).inc()
 
         # Verify increment
         metric_value = test_metrics.signals_generated.labels(
-            strategy="Strategy_A",
-            symbol="BTCUSDT",
-            direction="LONG"
+            strategy="Strategy_A", symbol="BTCUSDT", direction="LONG"
         )._value._value
 
         assert metric_value == initial_value + 1
@@ -84,28 +79,20 @@ class TestSignalMetrics:
         """Test that different labels create separate metrics."""
         # Record signals with different labels
         test_metrics.signals_generated.labels(
-            strategy="Strategy_A",
-            symbol="BTCUSDT",
-            direction="LONG"
+            strategy="Strategy_A", symbol="BTCUSDT", direction="LONG"
         ).inc()
 
         test_metrics.signals_generated.labels(
-            strategy="Strategy_B",
-            symbol="ETHUSDT",
-            direction="SHORT"
+            strategy="Strategy_B", symbol="ETHUSDT", direction="SHORT"
         ).inc()
 
         # Verify they're tracked separately
         btc_value = test_metrics.signals_generated.labels(
-            strategy="Strategy_A",
-            symbol="BTCUSDT",
-            direction="LONG"
+            strategy="Strategy_A", symbol="BTCUSDT", direction="LONG"
         )._value._value
 
         eth_value = test_metrics.signals_generated.labels(
-            strategy="Strategy_B",
-            symbol="ETHUSDT",
-            direction="SHORT"
+            strategy="Strategy_B", symbol="ETHUSDT", direction="SHORT"
         )._value._value
 
         assert btc_value == 1
@@ -115,11 +102,7 @@ class TestSignalMetrics:
         """Test the helper function for signal recording."""
         # This will use global trading_metrics, just verify no errors
         try:
-            record_signal_generated(
-                strategy="Strategy_A",
-                symbol="BTCUSDT",
-                direction="LONG"
-            )
+            record_signal_generated(strategy="Strategy_A", symbol="BTCUSDT", direction="LONG")
         except Exception as e:
             pytest.fail(f"record_signal_generated raised exception: {e}")
 
@@ -131,9 +114,7 @@ class TestOrderExecutionMetrics:
         """Test order execution histogram records values."""
         # Record execution time
         test_metrics.order_execution_latency.labels(
-            symbol="BTCUSDT",
-            order_type="market",
-            side="buy"
+            symbol="BTCUSDT", order_type="market", side="buy"
         ).observe(0.5)
 
         # Note: Histogram metrics don't expose internal counters easily in tests
@@ -146,9 +127,7 @@ class TestOrderExecutionMetrics:
 
         for exec_time in executions:
             test_metrics.order_execution_latency.labels(
-                symbol="BTCUSDT",
-                order_type="market",
-                side="buy"
+                symbol="BTCUSDT", order_type="market", side="buy"
             ).observe(exec_time)
 
         # Note: Histogram metrics don't expose internal counters easily in tests
@@ -159,10 +138,7 @@ class TestOrderExecutionMetrics:
         """Test the helper function for order execution recording."""
         try:
             record_order_execution(
-                symbol="BTCUSDT",
-                order_type="market",
-                side="buy",
-                execution_time=0.5
+                symbol="BTCUSDT", order_type="market", side="buy", execution_time=0.5
             )
         except Exception as e:
             pytest.fail(f"record_order_execution raised exception: {e}")
@@ -175,16 +151,12 @@ class TestRiskViolationMetrics:
         """Test risk violation counter increments."""
         # Record violation
         test_metrics.risk_violations.labels(
-            violation_type="position_size_exceeded",
-            symbol="BTCUSDT",
-            severity="high"
+            violation_type="position_size_exceeded", symbol="BTCUSDT", severity="high"
         ).inc()
 
         # Verify increment
         metric_value = test_metrics.risk_violations.labels(
-            violation_type="position_size_exceeded",
-            symbol="BTCUSDT",
-            severity="high"
+            violation_type="position_size_exceeded", symbol="BTCUSDT", severity="high"
         )._value._value
 
         assert metric_value == 1
@@ -195,22 +167,18 @@ class TestRiskViolationMetrics:
             ("entry_blocked", "critical"),
             ("position_size_exceeded", "high"),
             ("invalid_stop_loss", "medium"),
-            ("invalid_take_profit", "low")
+            ("invalid_take_profit", "low"),
         ]
 
         for violation_type, severity in violations:
             test_metrics.risk_violations.labels(
-                violation_type=violation_type,
-                symbol="BTCUSDT",
-                severity=severity
+                violation_type=violation_type, symbol="BTCUSDT", severity=severity
             ).inc()
 
         # Verify each type was recorded
         for violation_type, severity in violations:
             value = test_metrics.risk_violations.labels(
-                violation_type=violation_type,
-                symbol="BTCUSDT",
-                severity=severity
+                violation_type=violation_type, symbol="BTCUSDT", severity=severity
             )._value._value
             assert value == 1
 
@@ -218,9 +186,7 @@ class TestRiskViolationMetrics:
         """Test the helper function for risk violation recording."""
         try:
             record_risk_violation(
-                violation_type="position_size_exceeded",
-                symbol="BTCUSDT",
-                severity="high"
+                violation_type="position_size_exceeded", symbol="BTCUSDT", severity="high"
             )
         except Exception as e:
             pytest.fail(f"record_risk_violation raised exception: {e}")
@@ -232,16 +198,10 @@ class TestPositionPnLMetrics:
     def test_update_position_pnl(self, test_metrics):
         """Test P&L gauge updates correctly."""
         # Set P&L value
-        test_metrics.position_pnl.labels(
-            symbol="BTCUSDT",
-            side="long"
-        ).set(150.50)
+        test_metrics.position_pnl.labels(symbol="BTCUSDT", side="long").set(150.50)
 
         # Verify value
-        metric_value = test_metrics.position_pnl.labels(
-            symbol="BTCUSDT",
-            side="long"
-        )._value._value
+        metric_value = test_metrics.position_pnl.labels(symbol="BTCUSDT", side="long")._value._value
 
         assert metric_value == 150.50
 
@@ -250,41 +210,25 @@ class TestPositionPnLMetrics:
         pnl_values = [100.0, 125.5, 150.75, 140.25]
 
         for pnl in pnl_values:
-            test_metrics.position_pnl.labels(
-                symbol="BTCUSDT",
-                side="long"
-            ).set(pnl)
+            test_metrics.position_pnl.labels(symbol="BTCUSDT", side="long").set(pnl)
 
         # Should have the last value
-        metric_value = test_metrics.position_pnl.labels(
-            symbol="BTCUSDT",
-            side="long"
-        )._value._value
+        metric_value = test_metrics.position_pnl.labels(symbol="BTCUSDT", side="long")._value._value
 
         assert metric_value == pnl_values[-1]
 
     def test_negative_pnl(self, test_metrics):
         """Test P&L can handle negative values."""
-        test_metrics.position_pnl.labels(
-            symbol="BTCUSDT",
-            side="long"
-        ).set(-50.25)
+        test_metrics.position_pnl.labels(symbol="BTCUSDT", side="long").set(-50.25)
 
-        metric_value = test_metrics.position_pnl.labels(
-            symbol="BTCUSDT",
-            side="long"
-        )._value._value
+        metric_value = test_metrics.position_pnl.labels(symbol="BTCUSDT", side="long")._value._value
 
         assert metric_value == -50.25
 
     def test_update_position_pnl_helper(self):
         """Test the helper function for P&L updates."""
         try:
-            update_position_pnl(
-                symbol="BTCUSDT",
-                side="long",
-                pnl=150.50
-            )
+            update_position_pnl(symbol="BTCUSDT", side="long", pnl=150.50)
         except Exception as e:
             pytest.fail(f"update_position_pnl raised exception: {e}")
 
@@ -295,20 +239,15 @@ class TestWebSocketMetrics:
     def test_websocket_connection_active(self, test_metrics):
         """Test WebSocket connection count increases."""
         initial_value = test_metrics.websocket_connections.labels(
-            exchange="binance",
-            stream_type="candles"
+            exchange="binance", stream_type="candles"
         )._value._value
 
         # Increment connection
-        test_metrics.websocket_connections.labels(
-            exchange="binance",
-            stream_type="candles"
-        ).inc()
+        test_metrics.websocket_connections.labels(exchange="binance", stream_type="candles").inc()
 
         # Verify increment
         new_value = test_metrics.websocket_connections.labels(
-            exchange="binance",
-            stream_type="candles"
+            exchange="binance", stream_type="candles"
         )._value._value
 
         assert new_value == initial_value + 1
@@ -316,21 +255,14 @@ class TestWebSocketMetrics:
     def test_websocket_connection_inactive(self, test_metrics):
         """Test WebSocket connection count decreases."""
         # Set initial value
-        test_metrics.websocket_connections.labels(
-            exchange="binance",
-            stream_type="candles"
-        ).set(5)
+        test_metrics.websocket_connections.labels(exchange="binance", stream_type="candles").set(5)
 
         # Decrement connection
-        test_metrics.websocket_connections.labels(
-            exchange="binance",
-            stream_type="candles"
-        ).dec()
+        test_metrics.websocket_connections.labels(exchange="binance", stream_type="candles").dec()
 
         # Verify decrement
         new_value = test_metrics.websocket_connections.labels(
-            exchange="binance",
-            stream_type="candles"
+            exchange="binance", stream_type="candles"
         )._value._value
 
         assert new_value == 4
@@ -338,16 +270,8 @@ class TestWebSocketMetrics:
     def test_record_websocket_connection_helper(self):
         """Test the helper function for WebSocket connection tracking."""
         try:
-            record_websocket_connection(
-                exchange="binance",
-                stream_type="candles",
-                active=True
-            )
-            record_websocket_connection(
-                exchange="binance",
-                stream_type="candles",
-                active=False
-            )
+            record_websocket_connection(exchange="binance", stream_type="candles", active=True)
+            record_websocket_connection(exchange="binance", stream_type="candles", active=False)
         except Exception as e:
             pytest.fail(f"record_websocket_connection raised exception: {e}")
 
@@ -359,16 +283,12 @@ class TestAPIErrorMetrics:
         """Test API error counter increments."""
         # Record error
         test_metrics.api_errors.labels(
-            exchange="binance",
-            endpoint="get_balance",
-            error_type="timeout"
+            exchange="binance", endpoint="get_balance", error_type="timeout"
         ).inc()
 
         # Verify increment
         metric_value = test_metrics.api_errors.labels(
-            exchange="binance",
-            endpoint="get_balance",
-            error_type="timeout"
+            exchange="binance", endpoint="get_balance", error_type="timeout"
         )._value._value
 
         assert metric_value == 1
@@ -379,28 +299,20 @@ class TestAPIErrorMetrics:
 
         for error_type in error_types:
             test_metrics.api_errors.labels(
-                exchange="binance",
-                endpoint="place_order",
-                error_type=error_type
+                exchange="binance", endpoint="place_order", error_type=error_type
             ).inc()
 
         # Verify each type was recorded
         for error_type in error_types:
             value = test_metrics.api_errors.labels(
-                exchange="binance",
-                endpoint="place_order",
-                error_type=error_type
+                exchange="binance", endpoint="place_order", error_type=error_type
             )._value._value
             assert value == 1
 
     def test_record_api_error_helper(self):
         """Test the helper function for API error recording."""
         try:
-            record_api_error(
-                exchange="binance",
-                endpoint="get_balance",
-                error_type="timeout"
-            )
+            record_api_error(exchange="binance", endpoint="get_balance", error_type="timeout")
         except Exception as e:
             pytest.fail(f"record_api_error raised exception: {e}")
 
@@ -438,36 +350,29 @@ class TestMetricsIntegration:
         """Test metrics throughout signal generation to order execution."""
         # Simulate workflow
         test_metrics.signals_generated.labels(
-            strategy="Strategy_A",
-            symbol="BTCUSDT",
-            direction="LONG"
+            strategy="Strategy_A", symbol="BTCUSDT", direction="LONG"
         ).inc()
 
         test_metrics.order_execution_latency.labels(
-            symbol="BTCUSDT",
-            order_type="market",
-            side="buy"
+            symbol="BTCUSDT", order_type="market", side="buy"
         ).observe(0.5)
 
-        test_metrics.position_pnl.labels(
-            symbol="BTCUSDT",
-            side="long"
-        ).set(150.0)
+        test_metrics.position_pnl.labels(symbol="BTCUSDT", side="long").set(150.0)
 
         # Verify counter and gauge metrics were recorded
-        assert test_metrics.signals_generated.labels(
-            strategy="Strategy_A",
-            symbol="BTCUSDT",
-            direction="LONG"
-        )._value._value == 1
+        assert (
+            test_metrics.signals_generated.labels(
+                strategy="Strategy_A", symbol="BTCUSDT", direction="LONG"
+            )._value._value
+            == 1
+        )
 
         # Note: Histogram doesn't expose internal counters in tests
         # Verified by no exceptions during observe()
 
-        assert test_metrics.position_pnl.labels(
-            symbol="BTCUSDT",
-            side="long"
-        )._value._value == 150.0
+        assert (
+            test_metrics.position_pnl.labels(symbol="BTCUSDT", side="long")._value._value == 150.0
+        )
 
     def test_risk_violation_workflow(self, test_metrics):
         """Test risk violation metrics in validation workflow."""
@@ -475,21 +380,17 @@ class TestMetricsIntegration:
         violations = [
             ("entry_blocked", "critical"),
             ("position_size_exceeded", "high"),
-            ("invalid_stop_loss", "medium")
+            ("invalid_stop_loss", "medium"),
         ]
 
         for violation_type, severity in violations:
             test_metrics.risk_violations.labels(
-                violation_type=violation_type,
-                symbol="BTCUSDT",
-                severity=severity
+                violation_type=violation_type, symbol="BTCUSDT", severity=severity
             ).inc()
 
         # Verify all violations recorded
         for violation_type, severity in violations:
             value = test_metrics.risk_violations.labels(
-                violation_type=violation_type,
-                symbol="BTCUSDT",
-                severity=severity
+                violation_type=violation_type, symbol="BTCUSDT", severity=severity
             )._value._value
             assert value == 1

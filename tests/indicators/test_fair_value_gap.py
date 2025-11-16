@@ -2,17 +2,13 @@
 Unit tests for Fair Value Gap detection and analysis.
 """
 
-import pytest
 from typing import List
 
-from src.indicators.fair_value_gap import (
-    FairValueGap,
-    FVGType,
-    FVGState,
-    FVGDetector
-)
-from src.models.candle import Candle
+import pytest
+
 from src.core.constants import TimeFrame
+from src.indicators.fair_value_gap import FairValueGap, FVGDetector, FVGState, FVGType
+from src.models.candle import Candle
 
 
 class TestFairValueGap:
@@ -30,7 +26,7 @@ class TestFairValueGap:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         assert fvg.type == FVGType.BULLISH
@@ -54,7 +50,7 @@ class TestFairValueGap:
                 timeframe=TimeFrame.M15,
                 size_pips=10.0,
                 size_percentage=0.2,
-                volume=1000000.0
+                volume=1000000.0,
             )
 
     def test_fvg_validation_size_pips(self):
@@ -70,7 +66,7 @@ class TestFairValueGap:
                 timeframe=TimeFrame.M15,
                 size_pips=-10.0,  # Invalid: negative
                 size_percentage=0.2,
-                volume=1000000.0
+                volume=1000000.0,
             )
 
     def test_fvg_validation_filled_percentage(self):
@@ -87,7 +83,7 @@ class TestFairValueGap:
                 size_pips=20.0,
                 size_percentage=0.4,
                 volume=1000000.0,
-                filled_percentage=150.0  # Invalid: > 100
+                filled_percentage=150.0,  # Invalid: > 100
             )
 
     def test_fvg_range_and_midpoint(self):
@@ -102,7 +98,7 @@ class TestFairValueGap:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         assert fvg.get_range() == 200.0
@@ -120,7 +116,7 @@ class TestFairValueGap:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         assert fvg.contains_price(49900.0)
@@ -141,7 +137,7 @@ class TestFairValueGap:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         assert fvg.is_price_above(50100.0)
@@ -161,7 +157,7 @@ class TestFairValueGap:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         # Test partial fill (50% from bottom)
@@ -189,7 +185,7 @@ class TestFairValueGap:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         # Test partial fill (50% from top)
@@ -212,7 +208,7 @@ class TestFairValueGap:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         fvg.mark_expired()
@@ -230,18 +226,18 @@ class TestFairValueGap:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         fvg_dict = fvg.to_dict()
 
-        assert fvg_dict['type'] == 'BULLISH'
-        assert fvg_dict['high'] == 50000.0
-        assert fvg_dict['low'] == 49800.0
-        assert fvg_dict['size_pips'] == 20.0
-        assert fvg_dict['size_percentage'] == 0.4
-        assert fvg_dict['range'] == 200.0
-        assert fvg_dict['midpoint'] == 49900.0
+        assert fvg_dict["type"] == "BULLISH"
+        assert fvg_dict["high"] == 50000.0
+        assert fvg_dict["low"] == 49800.0
+        assert fvg_dict["size_pips"] == 20.0
+        assert fvg_dict["size_percentage"] == 0.4
+        assert fvg_dict["range"] == 200.0
+        assert fvg_dict["midpoint"] == 49900.0
 
 
 class TestFVGDetector:
@@ -263,17 +259,19 @@ class TestFVGDetector:
         ]
 
         for i, (o, h, l, c) in enumerate(prices):
-            candles.append(Candle(
-                symbol="BTCUSDT",
-                timeframe=TimeFrame.M15,
-                timestamp=base_time + (i * 900000),  # 15 minutes apart
-                open=float(o),
-                high=float(h),
-                low=float(l),
-                close=float(c),
-                volume=1000000.0,
-                is_closed=True
-            ))
+            candles.append(
+                Candle(
+                    symbol="BTCUSDT",
+                    timeframe=TimeFrame.M15,
+                    timestamp=base_time + (i * 900000),  # 15 minutes apart
+                    open=float(o),
+                    high=float(h),
+                    low=float(l),
+                    close=float(c),
+                    volume=1000000.0,
+                    is_closed=True,
+                )
+            )
 
         return candles
 
@@ -283,9 +281,31 @@ class TestFVGDetector:
 
         # Bullish FVG: candle[0].high < candle[2].low
         candles = [
-            Candle("BTCUSDT", TimeFrame.M15, base_time, 49000, 49500, 48900, 49200, 1000000, True),  # 0: high=49500
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 900000, 49200, 50200, 49100, 50000, 1500000, True),  # 1: gap creator
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 1800000, 50000, 50300, 49900, 50200, 1200000, True),  # 2: low=49900
+            Candle(
+                "BTCUSDT", TimeFrame.M15, base_time, 49000, 49500, 48900, 49200, 1000000, True
+            ),  # 0: high=49500
+            Candle(
+                "BTCUSDT",
+                TimeFrame.M15,
+                base_time + 900000,
+                49200,
+                50200,
+                49100,
+                50000,
+                1500000,
+                True,
+            ),  # 1: gap creator
+            Candle(
+                "BTCUSDT",
+                TimeFrame.M15,
+                base_time + 1800000,
+                50000,
+                50300,
+                49900,
+                50200,
+                1200000,
+                True,
+            ),  # 2: low=49900
         ]
         # Gap exists between 49500 (candle 0 high) and 49900 (candle 2 low) = 400 pips gap
 
@@ -297,9 +317,31 @@ class TestFVGDetector:
 
         # Bearish FVG: candle[0].low > candle[2].high
         candles = [
-            Candle("BTCUSDT", TimeFrame.M15, base_time, 50000, 50500, 49900, 50200, 1000000, True),  # 0: low=49900
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 900000, 50200, 50300, 49200, 49400, 1500000, True),  # 1: gap creator
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 1800000, 49400, 49500, 49200, 49300, 1200000, True),  # 2: high=49500
+            Candle(
+                "BTCUSDT", TimeFrame.M15, base_time, 50000, 50500, 49900, 50200, 1000000, True
+            ),  # 0: low=49900
+            Candle(
+                "BTCUSDT",
+                TimeFrame.M15,
+                base_time + 900000,
+                50200,
+                50300,
+                49200,
+                49400,
+                1500000,
+                True,
+            ),  # 1: gap creator
+            Candle(
+                "BTCUSDT",
+                TimeFrame.M15,
+                base_time + 1800000,
+                49400,
+                49500,
+                49200,
+                49300,
+                1200000,
+                True,
+            ),  # 2: high=49500
         ]
         # Gap exists between 49500 (candle 2 high) and 49900 (candle 0 low) = 400 pips gap
 
@@ -311,7 +353,7 @@ class TestFVGDetector:
             min_gap_size_pips=5.0,
             min_gap_size_percentage=0.1,
             use_pip_threshold=True,
-            pip_size=0.0001
+            pip_size=0.0001,
         )
 
         assert detector.min_gap_size_pips == 5.0
@@ -324,9 +366,7 @@ class TestFVGDetector:
         detector = FVGDetector(pip_size=1.0)  # 1 pip = 1.0 for simplicity
 
         size_pips, size_percentage = detector.calculate_gap_size(
-            gap_high=50000.0,
-            gap_low=49800.0,
-            reference_price=50000.0
+            gap_high=50000.0, gap_low=49800.0, reference_price=50000.0
         )
 
         assert size_pips == 200.0  # (50000 - 49800) / 1.0
@@ -341,10 +381,7 @@ class TestFVGDetector:
 
     def test_meets_threshold_percentage(self):
         """Test threshold checking with percentage-based filtering."""
-        detector = FVGDetector(
-            min_gap_size_percentage=0.2,
-            use_pip_threshold=False
-        )
+        detector = FVGDetector(min_gap_size_percentage=0.2, use_pip_threshold=False)
 
         assert detector.meets_threshold(5.0, 0.3)  # 0.3% >= 0.2%
         assert not detector.meets_threshold(20.0, 0.1)  # 0.1% < 0.2%
@@ -400,8 +437,28 @@ class TestFVGDetector:
         # No gap - continuous price movement
         candles = [
             Candle("BTCUSDT", TimeFrame.M15, base_time, 49000, 49500, 48900, 49200, 1000000, True),
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 900000, 49200, 49600, 49100, 49400, 1000000, True),
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 1800000, 49400, 49700, 49300, 49600, 1000000, True),
+            Candle(
+                "BTCUSDT",
+                TimeFrame.M15,
+                base_time + 900000,
+                49200,
+                49600,
+                49100,
+                49400,
+                1000000,
+                True,
+            ),
+            Candle(
+                "BTCUSDT",
+                TimeFrame.M15,
+                base_time + 1800000,
+                49400,
+                49700,
+                49300,
+                49600,
+                1000000,
+                True,
+            ),
         ]
 
         detector = FVGDetector(min_gap_size_pips=0.0, pip_size=1.0)
@@ -419,18 +476,74 @@ class TestFVGDetector:
         candles = []
 
         # Add bullish FVG pattern
-        candles.extend([
-            Candle("BTCUSDT", TimeFrame.M15, base_time, 49000, 49500, 48900, 49200, 1000000, True),
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 900000, 49200, 50200, 49100, 50000, 1500000, True),
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 1800000, 50000, 50300, 49900, 50200, 1200000, True),
-        ])
+        candles.extend(
+            [
+                Candle(
+                    "BTCUSDT", TimeFrame.M15, base_time, 49000, 49500, 48900, 49200, 1000000, True
+                ),
+                Candle(
+                    "BTCUSDT",
+                    TimeFrame.M15,
+                    base_time + 900000,
+                    49200,
+                    50200,
+                    49100,
+                    50000,
+                    1500000,
+                    True,
+                ),
+                Candle(
+                    "BTCUSDT",
+                    TimeFrame.M15,
+                    base_time + 1800000,
+                    50000,
+                    50300,
+                    49900,
+                    50200,
+                    1200000,
+                    True,
+                ),
+            ]
+        )
 
         # Add bearish FVG pattern
-        candles.extend([
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 2700000, 50200, 50500, 50100, 50300, 1000000, True),
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 3600000, 50300, 50400, 49200, 49400, 1500000, True),
-            Candle("BTCUSDT", TimeFrame.M15, base_time + 4500000, 49400, 49500, 49200, 49300, 1200000, True),
-        ])
+        candles.extend(
+            [
+                Candle(
+                    "BTCUSDT",
+                    TimeFrame.M15,
+                    base_time + 2700000,
+                    50200,
+                    50500,
+                    50100,
+                    50300,
+                    1000000,
+                    True,
+                ),
+                Candle(
+                    "BTCUSDT",
+                    TimeFrame.M15,
+                    base_time + 3600000,
+                    50300,
+                    50400,
+                    49200,
+                    49400,
+                    1500000,
+                    True,
+                ),
+                Candle(
+                    "BTCUSDT",
+                    TimeFrame.M15,
+                    base_time + 4500000,
+                    49400,
+                    49500,
+                    49200,
+                    49300,
+                    1200000,
+                    True,
+                ),
+            ]
+        )
 
         detector = FVGDetector(min_gap_size_pips=0.0, pip_size=1.0)
         fvgs = detector.detect_fair_value_gaps(candles)
@@ -442,7 +555,9 @@ class TestFVGDetector:
     def test_detect_insufficient_candles(self):
         """Test that detector raises error with insufficient candles."""
         candles = [
-            Candle("BTCUSDT", TimeFrame.M15, 1704067200000, 49000, 49500, 48900, 49200, 1000000, True)
+            Candle(
+                "BTCUSDT", TimeFrame.M15, 1704067200000, 49000, 49500, 48900, 49200, 1000000, True
+            )
         ]
 
         detector = FVGDetector()
@@ -462,15 +577,13 @@ class TestFVGDetector:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         # Create candle that enters the gap
         current_candles = [
             Candle(
-                "BTCUSDT", TimeFrame.M15, 1704068000000,
-                49850, 49950, 49800, 49900,
-                1000000, True
+                "BTCUSDT", TimeFrame.M15, 1704068000000, 49850, 49950, 49800, 49900, 1000000, True
             )
         ]
 
@@ -492,15 +605,21 @@ class TestFVGDetector:
             timeframe=TimeFrame.M15,
             size_pips=20.0,
             size_percentage=0.4,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         # Create candle that completely breaks through the gap
         current_candles = [
             Candle(
-                "BTCUSDT", TimeFrame.M15, 1704068000000,
-                49700, 49750, 49600, 49700,  # Low below gap
-                1000000, True
+                "BTCUSDT",
+                TimeFrame.M15,
+                1704068000000,
+                49700,
+                49750,
+                49600,
+                49700,  # Low below gap
+                1000000,
+                True,
             )
         ]
 

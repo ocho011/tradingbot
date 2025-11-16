@@ -2,14 +2,15 @@
 포지션 모니터 테스트.
 """
 
-import pytest
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.position.position_monitor import PositionMonitor
-from src.services.position.position_manager import PositionManager
-from src.core.constants import PositionSide, EventType
+import pytest
+
+from src.core.constants import EventType, PositionSide
 from src.core.events import EventBus
+from src.services.position.position_manager import PositionManager
+from src.services.position.position_monitor import PositionMonitor
 
 
 @pytest.fixture
@@ -204,9 +205,7 @@ class TestPositionMonitor:
         assert result["details"][0]["symbol"] == "BTCUSDT"
 
     @pytest.mark.asyncio
-    async def test_sync_positions(
-        self, position_monitor, binance_manager, position_manager
-    ):
+    async def test_sync_positions(self, position_monitor, binance_manager, position_manager):
         """포지션 동기화 테스트."""
         # 로컬에 포지션 생성
         await position_manager.open_position(
@@ -292,9 +291,7 @@ class TestPositionMonitor:
         assert stats["total_recoveries"] == 1
 
     @pytest.mark.asyncio
-    async def test_recovery_event_publishing(
-        self, position_monitor, binance_manager, event_bus
-    ):
+    async def test_recovery_event_publishing(self, position_monitor, binance_manager, event_bus):
         """복구 이벤트 발행 테스트."""
         # 포지션 복구
         binance_manager.fetch_positions.return_value = [
@@ -343,9 +340,7 @@ class TestPositionMonitor:
         assert result["recovered"] == 1
 
     @pytest.mark.asyncio
-    async def test_recovery_with_unknown_side(
-        self, position_monitor, binance_manager
-    ):
+    async def test_recovery_with_unknown_side(self, position_monitor, binance_manager):
         """알 수 없는 포지션 방향 처리 테스트."""
         # 잘못된 side 값
         binance_manager.fetch_positions.return_value = [

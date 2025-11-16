@@ -2,22 +2,14 @@
 Unit tests for Breaker Block detection and role transition logic.
 """
 
-import pytest
-from datetime import datetime
 from typing import List
 
-from src.indicators.breaker_block import (
-    BreakerBlock,
-    BreakerBlockType,
-    BreakerBlockDetector
-)
-from src.indicators.order_block import (
-    OrderBlock,
-    OrderBlockType,
-    OrderBlockState
-)
-from src.models.candle import Candle
+import pytest
+
 from src.core.constants import TimeFrame
+from src.indicators.breaker_block import BreakerBlock, BreakerBlockDetector, BreakerBlockType
+from src.indicators.order_block import OrderBlock, OrderBlockState, OrderBlockType
+from src.models.candle import Candle
 
 
 def create_test_candle(
@@ -29,7 +21,7 @@ def create_test_candle(
     low: float,
     close: float,
     volume: float,
-    is_closed: bool = True
+    is_closed: bool = True,
 ) -> Candle:
     """Helper function to create test candles."""
     return Candle(
@@ -41,7 +33,7 @@ def create_test_candle(
         low=low,
         close=close,
         volume=volume,
-        is_closed=is_closed
+        is_closed=is_closed,
     )
 
 
@@ -64,7 +56,7 @@ class TestBreakerBlock:
             volume=1500000.0,
             original_ob_volume=1000000.0,
             original_test_count=3,
-            breach_percentage=2.5
+            breach_percentage=2.5,
         )
 
         assert bb.type == BreakerBlockType.BEARISH
@@ -92,7 +84,7 @@ class TestBreakerBlock:
                 timeframe=TimeFrame.M15,
                 strength=75.0,
                 volume=1500000.0,
-                original_ob_volume=1000000.0
+                original_ob_volume=1000000.0,
             )
 
     def test_breaker_block_validation_strength(self):
@@ -110,7 +102,7 @@ class TestBreakerBlock:
                 timeframe=TimeFrame.M15,
                 strength=150.0,  # Invalid
                 volume=1500000.0,
-                original_ob_volume=1000000.0
+                original_ob_volume=1000000.0,
             )
 
     def test_breaker_block_validation_breach_percentage(self):
@@ -129,7 +121,7 @@ class TestBreakerBlock:
                 strength=75.0,
                 volume=1500000.0,
                 original_ob_volume=1000000.0,
-                breach_percentage=-1.0  # Invalid
+                breach_percentage=-1.0,  # Invalid
             )
 
     def test_breaker_block_role_description(self):
@@ -147,7 +139,7 @@ class TestBreakerBlock:
             timeframe=TimeFrame.M15,
             strength=75.0,
             volume=1500000.0,
-            original_ob_volume=1000000.0
+            original_ob_volume=1000000.0,
         )
 
         assert "resistance" in bb_bullish.get_role_description().lower()
@@ -166,7 +158,7 @@ class TestBreakerBlock:
             timeframe=TimeFrame.M15,
             strength=75.0,
             volume=1500000.0,
-            original_ob_volume=1000000.0
+            original_ob_volume=1000000.0,
         )
 
         assert "support" in bb_bearish.get_role_description().lower()
@@ -186,7 +178,7 @@ class TestBreakerBlock:
             timeframe=TimeFrame.M15,
             strength=75.0,
             volume=1500000.0,
-            original_ob_volume=1000000.0
+            original_ob_volume=1000000.0,
         )
 
         assert bb.get_range() == 500.0
@@ -206,7 +198,7 @@ class TestBreakerBlock:
             timeframe=TimeFrame.M15,
             strength=75.0,
             volume=1500000.0,
-            original_ob_volume=1000000.0
+            original_ob_volume=1000000.0,
         )
 
         assert bb.contains_price(49750.0)
@@ -229,7 +221,7 @@ class TestBreakerBlock:
             timeframe=TimeFrame.M15,
             strength=75.0,
             volume=1500000.0,
-            original_ob_volume=1000000.0
+            original_ob_volume=1000000.0,
         )
 
         test_time = 1704067800000
@@ -254,20 +246,20 @@ class TestBreakerBlock:
             strength=75.0,
             volume=1500000.0,
             original_ob_volume=1000000.0,
-            breach_percentage=2.5
+            breach_percentage=2.5,
         )
 
         bb_dict = bb.to_dict()
 
-        assert bb_dict['type'] == 'BEARISH'
-        assert bb_dict['original_type'] == 'BULLISH'
-        assert bb_dict['high'] == 50000.0
-        assert bb_dict['low'] == 49500.0
-        assert bb_dict['strength'] == 75.0
-        assert bb_dict['breach_percentage'] == 2.5
-        assert bb_dict['range'] == 500.0
-        assert bb_dict['midpoint'] == 49750.0
-        assert 'role_transition' in bb_dict
+        assert bb_dict["type"] == "BEARISH"
+        assert bb_dict["original_type"] == "BULLISH"
+        assert bb_dict["high"] == 50000.0
+        assert bb_dict["low"] == 49500.0
+        assert bb_dict["strength"] == 75.0
+        assert bb_dict["breach_percentage"] == 2.5
+        assert bb_dict["range"] == 500.0
+        assert bb_dict["midpoint"] == 49750.0
+        assert "role_transition" in bb_dict
 
 
 class TestBreakerBlockDetector:
@@ -286,19 +278,77 @@ class TestBreakerBlockDetector:
         # Create candles with a bullish OB that gets breached
         candles = [
             # Initial candles
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time, 50000, 50100, 49900, 50000, 100000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval, 50000, 50050, 49950, 50000, 100000),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time, 50000, 50100, 49900, 50000, 100000
+            ),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time + interval, 50000, 50050, 49950, 50000, 100000
+            ),
             # Bullish OB formed here (support at 49500-49700)
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 2, 49700, 49750, 49500, 49550, 150000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 2,
+                49700,
+                49750,
+                49500,
+                49550,
+                150000,
+            ),
             # Price moves up (confirming OB)
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 3, 49550, 49900, 49500, 49850, 120000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 4, 49850, 50100, 49800, 50050, 110000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 3,
+                49550,
+                49900,
+                49500,
+                49850,
+                120000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 4,
+                49850,
+                50100,
+                49800,
+                50050,
+                110000,
+            ),
             # Price comes back to test OB
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 5, 50050, 50100, 49600, 49650, 100000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 5,
+                50050,
+                50100,
+                49600,
+                49650,
+                100000,
+            ),
             # BREACH: Strong move down through the OB support
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 6, 49650, 49700, 49200, 49250, 200000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 6,
+                49650,
+                49700,
+                49200,
+                49250,
+                200000,
+            ),
             # Continuation down
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 7, 49250, 49300, 48900, 49000, 180000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 7,
+                49250,
+                49300,
+                48900,
+                49000,
+                180000,
+            ),
         ]
 
         # Create the bullish Order Block
@@ -312,7 +362,7 @@ class TestBreakerBlockDetector:
             timeframe=TimeFrame.M1,
             strength=70.0,
             volume=150000.0,
-            state=OrderBlockState.ACTIVE
+            state=OrderBlockState.ACTIVE,
         )
 
         return candles, ob
@@ -329,19 +379,77 @@ class TestBreakerBlockDetector:
 
         candles = [
             # Initial candles
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time, 49000, 49100, 48950, 49000, 100000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval, 49000, 49050, 48950, 49000, 100000),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time, 49000, 49100, 48950, 49000, 100000
+            ),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time + interval, 49000, 49050, 48950, 49000, 100000
+            ),
             # Bearish OB formed here (resistance at 49300-49500)
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 2, 49300, 49500, 49250, 49450, 150000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 2,
+                49300,
+                49500,
+                49250,
+                49450,
+                150000,
+            ),
             # Price moves down (confirming OB)
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 3, 49450, 49500, 49100, 49150, 120000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 4, 49150, 49200, 48900, 48950, 110000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 3,
+                49450,
+                49500,
+                49100,
+                49150,
+                120000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 4,
+                49150,
+                49200,
+                48900,
+                48950,
+                110000,
+            ),
             # Price comes back to test OB
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 5, 48950, 49400, 48900, 49350, 100000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 5,
+                48950,
+                49400,
+                48900,
+                49350,
+                100000,
+            ),
             # BREACH: Strong move up through the OB resistance
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 6, 49350, 49800, 49300, 49750, 200000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 6,
+                49350,
+                49800,
+                49300,
+                49750,
+                200000,
+            ),
             # Continuation up
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 7, 49750, 50100, 49700, 50000, 180000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 7,
+                49750,
+                50100,
+                49700,
+                50000,
+                180000,
+            ),
         ]
 
         # Create the bearish Order Block
@@ -355,7 +463,7 @@ class TestBreakerBlockDetector:
             timeframe=TimeFrame.M1,
             strength=70.0,
             volume=150000.0,
-            state=OrderBlockState.ACTIVE
+            state=OrderBlockState.ACTIVE,
         )
 
         return candles, ob
@@ -365,12 +473,12 @@ class TestBreakerBlockDetector:
         detector = BreakerBlockDetector(
             breach_threshold_percentage=1.0,
             min_breach_candle_body_ratio=0.5,
-            require_close_beyond=True
+            require_close_beyond=True,
         )
 
         assert detector.breach_threshold_percentage == 1.0
         assert detector.min_breach_candle_body_ratio == 0.5
-        assert detector.require_close_beyond == True
+        assert detector.require_close_beyond is True
 
     def test_calculate_breach_percentage_bullish_ob(self):
         """Test calculating breach percentage for bullish OB."""
@@ -385,7 +493,7 @@ class TestBreakerBlockDetector:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M1,
             strength=70.0,
-            volume=100000.0
+            volume=100000.0,
         )
 
         # No breach (price above low)
@@ -410,7 +518,7 @@ class TestBreakerBlockDetector:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M1,
             strength=70.0,
-            volume=100000.0
+            volume=100000.0,
         )
 
         # No breach (price below high)
@@ -427,7 +535,7 @@ class TestBreakerBlockDetector:
         detector = BreakerBlockDetector(
             breach_threshold_percentage=2.0,  # Need 2% breach
             min_breach_candle_body_ratio=0.4,
-            require_close_beyond=True
+            require_close_beyond=True,
         )
 
         ob = OrderBlock(
@@ -439,7 +547,7 @@ class TestBreakerBlockDetector:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M1,
             strength=70.0,
-            volume=100000.0
+            volume=100000.0,
         )
 
         base_time = 1704067500000
@@ -467,7 +575,7 @@ class TestBreakerBlockDetector:
         detector = BreakerBlockDetector(
             breach_threshold_percentage=2.0,
             min_breach_candle_body_ratio=0.4,
-            require_close_beyond=True
+            require_close_beyond=True,
         )
 
         ob = OrderBlock(
@@ -479,7 +587,7 @@ class TestBreakerBlockDetector:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M1,
             strength=70.0,
-            volume=100000.0
+            volume=100000.0,
         )
 
         base_time = 1704067500000
@@ -567,8 +675,16 @@ class TestBreakerBlockDetector:
 
         # Create candles where OB is respected (not breached)
         candles = [
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + i * interval,
-                             49500 + (i * 10), 49600 + (i * 10), 49400 + (i * 10), 49550 + (i * 10), 100000)
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + i * interval,
+                49500 + (i * 10),
+                49600 + (i * 10),
+                49400 + (i * 10),
+                49550 + (i * 10),
+                100000,
+            )
             for i in range(10)
         ]
 
@@ -582,7 +698,7 @@ class TestBreakerBlockDetector:
             timeframe=TimeFrame.M1,
             strength=70.0,
             volume=100000.0,
-            state=OrderBlockState.ACTIVE
+            state=OrderBlockState.ACTIVE,
         )
 
         detector = BreakerBlockDetector(breach_threshold_percentage=2.0)
@@ -610,8 +726,19 @@ class TestBreakerBlockDetector:
 
         test_candles = candles + [
             # Price comes back to test the new resistance
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval, 49300, 49600, 49200, 49550, 100000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 2, 49550, 49650, 49500, 49600, 100000),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time + interval, 49300, 49600, 49200, 49550, 100000
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 2,
+                49550,
+                49650,
+                49500,
+                49600,
+                100000,
+            ),
         ]
 
         # Update states
@@ -637,4 +764,7 @@ class TestBreakerBlockDetector:
         # Verify they are sorted by timestamp
         if len(breaker_blocks) > 1:
             for i in range(len(breaker_blocks) - 1):
-                assert breaker_blocks[i].transition_timestamp <= breaker_blocks[i + 1].transition_timestamp
+                assert (
+                    breaker_blocks[i].transition_timestamp
+                    <= breaker_blocks[i + 1].transition_timestamp
+                )

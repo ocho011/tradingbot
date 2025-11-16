@@ -5,12 +5,12 @@ Detects and filters duplicate signals based on time windows, price ranges,
 and cross-strategy similarity to prevent redundant trade entries.
 """
 
-from typing import List, Optional, Dict, Any
+import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
-import logging
+from typing import Any, Dict, List, Optional
 
-from src.services.strategy.signal import Signal, SignalDirection
+from src.services.strategy.signal import Signal
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +59,11 @@ class FilterConfig:
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary"""
         return {
-            'time_window_minutes': self.time_window_minutes,
-            'price_threshold_pct': self.price_threshold_pct,
-            'enabled': self.enabled,
-            'filter_cross_strategy': self.filter_cross_strategy,
-            'check_position_conflicts': self.check_position_conflicts,
+            "time_window_minutes": self.time_window_minutes,
+            "price_threshold_pct": self.price_threshold_pct,
+            "enabled": self.enabled,
+            "filter_cross_strategy": self.filter_cross_strategy,
+            "check_position_conflicts": self.check_position_conflicts,
         }
 
     def __repr__(self) -> str:
@@ -174,9 +174,7 @@ class SignalFilter:
         return True
 
     def _is_duplicate(
-        self,
-        new_signal: Signal,
-        existing_signal: Signal
+        self, new_signal: Signal, existing_signal: Signal
     ) -> tuple[bool, Optional[str]]:
         """
         Check if new signal is duplicate of existing signal.
@@ -245,11 +243,11 @@ class SignalFilter:
 
         for position in self.active_positions:
             # Check if position is for the same symbol
-            if position.get('symbol') != signal.symbol:
+            if position.get("symbol") != signal.symbol:
                 continue
 
             # Check if position has the same direction
-            position_direction = position.get('direction', '').upper()
+            position_direction = position.get("direction", "").upper()
             if position_direction == signal.direction.value:
                 reason = (
                     f"Active {position_direction} position exists for {signal.symbol} "
@@ -271,10 +269,7 @@ class SignalFilter:
         cutoff_time = datetime.utcnow() - self.config.time_window
         original_count = len(self.recent_signals)
 
-        self.recent_signals = [
-            s for s in self.recent_signals
-            if s.timestamp > cutoff_time
-        ]
+        self.recent_signals = [s for s in self.recent_signals if s.timestamp > cutoff_time]
 
         removed_count = original_count - len(self.recent_signals)
         if removed_count > 0:
@@ -315,18 +310,17 @@ class SignalFilter:
             Dictionary with filtering metrics
         """
         filter_rate = (
-            (self.filtered_count / self.total_processed * 100)
-            if self.total_processed > 0 else 0.0
+            (self.filtered_count / self.total_processed * 100) if self.total_processed > 0 else 0.0
         )
 
         return {
-            'total_processed': self.total_processed,
-            'filtered_count': self.filtered_count,
-            'accepted_count': self.total_processed - self.filtered_count,
-            'filter_rate_pct': filter_rate,
-            'cache_size': len(self.recent_signals),
-            'active_positions': len(self.active_positions),
-            'config': self.config.to_dict(),
+            "total_processed": self.total_processed,
+            "filtered_count": self.filtered_count,
+            "accepted_count": self.total_processed - self.filtered_count,
+            "filter_rate_pct": filter_rate,
+            "cache_size": len(self.recent_signals),
+            "active_positions": len(self.active_positions),
+            "config": self.config.to_dict(),
         }
 
     def clear_cache(self):

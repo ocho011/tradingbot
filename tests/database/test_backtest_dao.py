@@ -4,10 +4,11 @@ Unit tests for BacktestResultDAO specialized operations.
 Tests backtest result storage, strategy comparisons, and optimization analysis.
 """
 
-import pytest
-from decimal import Decimal
-from datetime import datetime, timedelta
 import json
+from datetime import datetime
+from decimal import Decimal
+
+import pytest
 
 from src.core.constants import TimeFrame
 
@@ -59,7 +60,7 @@ class TestBacktestResultDAO:
             final_capital=Decimal("15000"),
             total_return=50.0,
             total_pnl=Decimal("5000"),
-            configuration='{}',
+            configuration="{}",
         )
 
         results = await backtest_dao.get_results_by_strategy("MACD", symbol="BTCUSDT")
@@ -86,7 +87,7 @@ class TestBacktestResultDAO:
                 total_return=50.0,
                 total_pnl=Decimal("5000"),
                 sharpe_ratio=sharpe,
-                configuration='{}',
+                configuration="{}",
             )
 
         best = await backtest_dao.get_best_results(metric="sharpe_ratio", limit=2)
@@ -116,7 +117,7 @@ class TestBacktestResultDAO:
                     total_return=50.0 * (strategies.index(strategy) + 1),
                     total_pnl=Decimal("5000") * (strategies.index(strategy) + 1),
                     sharpe_ratio=2.0 + strategies.index(strategy) * 0.5,
-                    configuration='{}',
+                    configuration="{}",
                 )
 
         comparison = await backtest_dao.compare_strategies(strategies)
@@ -143,12 +144,11 @@ class TestBacktestResultDAO:
             final_capital=Decimal("15000"),
             total_return=50.0,
             total_pnl=Decimal("5000"),
-            configuration='{}',
+            configuration="{}",
         )
 
         results = await backtest_dao.get_results_by_date_range(
-            datetime(2024, 1, 1),
-            datetime(2024, 6, 30)
+            datetime(2024, 1, 1), datetime(2024, 6, 30)
         )
         assert len(results) >= 1
 
@@ -224,10 +224,7 @@ class TestBacktestResultDAO:
             )
 
         history = await backtest_dao.get_optimization_history(
-            "MACD",
-            "BTCUSDT",
-            metric="sharpe_ratio",
-            limit=10
+            "MACD", "BTCUSDT", metric="sharpe_ratio", limit=10
         )
 
         assert len(history) >= 3
@@ -257,7 +254,7 @@ class TestBacktestResultDAO:
                 total_return=50.0 if strategy == "MACD" else 30.0,
                 total_pnl=Decimal("5000"),
                 sharpe_ratio=2.5,
-                configuration='{}',
+                configuration="{}",
             )
 
         summary = await backtest_dao.get_statistics_summary()
@@ -285,7 +282,7 @@ class TestBacktestResultDAO:
             final_capital=Decimal("15000"),
             total_return=50.0,
             total_pnl=Decimal("5000"),
-            configuration='{}',
+            configuration="{}",
         )
 
         summary = await backtest_dao.get_statistics_summary(strategy="MACD")

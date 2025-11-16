@@ -19,7 +19,6 @@ from src.api.middleware import (
 )
 from src.core.security import SecurityManager
 
-
 # ============================================================================
 # Test Application Setup
 # ============================================================================
@@ -48,7 +47,11 @@ def security_manager():
         encryption_key="test-key-32-characters-minimum!",
         rate_limit_capacity=10,
         rate_limit_refill_rate=10.0,
-        ip_whitelist=["127.0.0.1", "192.168.1.1", "testclient"]  # TestClient uses "testclient" as IP
+        ip_whitelist=[
+            "127.0.0.1",
+            "192.168.1.1",
+            "testclient",
+        ],  # TestClient uses "testclient" as IP
     )
 
 
@@ -62,11 +65,7 @@ class TestRateLimitMiddleware:
 
     def test_rate_limit_allows_within_limit(self, app, security_manager):
         """Test requests within rate limit are allowed."""
-        app.add_middleware(
-            RateLimitMiddleware,
-            security_manager=security_manager,
-            enabled=True
-        )
+        app.add_middleware(RateLimitMiddleware, security_manager=security_manager, enabled=True)
         client = TestClient(app)
 
         # First 10 requests should succeed
@@ -76,11 +75,7 @@ class TestRateLimitMiddleware:
 
     def test_rate_limit_blocks_over_limit(self, app, security_manager):
         """Test requests over rate limit are blocked."""
-        app.add_middleware(
-            RateLimitMiddleware,
-            security_manager=security_manager,
-            enabled=True
-        )
+        app.add_middleware(RateLimitMiddleware, security_manager=security_manager, enabled=True)
         client = TestClient(app)
 
         # Exhaust rate limit
@@ -95,11 +90,7 @@ class TestRateLimitMiddleware:
 
     def test_rate_limit_headers_present(self, app, security_manager):
         """Test rate limit headers are added to responses."""
-        app.add_middleware(
-            RateLimitMiddleware,
-            security_manager=security_manager,
-            enabled=True
-        )
+        app.add_middleware(RateLimitMiddleware, security_manager=security_manager, enabled=True)
         client = TestClient(app)
 
         response = client.get("/test")
@@ -109,11 +100,7 @@ class TestRateLimitMiddleware:
 
     def test_rate_limit_disabled(self, app, security_manager):
         """Test rate limiting can be disabled."""
-        app.add_middleware(
-            RateLimitMiddleware,
-            security_manager=security_manager,
-            enabled=False
-        )
+        app.add_middleware(RateLimitMiddleware, security_manager=security_manager, enabled=False)
         client = TestClient(app)
 
         # Should allow unlimited requests
@@ -132,11 +119,7 @@ class TestIPWhitelistMiddleware:
 
     def test_whitelist_allows_whitelisted_ip(self, app, security_manager):
         """Test whitelisted IPs are allowed."""
-        app.add_middleware(
-            IPWhitelistMiddleware,
-            security_manager=security_manager,
-            enabled=True
-        )
+        app.add_middleware(IPWhitelistMiddleware, security_manager=security_manager, enabled=True)
         client = TestClient(app)
 
         # TestClient uses 127.0.0.1 which is whitelisted
@@ -149,11 +132,7 @@ class TestIPWhitelistMiddleware:
         security_manager.ip_whitelist.clear()
         security_manager.ip_whitelist.add_ip("192.168.1.100")
 
-        app.add_middleware(
-            IPWhitelistMiddleware,
-            security_manager=security_manager,
-            enabled=True
-        )
+        app.add_middleware(IPWhitelistMiddleware, security_manager=security_manager, enabled=True)
         client = TestClient(app)
 
         response = client.get("/test")
@@ -170,7 +149,7 @@ class TestIPWhitelistMiddleware:
             IPWhitelistMiddleware,
             security_manager=security_manager,
             enabled=True,
-            bypass_paths=["/health"]
+            bypass_paths=["/health"],
         )
         client = TestClient(app)
 
@@ -184,11 +163,7 @@ class TestIPWhitelistMiddleware:
 
     def test_whitelist_disabled(self, app, security_manager):
         """Test whitelist can be disabled."""
-        app.add_middleware(
-            IPWhitelistMiddleware,
-            security_manager=security_manager,
-            enabled=False
-        )
+        app.add_middleware(IPWhitelistMiddleware, security_manager=security_manager, enabled=False)
         client = TestClient(app)
 
         response = client.get("/test")
@@ -205,11 +180,7 @@ class TestSecurityHeadersMiddleware:
 
     def test_hsts_header_added(self, app):
         """Test HSTS header is added."""
-        app.add_middleware(
-            SecurityHeadersMiddleware,
-            enable_hsts=True,
-            hsts_max_age=31536000
-        )
+        app.add_middleware(SecurityHeadersMiddleware, enable_hsts=True, hsts_max_age=31536000)
         client = TestClient(app)
 
         response = client.get("/test")
@@ -220,10 +191,7 @@ class TestSecurityHeadersMiddleware:
     def test_csp_header_added(self, app):
         """Test CSP header is added."""
         csp_policy = "default-src 'self'; script-src 'self'"
-        app.add_middleware(
-            SecurityHeadersMiddleware,
-            csp_policy=csp_policy
-        )
+        app.add_middleware(SecurityHeadersMiddleware, csp_policy=csp_policy)
         client = TestClient(app)
 
         response = client.get("/test")
@@ -245,7 +213,7 @@ class TestSecurityHeadersMiddleware:
             "X-XSS-Protection",
             "Referrer-Policy",
             "Permissions-Policy",
-            "X-Permitted-Cross-Domain-Policies"
+            "X-Permitted-Cross-Domain-Policies",
         ]
 
         for header in expected_headers:
@@ -299,7 +267,7 @@ class TestCombinedMiddleware:
             security_manager=security_manager,
             rate_limit_enabled=True,
             ip_whitelist_enabled=True,
-            security_headers_enabled=True
+            security_headers_enabled=True,
         )
         client = TestClient(app)
 
@@ -323,7 +291,7 @@ class TestCombinedMiddleware:
             security_manager=security_manager,
             rate_limit_enabled=True,
             ip_whitelist_enabled=True,
-            security_headers_enabled=True
+            security_headers_enabled=True,
         )
         client = TestClient(app)
 
@@ -355,7 +323,7 @@ class TestMiddlewarePerformance:
             security_manager=security_manager,
             rate_limit_enabled=True,
             ip_whitelist_enabled=False,
-            security_headers_enabled=True
+            security_headers_enabled=True,
         )
         client = TestClient(app)
 

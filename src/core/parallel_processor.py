@@ -12,19 +12,20 @@ Task 11.3 implementation.
 
 import asyncio
 import logging
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Coroutine, Dict, List, Optional, TypeVar
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
 class ParallelExecutionResult:
     """Result from parallel execution."""
+
     success_count: int
     error_count: int
     results: List[Any]
@@ -64,7 +65,7 @@ class ParallelProcessor:
         self,
         max_concurrent: int = 10,
         timeout_seconds: Optional[float] = 30.0,
-        enable_metrics: bool = True
+        enable_metrics: bool = True,
     ):
         """
         Initialize parallel processor.
@@ -88,15 +89,13 @@ class ParallelProcessor:
         # Semaphore for concurrency control
         self._semaphore = asyncio.Semaphore(max_concurrent)
 
-        logger.info(
-            f"ParallelProcessor initialized (max_concurrent={max_concurrent})"
-        )
+        logger.info(f"ParallelProcessor initialized (max_concurrent={max_concurrent})")
 
     async def process_batch(
         self,
         items: List[T],
         processor_func: Callable[[T], Coroutine],
-        operation_name: Optional[str] = None
+        operation_name: Optional[str] = None,
     ) -> ParallelExecutionResult:
         """
         Process a batch of items in parallel.
@@ -112,10 +111,7 @@ class ParallelProcessor:
         start_time = datetime.now()
 
         # Create tasks for all items
-        tasks = [
-            self._process_with_semaphore(item, processor_func)
-            for item in items
-        ]
+        tasks = [self._process_with_semaphore(item, processor_func) for item in items]
 
         # Execute in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -140,9 +136,7 @@ class ParallelProcessor:
             self._total_execution_time += execution_time
 
             if operation_name:
-                self._execution_times_by_operation[operation_name].append(
-                    execution_time
-                )
+                self._execution_times_by_operation[operation_name].append(execution_time)
 
         logger.info(
             f"Batch processing completed: {len(successes)} successes, "
@@ -154,13 +148,11 @@ class ParallelProcessor:
             error_count=len(errors),
             results=successes,
             errors=errors,
-            execution_time_seconds=execution_time
+            execution_time_seconds=execution_time,
         )
 
     async def _process_with_semaphore(
-        self,
-        item: T,
-        processor_func: Callable[[T], Coroutine]
+        self, item: T, processor_func: Callable[[T], Coroutine]
     ) -> Any:
         """
         Process item with semaphore-based concurrency control.
@@ -177,17 +169,12 @@ class ParallelProcessor:
         """
         async with self._semaphore:
             if self.timeout_seconds:
-                return await asyncio.wait_for(
-                    processor_func(item),
-                    timeout=self.timeout_seconds
-                )
+                return await asyncio.wait_for(processor_func(item), timeout=self.timeout_seconds)
             else:
                 return await processor_func(item)
 
     async def gather_with_error_handling(
-        self,
-        coroutines: List[Coroutine],
-        operation_name: Optional[str] = None
+        self, coroutines: List[Coroutine], operation_name: Optional[str] = None
     ) -> ParallelExecutionResult:
         """
         Execute multiple coroutines in parallel with error handling.
@@ -227,9 +214,7 @@ class ParallelProcessor:
             self._total_execution_time += execution_time
 
             if operation_name:
-                self._execution_times_by_operation[operation_name].append(
-                    execution_time
-                )
+                self._execution_times_by_operation[operation_name].append(execution_time)
 
         logger.info(
             f"Parallel execution completed: {len(successes)} successes, "
@@ -241,13 +226,11 @@ class ParallelProcessor:
             error_count=len(errors),
             results=successes,
             errors=errors,
-            execution_time_seconds=execution_time
+            execution_time_seconds=execution_time,
         )
 
     async def process_with_priority(
-        self,
-        high_priority_tasks: List[Coroutine],
-        low_priority_tasks: List[Coroutine]
+        self, high_priority_tasks: List[Coroutine], low_priority_tasks: List[Coroutine]
     ) -> tuple[ParallelExecutionResult, ParallelExecutionResult]:
         """
         Process tasks with priority levels.
@@ -263,14 +246,12 @@ class ParallelProcessor:
         """
         # Execute high priority first
         high_results = await self.gather_with_error_handling(
-            high_priority_tasks,
-            operation_name="high_priority"
+            high_priority_tasks, operation_name="high_priority"
         )
 
         # Then execute low priority
         low_results = await self.gather_with_error_handling(
-            low_priority_tasks,
-            operation_name="low_priority"
+            low_priority_tasks, operation_name="low_priority"
         )
 
         return high_results, low_results
@@ -300,7 +281,7 @@ class ParallelProcessor:
                 "count": len(times),
                 "avg_time_seconds": sum(times) / len(times),
                 "min_time_seconds": min(times),
-                "max_time_seconds": max(times)
+                "max_time_seconds": max(times),
             }
 
         return {
@@ -311,7 +292,7 @@ class ParallelProcessor:
             "avg_execution_time_seconds": avg_execution_time,
             "total_execution_time_seconds": self._total_execution_time,
             "max_concurrent": self.max_concurrent,
-            "operations": operation_stats
+            "operations": operation_stats,
         }
 
     def reset_metrics(self) -> None:
@@ -339,7 +320,7 @@ class DataPipelineParallelProcessor:
         self,
         max_concurrent_candles: int = 50,
         max_concurrent_indicators: int = 20,
-        max_concurrent_signals: int = 10
+        max_concurrent_signals: int = 10,
     ):
         """
         Initialize data pipeline parallel processor.
@@ -350,16 +331,13 @@ class DataPipelineParallelProcessor:
             max_concurrent_signals: Max concurrent signal evaluations
         """
         self.candle_processor = ParallelProcessor(
-            max_concurrent=max_concurrent_candles,
-            timeout_seconds=5.0
+            max_concurrent=max_concurrent_candles, timeout_seconds=5.0
         )
         self.indicator_processor = ParallelProcessor(
-            max_concurrent=max_concurrent_indicators,
-            timeout_seconds=10.0
+            max_concurrent=max_concurrent_indicators, timeout_seconds=10.0
         )
         self.signal_processor = ParallelProcessor(
-            max_concurrent=max_concurrent_signals,
-            timeout_seconds=15.0
+            max_concurrent=max_concurrent_signals, timeout_seconds=15.0
         )
 
         logger.info(
@@ -370,35 +348,27 @@ class DataPipelineParallelProcessor:
         )
 
     async def process_candles_parallel(
-        self,
-        candles: List[Any],
-        processor_func: Callable[[Any], Coroutine]
+        self, candles: List[Any], processor_func: Callable[[Any], Coroutine]
     ) -> ParallelExecutionResult:
         """Process multiple candles in parallel."""
         return await self.candle_processor.process_batch(
-            candles,
-            processor_func,
-            operation_name="candle_processing"
+            candles, processor_func, operation_name="candle_processing"
         )
 
     async def calculate_indicators_parallel(
-        self,
-        indicator_tasks: List[Coroutine]
+        self, indicator_tasks: List[Coroutine]
     ) -> ParallelExecutionResult:
         """Calculate multiple indicators in parallel."""
         return await self.indicator_processor.gather_with_error_handling(
-            indicator_tasks,
-            operation_name="indicator_calculation"
+            indicator_tasks, operation_name="indicator_calculation"
         )
 
     async def evaluate_signals_parallel(
-        self,
-        signal_tasks: List[Coroutine]
+        self, signal_tasks: List[Coroutine]
     ) -> ParallelExecutionResult:
         """Evaluate multiple signals in parallel."""
         return await self.signal_processor.gather_with_error_handling(
-            signal_tasks,
-            operation_name="signal_evaluation"
+            signal_tasks, operation_name="signal_evaluation"
         )
 
     def get_all_metrics(self) -> Dict[str, Dict[str, Any]]:
@@ -406,5 +376,5 @@ class DataPipelineParallelProcessor:
         return {
             "candle_processing": self.candle_processor.get_metrics(),
             "indicator_calculation": self.indicator_processor.get_metrics(),
-            "signal_evaluation": self.signal_processor.get_metrics()
+            "signal_evaluation": self.signal_processor.get_metrics(),
         }

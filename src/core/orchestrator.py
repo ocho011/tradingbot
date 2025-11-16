@@ -10,34 +10,27 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any, Callable
 from threading import Lock
+from typing import Any, Callable, Dict, List, Optional
 
-from src.core.events import EventBus, Event, EventHandler
-from src.core.constants import EventType
+from src.core.background_tasks import BackgroundTaskManager
 from src.core.config import BinanceConfig
 from src.core.config_manager import ConfigurationManager
-from src.core.background_tasks import (
-    BackgroundTaskManager,
-    TaskConfig,
-    TaskPriority
-)
-from src.core.parallel_processor import (
-    ParallelProcessor,
-    DataPipelineParallelProcessor
-)
-from src.services.exchange.binance_manager import BinanceManager
-from src.services.candle_storage import CandleStorage
+from src.core.constants import EventType
+from src.core.events import Event, EventBus, EventHandler
+from src.core.parallel_processor import DataPipelineParallelProcessor
+from src.database import engine as db_engine
 from src.indicators.multi_timeframe_engine import MultiTimeframeIndicatorEngine
-from src.services.strategy.integration_layer import StrategyIntegrationLayer
-from src.services.risk.risk_validator import RiskValidator
-from src.services.risk.position_sizer import PositionSizer
-from src.services.risk.stop_loss_calculator import StopLossCalculator
-from src.services.risk.take_profit_calculator import TakeProfitCalculator
-from src.services.risk.daily_loss_monitor import DailyLossMonitor
+from src.services.candle_storage import CandleStorage
+from src.services.exchange.binance_manager import BinanceManager
 from src.services.exchange.order_executor import OrderExecutor
 from src.services.position.position_manager import PositionManager
-from src.database import engine as db_engine
+from src.services.risk.daily_loss_monitor import DailyLossMonitor
+from src.services.risk.position_sizer import PositionSizer
+from src.services.risk.risk_validator import RiskValidator
+from src.services.risk.stop_loss_calculator import StopLossCalculator
+from src.services.risk.take_profit_calculator import TakeProfitCalculator
+from src.services.strategy.integration_layer import StrategyIntegrationLayer
 
 logger = logging.getLogger(__name__)
 
@@ -46,25 +39,25 @@ class ServiceState(str, Enum):
     """Service lifecycle states."""
 
     UNINITIALIZED = "uninitialized"  # Service not yet initialized
-    INITIALIZING = "initializing"     # Currently initializing
-    INITIALIZED = "initialized"       # Initialized but not started
-    STARTING = "starting"             # Currently starting
-    RUNNING = "running"               # Fully operational
-    STOPPING = "stopping"             # Currently stopping
-    STOPPED = "stopped"               # Cleanly stopped
-    ERROR = "error"                   # Error state
+    INITIALIZING = "initializing"  # Currently initializing
+    INITIALIZED = "initialized"  # Initialized but not started
+    STARTING = "starting"  # Currently starting
+    RUNNING = "running"  # Fully operational
+    STOPPING = "stopping"  # Currently stopping
+    STOPPED = "stopped"  # Cleanly stopped
+    ERROR = "error"  # Error state
 
 
 class SystemState(str, Enum):
     """Overall system states."""
 
-    OFFLINE = "offline"               # System offline
-    INITIALIZING = "initializing"     # Initializing services
-    STARTING = "starting"             # Starting services
-    RUNNING = "running"               # System operational
-    STOPPING = "stopping"             # Stopping services
-    ERROR = "error"                   # System error
-    MAINTENANCE = "maintenance"       # Maintenance mode
+    OFFLINE = "offline"  # System offline
+    INITIALIZING = "initializing"  # Initializing services
+    STARTING = "starting"  # Starting services
+    RUNNING = "running"  # System operational
+    STOPPING = "stopping"  # Stopping services
+    ERROR = "error"  # System error
+    MAINTENANCE = "maintenance"  # Maintenance mode
 
 
 @dataclass
@@ -103,7 +96,7 @@ class ServiceInfo:
 
 class OrchestratorError(Exception):
     """Raised when orchestrator operations fail."""
-    pass
+
 
 
 # Pipeline Event Handlers
@@ -184,8 +177,7 @@ class PipelineMetrics:
         """Get all pipeline statistics."""
         with self._lock:
             avg_times = {
-                stage: self.get_avg_processing_time(stage)
-                for stage in self.processing_times.keys()
+                stage: self.get_avg_processing_time(stage) for stage in self.processing_times.keys()
             }
             return {
                 "candles_received": self.candles_received,
@@ -199,8 +191,10 @@ class PipelineMetrics:
                     for stage, time in avg_times.items()
                 },
                 "processing_rate": (
-                    self.candles_processed / max(self.candles_received, 1) * 100
-                ) if self.candles_received > 0 else 0,
+                    (self.candles_processed / max(self.candles_received, 1) * 100)
+                    if self.candles_received > 0
+                    else 0
+                ),
             }
 
 
@@ -215,7 +209,7 @@ class CandleProcessingHandler(EventHandler):
         self,
         candle_storage: CandleStorage,
         multi_timeframe_engine: MultiTimeframeIndicatorEngine,
-        metrics: PipelineMetrics
+        metrics: PipelineMetrics,
     ):
         """
         Initialize candle processing handler.
@@ -248,6 +242,7 @@ class CandleProcessingHandler(EventHandler):
 
             # Store candle
             from src.models.candle import Candle
+
             candle = Candle(**candle_data)
             self.candle_storage.add_candle(candle)
 
@@ -260,8 +255,7 @@ class CandleProcessingHandler(EventHandler):
             self.metrics.record_processing_time("candle_to_indicator", duration)
 
             self.logger.debug(
-                f"Processed candle {candle.symbol} {candle.timeframe} "
-                f"in {duration*1000:.2f}ms"
+                f"Processed candle {candle.symbol} {candle.timeframe} " f"in {duration*1000:.2f}ms"
             )
 
         except Exception as e:
@@ -276,11 +270,7 @@ class IndicatorToStrategyHandler(EventHandler):
     Receives INDICATORS_UPDATED events and triggers strategy evaluation.
     """
 
-    def __init__(
-        self,
-        strategy_layer: StrategyIntegrationLayer,
-        metrics: PipelineMetrics
-    ):
+    def __init__(self, strategy_layer: StrategyIntegrationLayer, metrics: PipelineMetrics):
         """
         Initialize indicator to strategy handler.
 
@@ -312,9 +302,7 @@ class IndicatorToStrategyHandler(EventHandler):
 
             # Trigger strategy evaluation
             signals = await self.strategy_layer.evaluate_strategies(
-                symbol=symbol,
-                timeframe=timeframe,
-                indicators=indicators
+                symbol=symbol, timeframe=timeframe, indicators=indicators
             )
 
             # Record metrics
@@ -336,11 +324,7 @@ class SignalToRiskHandler(EventHandler):
     Receives SIGNAL_GENERATED events and validates them against risk rules.
     """
 
-    def __init__(
-        self,
-        risk_validator: RiskValidator,
-        metrics: PipelineMetrics
-    ):
+    def __init__(self, risk_validator: RiskValidator, metrics: PipelineMetrics):
         """
         Initialize signal to risk handler.
 
@@ -389,11 +373,7 @@ class RiskToOrderHandler(EventHandler):
     Receives RISK_CHECK_PASSED events and executes validated orders.
     """
 
-    def __init__(
-        self,
-        order_executor: OrderExecutor,
-        metrics: PipelineMetrics
-    ):
+    def __init__(self, order_executor: OrderExecutor, metrics: PipelineMetrics):
         """
         Initialize risk to order handler.
 
@@ -427,9 +407,7 @@ class RiskToOrderHandler(EventHandler):
             duration = (datetime.now() - start_time).total_seconds()
             self.metrics.record_processing_time("risk_to_order", duration)
 
-            self.logger.info(
-                f"Order executed: {order_result.order_id} in {duration*1000:.2f}ms"
-            )
+            self.logger.info(f"Order executed: {order_result.order_id} in {duration*1000:.2f}ms")
 
         except Exception as e:
             self.logger.error(f"Error executing order: {e}", exc_info=True)
@@ -443,11 +421,7 @@ class OrderToPositionHandler(EventHandler):
     Receives ORDER_FILLED events and updates position tracking.
     """
 
-    def __init__(
-        self,
-        position_manager: PositionManager,
-        metrics: PipelineMetrics
-    ):
+    def __init__(self, position_manager: PositionManager, metrics: PipelineMetrics):
         """
         Initialize order to position handler.
 
@@ -492,10 +466,7 @@ class BackpressureMonitor:
     """
 
     def __init__(
-        self,
-        event_bus: EventBus,
-        max_queue_threshold: float = 0.8,
-        check_interval: int = 5
+        self, event_bus: EventBus, max_queue_threshold: float = 0.8, check_interval: int = 5
     ):
         """
         Initialize backpressure monitor.
@@ -661,14 +632,10 @@ class TradingSystemOrchestrator:
         """
         with self._state_lock:
             if self._state != SystemState.OFFLINE:
-                raise OrchestratorError(
-                    f"Cannot initialize from state {self._state}"
-                )
+                raise OrchestratorError(f"Cannot initialize from state {self._state}")
             # Check if services are already initialized
             if self._services:
-                raise OrchestratorError(
-                    "Cannot initialize from state INITIALIZED"
-                )
+                raise OrchestratorError("Cannot initialize from state INITIALIZED")
             self._state = SystemState.INITIALIZING
 
         try:
@@ -720,7 +687,7 @@ class TradingSystemOrchestrator:
             state=ServiceState.INITIALIZED,
             dependencies=[],
             start_callback=self.event_bus.start,
-            stop_callback=self.event_bus.stop
+            stop_callback=self.event_bus.stop,
         )
         logger.info("EventBus initialized")
 
@@ -731,20 +698,14 @@ class TradingSystemOrchestrator:
         await db_engine.init_db()
 
         self._services["database"] = ServiceInfo(
-            name="database",
-            instance=db_engine,
-            state=ServiceState.INITIALIZED,
-            dependencies=[]
+            name="database", instance=db_engine, state=ServiceState.INITIALIZED, dependencies=[]
         )
         logger.info("Database initialized")
 
     async def _initialize_binance_manager(self) -> None:
         """Initialize Binance manager (depends on EventBus)."""
         logger.info("Initializing BinanceManager...")
-        self.binance_manager = BinanceManager(
-            config=self.config,
-            event_bus=self.event_bus
-        )
+        self.binance_manager = BinanceManager(config=self.config, event_bus=self.event_bus)
         await self.binance_manager.initialize()
 
         self._services["binance_manager"] = ServiceInfo(
@@ -753,7 +714,7 @@ class TradingSystemOrchestrator:
             state=ServiceState.INITIALIZED,
             dependencies=["event_bus"],
             start_callback=self._start_binance_manager,
-            stop_callback=self._stop_binance_manager
+            stop_callback=self._stop_binance_manager,
         )
         logger.info("BinanceManager initialized")
 
@@ -766,22 +727,20 @@ class TradingSystemOrchestrator:
             name="candle_storage",
             instance=self.candle_storage,
             state=ServiceState.INITIALIZED,
-            dependencies=[]
+            dependencies=[],
         )
         logger.info("CandleStorage initialized")
 
     async def _initialize_multi_timeframe_engine(self) -> None:
         """Initialize multi-timeframe engine (depends on CandleStorage, EventBus)."""
         logger.info("Initializing MultiTimeframeIndicatorEngine...")
-        self.multi_timeframe_engine = MultiTimeframeIndicatorEngine(
-            event_bus=self.event_bus
-        )
+        self.multi_timeframe_engine = MultiTimeframeIndicatorEngine(event_bus=self.event_bus)
 
         self._services["multi_timeframe_engine"] = ServiceInfo(
             name="multi_timeframe_engine",
             instance=self.multi_timeframe_engine,
             state=ServiceState.INITIALIZED,
-            dependencies=["candle_storage", "event_bus"]
+            dependencies=["candle_storage", "event_bus"],
         )
         logger.info("MultiTimeframeIndicatorEngine initialized")
 
@@ -793,14 +752,14 @@ class TradingSystemOrchestrator:
             enable_strategy_b=True,
             enable_strategy_c=True,
             event_bus=self.event_bus,
-            candle_storage=self.candle_storage
+            candle_storage=self.candle_storage,
         )
 
         self._services["strategy_layer"] = ServiceInfo(
             name="strategy_layer",
             instance=self.strategy_layer,
             state=ServiceState.INITIALIZED,
-            dependencies=["multi_timeframe_engine", "event_bus", "candle_storage"]
+            dependencies=["multi_timeframe_engine", "event_bus", "candle_storage"],
         )
         logger.info("StrategyIntegrationLayer initialized")
 
@@ -810,18 +769,11 @@ class TradingSystemOrchestrator:
 
         # Initialize sub-components (order matters due to dependencies)
         position_sizer = PositionSizer(
-            binance_manager=self.binance_manager,
-            risk_percentage=2.0,
-            leverage=5
+            binance_manager=self.binance_manager, risk_percentage=2.0, leverage=5
         )
-        stop_loss_calculator = StopLossCalculator(
-            position_sizer=position_sizer
-        )
+        stop_loss_calculator = StopLossCalculator(position_sizer=position_sizer)
         take_profit_calculator = TakeProfitCalculator()
-        daily_loss_monitor = DailyLossMonitor(
-            event_bus=self.event_bus,
-            daily_loss_limit_pct=5.0
-        )
+        daily_loss_monitor = DailyLossMonitor(event_bus=self.event_bus, daily_loss_limit_pct=5.0)
 
         # Initialize risk validator
         self.risk_validator = RiskValidator(
@@ -829,14 +781,14 @@ class TradingSystemOrchestrator:
             stop_loss_calculator=stop_loss_calculator,
             take_profit_calculator=take_profit_calculator,
             daily_loss_monitor=daily_loss_monitor,
-            event_bus=self.event_bus
+            event_bus=self.event_bus,
         )
 
         self._services["risk_validator"] = ServiceInfo(
             name="risk_validator",
             instance=self.risk_validator,
             state=ServiceState.INITIALIZED,
-            dependencies=["binance_manager", "database", "event_bus"]
+            dependencies=["binance_manager", "database", "event_bus"],
         )
         logger.info("Risk components initialized")
 
@@ -844,15 +796,14 @@ class TradingSystemOrchestrator:
         """Initialize order executor (depends on BinanceManager, EventBus)."""
         logger.info("Initializing OrderExecutor...")
         self.order_executor = OrderExecutor(
-            exchange=self.binance_manager.exchange,
-            event_bus=self.event_bus
+            exchange=self.binance_manager.exchange, event_bus=self.event_bus
         )
 
         self._services["order_executor"] = ServiceInfo(
             name="order_executor",
             instance=self.order_executor,
             state=ServiceState.INITIALIZED,
-            dependencies=["binance_manager", "event_bus"]
+            dependencies=["binance_manager", "event_bus"],
         )
         logger.info("OrderExecutor initialized")
 
@@ -861,16 +812,13 @@ class TradingSystemOrchestrator:
         logger.info("Initializing PositionManager...")
         # Get a database session for position manager
         async with db_engine.get_session() as session:
-            self.position_manager = PositionManager(
-                db_session=session,
-                event_bus=self.event_bus
-            )
+            self.position_manager = PositionManager(db_session=session, event_bus=self.event_bus)
 
         self._services["position_manager"] = ServiceInfo(
             name="position_manager",
             instance=self.position_manager,
             state=ServiceState.INITIALIZED,
-            dependencies=["database", "event_bus"]
+            dependencies=["database", "event_bus"],
         )
         logger.info("PositionManager initialized")
 
@@ -889,36 +837,30 @@ class TradingSystemOrchestrator:
 
         # Initialize backpressure monitor
         self._backpressure_monitor = BackpressureMonitor(
-            event_bus=self.event_bus,
-            max_queue_threshold=0.8,
-            check_interval=5
+            event_bus=self.event_bus, max_queue_threshold=0.8, check_interval=5
         )
 
         # Create pipeline handlers
         candle_handler = CandleProcessingHandler(
             candle_storage=self.candle_storage,
             multi_timeframe_engine=self.multi_timeframe_engine,
-            metrics=self._pipeline_metrics
+            metrics=self._pipeline_metrics,
         )
 
         indicator_handler = IndicatorToStrategyHandler(
-            strategy_layer=self.strategy_layer,
-            metrics=self._pipeline_metrics
+            strategy_layer=self.strategy_layer, metrics=self._pipeline_metrics
         )
 
         signal_handler = SignalToRiskHandler(
-            risk_validator=self.risk_validator,
-            metrics=self._pipeline_metrics
+            risk_validator=self.risk_validator, metrics=self._pipeline_metrics
         )
 
         risk_handler = RiskToOrderHandler(
-            order_executor=self.order_executor,
-            metrics=self._pipeline_metrics
+            order_executor=self.order_executor, metrics=self._pipeline_metrics
         )
 
         order_handler = OrderToPositionHandler(
-            position_manager=self.position_manager,
-            metrics=self._pipeline_metrics
+            position_manager=self.position_manager, metrics=self._pipeline_metrics
         )
 
         # Register handlers with event bus
@@ -935,12 +877,10 @@ class TradingSystemOrchestrator:
             indicator_handler,
             signal_handler,
             risk_handler,
-            order_handler
+            order_handler,
         ]
 
-        logger.info(
-            f"Data pipeline configured with {len(self._pipeline_handlers)} handlers"
-        )
+        logger.info(f"Data pipeline configured with {len(self._pipeline_handlers)} handlers")
 
     async def _initialize_background_task_manager(self) -> None:
         """
@@ -955,14 +895,14 @@ class TradingSystemOrchestrator:
         self.background_task_manager = BackgroundTaskManager(
             enable_health_monitoring=True,
             health_check_interval=self._health_check_interval,
-            enable_auto_recovery=True
+            enable_auto_recovery=True,
         )
 
         self._services["background_task_manager"] = ServiceInfo(
             name="background_task_manager",
             instance=self.background_task_manager,
             state=ServiceState.INITIALIZED,
-            dependencies=[]
+            dependencies=[],
         )
         logger.info("BackgroundTaskManager initialized")
 
@@ -977,25 +917,21 @@ class TradingSystemOrchestrator:
         """
         logger.info("Initializing DataPipelineParallelProcessor...")
         self.parallel_processor = DataPipelineParallelProcessor(
-            max_concurrent_candles=50,
-            max_concurrent_indicators=20,
-            max_concurrent_signals=10
+            max_concurrent_candles=50, max_concurrent_indicators=20, max_concurrent_signals=10
         )
 
         self._services["parallel_processor"] = ServiceInfo(
             name="parallel_processor",
             instance=self.parallel_processor,
             state=ServiceState.INITIALIZED,
-            dependencies=[]
+            dependencies=[],
         )
         logger.info("DataPipelineParallelProcessor initialized")
 
     async def _start_backpressure_monitoring(self) -> None:
         """Start background task for backpressure monitoring."""
         logger.info("Starting backpressure monitoring...")
-        self._backpressure_check_task = asyncio.create_task(
-            self._backpressure_check_loop()
-        )
+        self._backpressure_check_task = asyncio.create_task(self._backpressure_check_loop())
 
     async def _backpressure_check_loop(self) -> None:
         """Background loop for checking pipeline backpressure."""
@@ -1080,9 +1016,7 @@ class TradingSystemOrchestrator:
         """
         with self._state_lock:
             if self._state not in [SystemState.OFFLINE]:
-                raise OrchestratorError(
-                    f"Cannot start from state {self._state}"
-                )
+                raise OrchestratorError(f"Cannot start from state {self._state}")
             # Ensure services are initialized before starting
             if not self._services:
                 raise OrchestratorError(
@@ -1099,9 +1033,7 @@ class TradingSystemOrchestrator:
                 await self._start_service(service_name)
 
             # Start health monitoring
-            self._health_check_task = asyncio.create_task(
-                self._health_check_loop()
-            )
+            self._health_check_task = asyncio.create_task(self._health_check_loop())
 
             # Start backpressure monitoring
             if self._backpressure_monitor:
@@ -1226,20 +1158,14 @@ class TradingSystemOrchestrator:
             with self._state_lock:
                 self._state = SystemState.OFFLINE
 
-            uptime = (
-                self._shutdown_time - self._startup_time
-                if self._startup_time else None
-            )
+            uptime = self._shutdown_time - self._startup_time if self._startup_time else None
 
             # Log final pipeline stats
             if self._pipeline_metrics:
                 final_stats = self._pipeline_metrics.get_stats()
                 logger.info(f"Final pipeline stats: {final_stats}")
 
-            logger.info(
-                f"Trading system stopped successfully "
-                f"(uptime: {uptime})"
-            )
+            logger.info(f"Trading system stopped successfully " f"(uptime: {uptime})")
 
         except Exception as e:
             with self._state_lock:
@@ -1281,9 +1207,7 @@ class TradingSystemOrchestrator:
             try:
                 await self._stop_service(service_name)
             except Exception as e:
-                logger.error(
-                    f"Error during emergency shutdown of {service_name}: {e}"
-                )
+                logger.error(f"Error during emergency shutdown of {service_name}: {e}")
 
     async def _health_check_loop(self) -> None:
         """Background task for periodic health checking."""
@@ -1310,9 +1234,7 @@ class TradingSystemOrchestrator:
                 try:
                     await service_info.health_check()
                 except Exception as e:
-                    logger.error(
-                        f"Health check failed for {service_name}: {e}"
-                    )
+                    logger.error(f"Health check failed for {service_name}: {e}")
                     service_info.update_state(ServiceState.ERROR, error=e)
 
     # Service-specific start/stop callbacks
@@ -1344,7 +1266,7 @@ class TradingSystemOrchestrator:
             name: {
                 "state": info.state.value,
                 "last_change": info.last_state_change.isoformat(),
-                "error": str(info.error) if info.error else None
+                "error": str(info.error) if info.error else None,
             }
             for name, info in self._services.items()
         }
@@ -1368,15 +1290,9 @@ class TradingSystemOrchestrator:
             "uptime_seconds": uptime,
             "service_count": len(self._services),
             "services": self.get_service_states(),
-            "event_bus_stats": (
-                self.event_bus.get_stats() if self.event_bus else None
-            ),
-            "startup_time": (
-                self._startup_time.isoformat() if self._startup_time else None
-            ),
-            "shutdown_time": (
-                self._shutdown_time.isoformat() if self._shutdown_time else None
-            )
+            "event_bus_stats": (self.event_bus.get_stats() if self.event_bus else None),
+            "startup_time": (self._startup_time.isoformat() if self._startup_time else None),
+            "shutdown_time": (self._shutdown_time.isoformat() if self._shutdown_time else None),
         }
 
         # Add pipeline statistics

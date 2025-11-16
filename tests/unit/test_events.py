@@ -11,12 +11,13 @@ Tests cover:
 """
 
 import asyncio
-import pytest
 from datetime import datetime
 from typing import List
 
+import pytest
+
 from src.core.constants import EventType
-from src.core.events import Event, EventHandler, EventQueue, EventBus
+from src.core.events import Event, EventBus, EventHandler, EventQueue
 
 
 class TestEvent:
@@ -27,7 +28,7 @@ class TestEvent:
         event = Event(
             priority=5,
             event_type=EventType.CANDLE_RECEIVED,
-            data={"symbol": "BTCUSDT", "price": 50000}
+            data={"symbol": "BTCUSDT", "price": 50000},
         )
         assert event.priority == 5
         assert event.event_type == EventType.CANDLE_RECEIVED
@@ -41,7 +42,7 @@ class TestEvent:
             priority=3,
             event_type=EventType.SIGNAL_GENERATED,
             data={"action": "BUY"},
-            source="StrategyEngine"
+            source="StrategyEngine",
         )
         assert event.source == "StrategyEngine"
 
@@ -332,7 +333,7 @@ class TestEventBus:
         events = [
             Event(priority=5, event_type=EventType.CANDLE_RECEIVED),
             Event(priority=5, event_type=EventType.SIGNAL_GENERATED),
-            Event(priority=5, event_type=EventType.ORDER_PLACED)
+            Event(priority=5, event_type=EventType.ORDER_PLACED),
         ]
 
         for event in events:
@@ -480,17 +481,11 @@ class TestEventBus:
         # Publish events concurrently
         async def publish_events(count: int):
             for i in range(count):
-                await bus.publish(Event(
-                    priority=5,
-                    event_type=EventType.CANDLE_RECEIVED,
-                    data={"id": i}
-                ))
+                await bus.publish(
+                    Event(priority=5, event_type=EventType.CANDLE_RECEIVED, data={"id": i})
+                )
 
-        await asyncio.gather(
-            publish_events(10),
-            publish_events(10),
-            publish_events(10)
-        )
+        await asyncio.gather(publish_events(10), publish_events(10), publish_events(10))
 
         await bus.wait_empty(timeout=2.0)
         await bus.stop()

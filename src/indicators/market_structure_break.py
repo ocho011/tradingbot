@@ -12,43 +12,46 @@ Key Concepts:
 - Filters false breakouts using multiple confirmation criteria
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any, Tuple
-import logging
+from typing import Any, Dict, List, Optional, Tuple
 
-from src.models.candle import Candle
-from src.core.constants import TimeFrame, EventType, MarketStructure
+from src.core.constants import EventType, TimeFrame
 from src.core.events import Event, EventBus
-from src.indicators.liquidity_zone import LiquidityLevel, LiquidityType, SwingPoint
+from src.indicators.liquidity_zone import SwingPoint
 from src.indicators.trend_recognition import (
-    TrendPattern, TrendDirection, TrendState, TrendRecognitionEngine
+    TrendDirection,
+    TrendRecognitionEngine,
 )
-
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 
 
 class BMSType(str, Enum):
     """Type of BMS based on direction."""
+
     BULLISH = "BULLISH"  # Break above previous high (bullish structure)
     BEARISH = "BEARISH"  # Break below previous low (bearish structure)
 
 
 class BMSState(str, Enum):
     """State of BMS detection."""
-    POTENTIAL = "POTENTIAL"      # Level broken but not confirmed
-    CONFIRMED = "CONFIRMED"      # BMS confirmed with all criteria
+
+    POTENTIAL = "POTENTIAL"  # Level broken but not confirmed
+    CONFIRMED = "CONFIRMED"  # BMS confirmed with all criteria
     INVALIDATED = "INVALIDATED"  # Failed confirmation criteria
     ESTABLISHED = "ESTABLISHED"  # New structure formed after BMS
 
 
 class BMSConfidenceLevel(str, Enum):
     """Confidence level of BMS signal."""
-    LOW = "LOW"            # 0-40
-    MEDIUM = "MEDIUM"      # 41-70
-    HIGH = "HIGH"          # 71-100
+
+    LOW = "LOW"  # 0-40
+    MEDIUM = "MEDIUM"  # 41-70
+    HIGH = "HIGH"  # 71-100
 
 
 @dataclass
@@ -95,31 +98,32 @@ class BreakOfMarketStructure:
     def to_dict(self) -> Dict[str, Any]:
         """Convert BMS to dictionary format."""
         return {
-            'bms_type': self.bms_type.value,
-            'broken_level': {
-                'price': self.broken_level.price,
-                'is_high': self.broken_level.is_high,
-                'candle_index': self.broken_level.candle_index
+            "bms_type": self.bms_type.value,
+            "broken_level": {
+                "price": self.broken_level.price,
+                "is_high": self.broken_level.is_high,
+                "candle_index": self.broken_level.candle_index,
             },
-            'break_timestamp': self.break_timestamp,
-            'break_datetime': datetime.fromtimestamp(self.break_timestamp / 1000).isoformat(),
-            'break_candle_index': self.break_candle_index,
-            'confirmation_timestamp': self.confirmation_timestamp,
-            'confirmation_datetime': (
+            "break_timestamp": self.break_timestamp,
+            "break_datetime": datetime.fromtimestamp(self.break_timestamp / 1000).isoformat(),
+            "break_candle_index": self.break_candle_index,
+            "confirmation_timestamp": self.confirmation_timestamp,
+            "confirmation_datetime": (
                 datetime.fromtimestamp(self.confirmation_timestamp / 1000).isoformat()
-                if self.confirmation_timestamp else None
+                if self.confirmation_timestamp
+                else None
             ),
-            'confirmation_candle_index': self.confirmation_candle_index,
-            'break_distance': self.break_distance,
-            'follow_through_distance': self.follow_through_distance,
-            'confidence_score': self.confidence_score,
-            'confidence_level': self.confidence_level.value,
-            'state': self.state.value,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe.value,
-            'volume_confirmation': self.volume_confirmation,
-            'structure_significance': self.structure_significance,
-            'new_structure_formed': self.new_structure_formed
+            "confirmation_candle_index": self.confirmation_candle_index,
+            "break_distance": self.break_distance,
+            "follow_through_distance": self.follow_through_distance,
+            "confidence_score": self.confidence_score,
+            "confidence_level": self.confidence_level.value,
+            "state": self.state.value,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe.value,
+            "volume_confirmation": self.volume_confirmation,
+            "structure_significance": self.structure_significance,
+            "new_structure_formed": self.new_structure_formed,
         }
 
     def __repr__(self) -> str:
@@ -173,7 +177,7 @@ class MarketStructureBreakDetector:
         min_structure_significance: float = 30.0,
         min_confidence_for_confirmed: float = 60.0,
         pip_size: float = 0.0001,
-        event_bus: Optional[EventBus] = None
+        event_bus: Optional[EventBus] = None,
     ):
         """
         Initialize Market Structure Break detector.
@@ -219,7 +223,7 @@ class MarketStructureBreakDetector:
         candles: List[Candle],
         swing_highs: List[SwingPoint],
         swing_lows: List[SwingPoint],
-        start_index: int = 0
+        start_index: int = 0,
     ) -> List[BreakOfMarketStructure]:
         """
         Detect BMS patterns in candle data.
@@ -307,10 +311,7 @@ class MarketStructureBreakDetector:
         return bms_detected
 
     def _check_high_break(
-        self,
-        candle: Candle,
-        swing_high: SwingPoint,
-        candle_index: int
+        self, candle: Candle, swing_high: SwingPoint, candle_index: int
     ) -> Optional[BMSCandidate]:
         """
         Check if a candle breaks above a swing high.
@@ -342,16 +343,13 @@ class MarketStructureBreakDetector:
                 break_candle_index=candle_index,
                 break_timestamp=candle.timestamp,
                 break_price=candle.high,
-                state=BMSState.POTENTIAL
+                state=BMSState.POTENTIAL,
             )
 
         return None
 
     def _check_low_break(
-        self,
-        candle: Candle,
-        swing_low: SwingPoint,
-        candle_index: int
+        self, candle: Candle, swing_low: SwingPoint, candle_index: int
     ) -> Optional[BMSCandidate]:
         """
         Check if a candle breaks below a swing low.
@@ -383,7 +381,7 @@ class MarketStructureBreakDetector:
                 break_candle_index=candle_index,
                 break_timestamp=candle.timestamp,
                 break_price=candle.low,
-                state=BMSState.POTENTIAL
+                state=BMSState.POTENTIAL,
             )
 
         return None
@@ -394,7 +392,7 @@ class MarketStructureBreakDetector:
         candle_index: int,
         all_candles: List[Candle],
         swing_highs: List[SwingPoint],
-        swing_lows: List[SwingPoint]
+        swing_lows: List[SwingPoint],
     ) -> None:
         """
         Update state of existing BMS candidates.
@@ -414,11 +412,7 @@ class MarketStructureBreakDetector:
                 if candles_since_break >= self.confirmation_candles:
                     # Evaluate confirmation
                     if self._evaluate_confirmation(
-                        candidate,
-                        all_candles,
-                        candle_index,
-                        swing_highs,
-                        swing_lows
+                        candidate, all_candles, candle_index, swing_highs, swing_lows
                     ):
                         candidate.state = BMSState.CONFIRMED
                         candidate.confirmation_candle_index = candle_index
@@ -440,7 +434,7 @@ class MarketStructureBreakDetector:
         candles: List[Candle],
         current_index: int,
         swing_highs: List[SwingPoint],
-        swing_lows: List[SwingPoint]
+        swing_lows: List[SwingPoint],
     ) -> bool:
         """
         Evaluate if a BMS candidate should be confirmed.
@@ -462,9 +456,7 @@ class MarketStructureBreakDetector:
             True if BMS should be confirmed
         """
         level_price = candidate.broken_level.price
-        confirmation_candles = candles[
-            candidate.break_candle_index:current_index + 1
-        ]
+        confirmation_candles = candles[candidate.break_candle_index : current_index + 1]
 
         if not confirmation_candles:
             return False
@@ -510,10 +502,7 @@ class MarketStructureBreakDetector:
         return True
 
     def _check_confirmations(
-        self,
-        candles: List[Candle],
-        swing_highs: List[SwingPoint],
-        swing_lows: List[SwingPoint]
+        self, candles: List[Candle], swing_highs: List[SwingPoint], swing_lows: List[SwingPoint]
     ) -> List[BreakOfMarketStructure]:
         """
         Check for confirmed BMS and create BreakOfMarketStructure objects.
@@ -532,14 +521,16 @@ class MarketStructureBreakDetector:
         for candidate in self._candidates:
             if candidate.state == BMSState.CONFIRMED:
                 # Calculate all metrics
-                break_distance_pips = abs(
-                    candidate.break_price - candidate.broken_level.price
-                ) / self.pip_size
+                break_distance_pips = (
+                    abs(candidate.break_price - candidate.broken_level.price) / self.pip_size
+                )
 
                 level_price = candidate.broken_level.price
                 confirmation_candles = candles[
-                    candidate.break_candle_index:
-                    (candidate.confirmation_candle_index or len(candles)) + 1
+                    candidate.break_candle_index : (
+                        candidate.confirmation_candle_index or len(candles)
+                    )
+                    + 1
                 ]
 
                 if candidate.bms_type == BMSType.BULLISH:
@@ -553,18 +544,16 @@ class MarketStructureBreakDetector:
                 structure_significance = self._calculate_structure_significance(
                     candidate.broken_level,
                     swing_highs if candidate.broken_level.is_high else swing_lows,
-                    candles
+                    candles,
                 )
 
                 # Calculate confidence score
-                confidence_score, confidence_level, volume_confirmed = (
-                    self._calculate_confidence(
-                        candidate,
-                        break_distance_pips,
-                        follow_through_pips,
-                        structure_significance,
-                        candles
-                    )
+                confidence_score, confidence_level, volume_confirmed = self._calculate_confidence(
+                    candidate,
+                    break_distance_pips,
+                    follow_through_pips,
+                    structure_significance,
+                    candles,
                 )
 
                 # Only confirm if confidence meets threshold
@@ -585,7 +574,7 @@ class MarketStructureBreakDetector:
                         timeframe=candles[0].timeframe,
                         volume_confirmation=volume_confirmed,
                         structure_significance=structure_significance,
-                        new_structure_formed=False
+                        new_structure_formed=False,
                     )
 
                     confirmed.append(bms)
@@ -606,10 +595,7 @@ class MarketStructureBreakDetector:
         return confirmed
 
     def _calculate_structure_significance(
-        self,
-        broken_level: SwingPoint,
-        all_swings: List[SwingPoint],
-        candles: List[Candle]
+        self, broken_level: SwingPoint, all_swings: List[SwingPoint], candles: List[Candle]
     ) -> float:
         """
         Calculate significance of the broken structure.
@@ -638,7 +624,7 @@ class MarketStructureBreakDetector:
         tolerance_pips = 2.0
         tolerance = tolerance_pips * self.pip_size
 
-        for candle in candles[:broken_level.candle_index]:
+        for candle in candles[: broken_level.candle_index]:
             if broken_level.is_high:
                 near_level = abs(candle.high - broken_level.price) <= tolerance
             else:
@@ -677,7 +663,7 @@ class MarketStructureBreakDetector:
         break_distance_pips: float,
         follow_through_pips: float,
         structure_significance: float,
-        candles: List[Candle]
+        candles: List[Candle],
     ) -> Tuple[float, BMSConfidenceLevel, bool]:
         """
         Calculate confidence score for BMS.
@@ -726,19 +712,16 @@ class MarketStructureBreakDetector:
             current_trend = self._trend_engine.get_current_trend()
             if current_trend:
                 if (
-                    (candidate.bms_type == BMSType.BULLISH and
-                     current_trend.direction == TrendDirection.UPTREND) or
-                    (candidate.bms_type == BMSType.BEARISH and
-                     current_trend.direction == TrendDirection.DOWNTREND)
+                    candidate.bms_type == BMSType.BULLISH
+                    and current_trend.direction == TrendDirection.UPTREND
+                ) or (
+                    candidate.bms_type == BMSType.BEARISH
+                    and current_trend.direction == TrendDirection.DOWNTREND
                 ):
                     trend_score = 5
 
         total_score = (
-            break_score +
-            follow_through_score +
-            significance_score +
-            volume_score +
-            trend_score
+            break_score + follow_through_score + significance_score + volume_score + trend_score
         )
         total_score = min(100, max(0, total_score))
 
@@ -791,11 +774,12 @@ class MarketStructureBreakDetector:
             event_type=EventType.MARKET_STRUCTURE_BREAK,
             timestamp=datetime.now(),
             data=bms.to_dict(),
-            source="MarketStructureBreakDetector"
+            source="MarketStructureBreakDetector",
         )
 
         # Publish asynchronously
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
@@ -806,9 +790,7 @@ class MarketStructureBreakDetector:
             self.logger.error(f"Failed to publish BMS event: {e}")
 
     def get_confirmed_bms(
-        self,
-        bms_type: Optional[BMSType] = None,
-        min_confidence: Optional[float] = None
+        self, bms_type: Optional[BMSType] = None, min_confidence: Optional[float] = None
     ) -> List[BreakOfMarketStructure]:
         """
         Get confirmed BMS with optional filtering.

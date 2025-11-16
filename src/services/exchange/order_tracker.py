@@ -12,10 +12,10 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
-from src.core.events import Event, EventBus
 from src.core.constants import EventType
+from src.core.events import Event, EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class TrackedOrder:
         new_status: OrderTrackingStatus,
         filled_qty: Optional[float] = None,
         avg_price: Optional[float] = None,
-        error_msg: Optional[str] = None
+        error_msg: Optional[str] = None,
     ) -> None:
         """
         주문 상태 업데이트 및 히스토리 기록.
@@ -97,14 +97,16 @@ class TrackedOrder:
             self.error_message = error_msg
 
         # 상태 변경 히스토리 기록
-        self.status_history.append({
-            "timestamp": self.updated_at.isoformat(),
-            "old_status": old_status.value,
-            "new_status": new_status.value,
-            "filled_quantity": self.filled_quantity,
-            "average_price": self.average_price,
-            "error_message": error_msg
-        })
+        self.status_history.append(
+            {
+                "timestamp": self.updated_at.isoformat(),
+                "old_status": old_status.value,
+                "new_status": new_status.value,
+                "filled_quantity": self.filled_quantity,
+                "average_price": self.average_price,
+                "error_message": error_msg,
+            }
+        )
 
     def is_final_state(self) -> bool:
         """
@@ -117,7 +119,7 @@ class TrackedOrder:
             OrderTrackingStatus.FILLED,
             OrderTrackingStatus.FAILED,
             OrderTrackingStatus.CANCELLED,
-            OrderTrackingStatus.EXPIRED
+            OrderTrackingStatus.EXPIRED,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -137,7 +139,7 @@ class TrackedOrder:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "error_message": self.error_message,
-            "status_history": self.status_history
+            "status_history": self.status_history,
         }
 
 
@@ -152,11 +154,7 @@ class OrderTracker:
     - 웹소켓 통합 지원
     """
 
-    def __init__(
-        self,
-        event_bus: Optional[EventBus] = None,
-        max_history_size: int = 1000
-    ):
+    def __init__(self, event_bus: Optional[EventBus] = None, max_history_size: int = 1000):
         """
         OrderTracker 초기화.
 
@@ -183,12 +181,10 @@ class OrderTracker:
             "total_filled": 0,
             "total_failed": 0,
             "total_cancelled": 0,
-            "events_published": 0
+            "events_published": 0,
         }
 
-        logger.info(
-            f"OrderTracker initialized (max_history={max_history_size})"
-        )
+        logger.info(f"OrderTracker initialized (max_history={max_history_size})")
 
     async def track_order(
         self,
@@ -200,7 +196,7 @@ class OrderTracker:
         price: Optional[float] = None,
         stop_price: Optional[float] = None,
         client_order_id: Optional[str] = None,
-        exchange_response: Optional[Dict[str, Any]] = None
+        exchange_response: Optional[Dict[str, Any]] = None,
     ) -> TrackedOrder:
         """
         새 주문 추적 시작.
@@ -234,7 +230,7 @@ class OrderTracker:
             quantity=quantity,
             price=price,
             stop_price=stop_price,
-            exchange_response=exchange_response
+            exchange_response=exchange_response,
         )
 
         # 활성 주문에 추가
@@ -248,16 +244,10 @@ class OrderTracker:
         self._stats["total_tracked"] += 1
         self._stats["currently_active"] = len(self._active_orders)
 
-        logger.info(
-            f"Started tracking order: {order_id} ({symbol} {side} {quantity})"
-        )
+        logger.info(f"Started tracking order: {order_id} ({symbol} {side} {quantity})")
 
         # ORDER_PLACED 이벤트 발행
-        await self._publish_event(
-            EventType.ORDER_PLACED,
-            tracked_order,
-            priority=7
-        )
+        await self._publish_event(EventType.ORDER_PLACED, tracked_order, priority=7)
 
         return tracked_order
 
@@ -268,7 +258,7 @@ class OrderTracker:
         filled_quantity: Optional[float] = None,
         average_price: Optional[float] = None,
         error_message: Optional[str] = None,
-        exchange_response: Optional[Dict[str, Any]] = None
+        exchange_response: Optional[Dict[str, Any]] = None,
     ) -> Optional[TrackedOrder]:
         """
         주문 상태 업데이트 및 이벤트 발행.
@@ -298,15 +288,13 @@ class OrderTracker:
             new_status=new_status,
             filled_qty=filled_quantity,
             avg_price=average_price,
-            error_msg=error_message
+            error_msg=error_message,
         )
 
         if exchange_response:
             tracked_order.exchange_response = exchange_response
 
-        logger.info(
-            f"Order {order_id} status updated: {old_status.value} → {new_status.value}"
-        )
+        logger.info(f"Order {order_id} status updated: {old_status.value} → {new_status.value}")
 
         # 상태별 이벤트 발행
         await self._publish_status_event(tracked_order, old_status)
@@ -350,13 +338,10 @@ class OrderTracker:
                 "FILLED": OrderTrackingStatus.FILLED,
                 "CANCELED": OrderTrackingStatus.CANCELLED,
                 "REJECTED": OrderTrackingStatus.FAILED,
-                "EXPIRED": OrderTrackingStatus.EXPIRED
+                "EXPIRED": OrderTrackingStatus.EXPIRED,
             }
 
-            new_status = status_mapping.get(
-                order_status,
-                OrderTrackingStatus.PENDING
-            )
+            new_status = status_mapping.get(order_status, OrderTrackingStatus.PENDING)
 
             # 체결 정보
             filled_qty = float(ws_data.get("z", 0))  # cumulative filled quantity
@@ -368,16 +353,14 @@ class OrderTracker:
                 new_status=new_status,
                 filled_quantity=filled_qty,
                 average_price=avg_price,
-                exchange_response=ws_data
+                exchange_response=ws_data,
             )
 
         except Exception as e:
             logger.error(f"Error processing websocket data: {e}", exc_info=True)
 
     async def _publish_status_event(
-        self,
-        order: TrackedOrder,
-        old_status: OrderTrackingStatus
+        self, order: TrackedOrder, old_status: OrderTrackingStatus
     ) -> None:
         """
         상태 변경에 따른 적절한 이벤트 발행.
@@ -388,20 +371,12 @@ class OrderTracker:
         """
         # FILLED 이벤트
         if order.status == OrderTrackingStatus.FILLED:
-            await self._publish_event(
-                EventType.ORDER_FILLED,
-                order,
-                priority=8
-            )
+            await self._publish_event(EventType.ORDER_FILLED, order, priority=8)
             self._stats["total_filled"] += 1
 
         # CANCELLED 이벤트
         elif order.status in (OrderTrackingStatus.CANCELLED, OrderTrackingStatus.EXPIRED):
-            await self._publish_event(
-                EventType.ORDER_CANCELLED,
-                order,
-                priority=6
-            )
+            await self._publish_event(EventType.ORDER_CANCELLED, order, priority=6)
             self._stats["total_cancelled"] += 1
 
         # FAILED 이벤트 (ERROR_OCCURRED 사용)
@@ -410,7 +385,7 @@ class OrderTracker:
                 EventType.ERROR_OCCURRED,
                 order,
                 priority=9,
-                additional_data={"error": order.error_message}
+                additional_data={"error": order.error_message},
             )
             self._stats["total_failed"] += 1
 
@@ -419,7 +394,7 @@ class OrderTracker:
         event_type: EventType,
         order: TrackedOrder,
         priority: int = 5,
-        additional_data: Optional[Dict[str, Any]] = None
+        additional_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         이벤트 발행.
@@ -447,7 +422,7 @@ class OrderTracker:
             "filled_quantity": order.filled_quantity,
             "average_price": order.average_price,
             "created_at": order.created_at.isoformat(),
-            "updated_at": order.updated_at.isoformat()
+            "updated_at": order.updated_at.isoformat(),
         }
 
         # 추가 데이터 병합
@@ -456,19 +431,14 @@ class OrderTracker:
 
         # 이벤트 생성 및 발행
         event = Event(
-            priority=priority,
-            event_type=event_type,
-            data=event_data,
-            source="OrderTracker"
+            priority=priority, event_type=event_type, data=event_data, source="OrderTracker"
         )
 
         try:
             await self.event_bus.publish(event)
             self._stats["events_published"] += 1
 
-            logger.debug(
-                f"Published {event_type.value} event for order {order.order_id}"
-            )
+            logger.debug(f"Published {event_type.value} event for order {order.order_id}")
         except Exception as e:
             logger.error(f"Failed to publish event {event_type}: {e}")
 
@@ -492,14 +462,12 @@ class OrderTracker:
 
         # 히스토리 크기 제한
         if len(self._completed_orders) > self.max_history_size:
-            self._completed_orders = self._completed_orders[-self.max_history_size:]
+            self._completed_orders = self._completed_orders[-self.max_history_size :]
 
         # 통계 업데이트
         self._stats["currently_active"] = len(self._active_orders)
 
-        logger.info(
-            f"Order {order.order_id} finalized with status {order.status.value}"
-        )
+        logger.info(f"Order {order.order_id} finalized with status {order.status.value}")
 
     def get_order(self, order_id: str) -> Optional[TrackedOrder]:
         """
@@ -548,16 +516,11 @@ class OrderTracker:
             List[TrackedOrder]: 활성 주문 목록
         """
         if symbol:
-            return [
-                order for order in self._active_orders.values()
-                if order.symbol == symbol
-            ]
+            return [order for order in self._active_orders.values() if order.symbol == symbol]
         return list(self._active_orders.values())
 
     def get_completed_orders(
-        self,
-        symbol: Optional[str] = None,
-        limit: Optional[int] = None
+        self, symbol: Optional[str] = None, limit: Optional[int] = None
     ) -> List[TrackedOrder]:
         """
         완료된 주문 목록 조회.
@@ -586,10 +549,7 @@ class OrderTracker:
         Returns:
             Dict[str, Any]: 통계 정보
         """
-        return {
-            **self._stats,
-            "history_size": len(self._completed_orders)
-        }
+        return {**self._stats, "history_size": len(self._completed_orders)}
 
     def clear_history(self) -> None:
         """완료된 주문 히스토리 초기화."""

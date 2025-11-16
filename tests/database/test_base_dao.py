@@ -4,12 +4,11 @@ Unit tests for BaseDAO generic CRUD operations.
 Tests the base functionality that all DAO classes inherit.
 """
 
-import pytest
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
 
-from src.database.models import Trade
-from src.database.dao.base import BaseDAO
+import pytest
+
 from src.core.constants import TimeFrame
 
 

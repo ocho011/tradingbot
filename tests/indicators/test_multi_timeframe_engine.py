@@ -9,23 +9,22 @@ Tests cover:
 - Memory management and performance
 """
 
-import pytest
 import asyncio
-from datetime import datetime, timezone
 from typing import List
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
-from src.models.candle import Candle
-from src.core.constants import TimeFrame, EventType
-from src.core.events import EventBus, Event
+import pytest
+
+from src.core.constants import EventType, TimeFrame
+from src.core.events import EventBus
 from src.indicators.multi_timeframe_engine import (
+    IndicatorType,
     MultiTimeframeIndicatorEngine,
-    TimeframeIndicators,
     TimeframeData,
-    IndicatorType
+    TimeframeIndicators,
 )
-from src.indicators.order_block import OrderBlockType, OrderBlockState
-from src.indicators.fair_value_gap import FVGType, FVGState
+from src.indicators.order_block import OrderBlockState, OrderBlockType
+from src.models.candle import Candle
 
 
 class TestTimeframeData:
@@ -52,7 +51,7 @@ class TestTimeframeData:
             high=45100.0,
             low=44900.0,
             close=45050.0,
-            volume=100.0
+            volume=100.0,
         )
 
         tf_data.add_candle(candle)
@@ -72,7 +71,7 @@ class TestTimeframeData:
             high=45100.0,
             low=44900.0,
             close=45050.0,
-            volume=100.0
+            volume=100.0,
         )
 
         with pytest.raises(ValueError, match="doesn't match"):
@@ -92,7 +91,7 @@ class TestTimeframeData:
                 high=45100.0 + i,
                 low=44900.0 + i,
                 close=45050.0 + i,
-                volume=100.0
+                volume=100.0,
             )
             tf_data.add_candle(candle)
 
@@ -116,7 +115,7 @@ class TestTimeframeData:
                 high=45100.0,
                 low=44900.0,
                 close=45050.0,
-                volume=100.0
+                volume=100.0,
             )
             tf_data.add_candle(candle)
 
@@ -169,7 +168,7 @@ class TestMultiTimeframeIndicatorEngine:
             high=45100.0,
             low=44900.0,
             close=45050.0,
-            volume=100.0
+            volume=100.0,
         )
 
         engine.add_candle(candle)
@@ -180,9 +179,7 @@ class TestMultiTimeframeIndicatorEngine:
 
     def test_add_candle_untracked_timeframe_raises_error(self):
         """Test adding candle to untracked timeframe raises error."""
-        engine = MultiTimeframeIndicatorEngine(
-            timeframes=[TimeFrame.M1, TimeFrame.M15]
-        )
+        engine = MultiTimeframeIndicatorEngine(timeframes=[TimeFrame.M1, TimeFrame.M15])
 
         candle = Candle(
             symbol="BTCUSDT",
@@ -192,7 +189,7 @@ class TestMultiTimeframeIndicatorEngine:
             high=45100.0,
             low=44900.0,
             close=45050.0,
-            volume=100.0
+            volume=100.0,
         )
 
         with pytest.raises(ValueError, match="not configured"):
@@ -216,7 +213,7 @@ class TestMultiTimeframeIndicatorEngine:
                 low=44900.0 + i,
                 close=45050.0 + i,
                 volume=100.0,
-                is_closed=True
+                is_closed=True,
             )
             engine.add_candle(candle)
 
@@ -252,14 +249,12 @@ class TestMultiTimeframeIndicatorEngine:
                 low=44900.0 + (i * 10),
                 close=45050.0 + (i * 10),
                 volume=1000.0,
-                is_closed=True
+                is_closed=True,
             )
             engine.timeframe_data[TimeFrame.M15].add_candle(candle)
 
         # Manually trigger aggregation for the 4th candle
-        engine._aggregate_to_higher_timeframes(
-            engine.timeframe_data[TimeFrame.M15].candles[-1]
-        )
+        engine._aggregate_to_higher_timeframes(engine.timeframe_data[TimeFrame.M15].candles[-1])
 
         # Check 1h candle was created
         h1_data = engine.timeframe_data[TimeFrame.H1]
@@ -311,7 +306,7 @@ class TestMultiTimeframeIndicatorEngine:
             timeframe=TimeFrame.M1,
             strength=75.0,
             volume=100.0,
-            state=OrderBlockState.ACTIVE
+            state=OrderBlockState.ACTIVE,
         )
 
         broken_ob = OrderBlock(
@@ -324,7 +319,7 @@ class TestMultiTimeframeIndicatorEngine:
             timeframe=TimeFrame.M1,
             strength=80.0,
             volume=100.0,
-            state=OrderBlockState.BROKEN
+            state=OrderBlockState.BROKEN,
         )
 
         indicators.order_blocks = [active_ob, broken_ob]
@@ -332,8 +327,8 @@ class TestMultiTimeframeIndicatorEngine:
         # Get active indicators
         active = engine.get_active_indicators(TimeFrame.M1)
 
-        assert len(active['order_blocks']) == 1
-        assert active['order_blocks'][0].state == OrderBlockState.ACTIVE
+        assert len(active["order_blocks"]) == 1
+        assert active["order_blocks"][0].state == OrderBlockState.ACTIVE
 
     def test_cross_timeframe_confirmation_finds_matches(self):
         """Test finding indicators across timeframes at similar price."""
@@ -353,7 +348,7 @@ class TestMultiTimeframeIndicatorEngine:
             timeframe=TimeFrame.M1,
             strength=75.0,
             volume=100.0,
-            state=OrderBlockState.ACTIVE
+            state=OrderBlockState.ACTIVE,
         )
 
         # M15 Order Block at ~45020
@@ -367,7 +362,7 @@ class TestMultiTimeframeIndicatorEngine:
             timeframe=TimeFrame.M15,
             strength=80.0,
             volume=500.0,
-            state=OrderBlockState.ACTIVE
+            state=OrderBlockState.ACTIVE,
         )
 
         engine.timeframe_data[TimeFrame.M1].indicators.order_blocks = [m1_ob]
@@ -375,9 +370,7 @@ class TestMultiTimeframeIndicatorEngine:
 
         # Find confirmations around 45000
         confirmations = engine.get_cross_timeframe_confirmations(
-            IndicatorType.ORDER_BLOCK,
-            price=45000.0,
-            tolerance_percent=1.0  # 1% tolerance
+            IndicatorType.ORDER_BLOCK, price=45000.0, tolerance_percent=1.0  # 1% tolerance
         )
 
         # Should find OBs in both M1 and M15
@@ -421,7 +414,7 @@ class TestMultiTimeframeIndicatorEngine:
                 high=45100.0,
                 low=44900.0,
                 close=45050.0,
-                volume=100.0
+                volume=100.0,
             )
             engine.add_candle(candle)
 
@@ -444,7 +437,7 @@ class TestMultiTimeframeIndicatorEngine:
                 high=45100.0,
                 low=44900.0,
                 close=45050.0,
-                volume=100.0
+                volume=100.0,
             )
             engine.add_candle(candle)
 
@@ -471,7 +464,7 @@ class TestMultiTimeframeIndicatorEngine:
                     high=45100.0,
                     low=44900.0,
                     close=45050.0,
-                    volume=100.0
+                    volume=100.0,
                 )
                 engine.timeframe_data[tf].add_candle(candle)
 
@@ -496,18 +489,18 @@ class TestMultiTimeframeIndicatorEngine:
                 high=45100.0,
                 low=44900.0,
                 close=45050.0,
-                volume=100.0
+                volume=100.0,
             )
             engine.add_candle(candle)
 
         # Get statistics
         stats = engine.get_statistics()
 
-        assert '1m' in stats
-        assert stats['1m']['candle_count'] == 20
-        assert 'order_blocks' in stats['1m']
-        assert 'fair_value_gaps' in stats['1m']
-        assert 'breaker_blocks' in stats['1m']
+        assert "1m" in stats
+        assert stats["1m"]["candle_count"] == 20
+        assert "order_blocks" in stats["1m"]
+        assert "fair_value_gaps" in stats["1m"]
+        assert "breaker_blocks" in stats["1m"]
 
     def test_thread_safety_concurrent_add_candle(self):
         """Test thread-safe operations with concurrent candle additions."""
@@ -526,7 +519,7 @@ class TestMultiTimeframeIndicatorEngine:
                     high=45100.0,
                     low=44900.0,
                     close=45050.0,
-                    volume=100.0
+                    volume=100.0,
                 )
                 engine.add_candle(candle)
 
@@ -547,11 +540,7 @@ class TestMultiTimeframeIndicatorEngine:
         assert len(m1_data.candles) == 50
 
     # Helper methods
-    def _create_test_candles_with_ob_pattern(
-        self,
-        base_timestamp: int,
-        count: int
-    ) -> List[Candle]:
+    def _create_test_candles_with_ob_pattern(self, base_timestamp: int, count: int) -> List[Candle]:
         """Create test candles with a pattern that triggers OB detection."""
         candles = []
 
@@ -578,7 +567,7 @@ class TestMultiTimeframeIndicatorEngine:
                 low=low,
                 close=close,
                 volume=100.0 * (1.5 if i % 5 == 2 else 1.0),  # Volume spikes
-                is_closed=True
+                is_closed=True,
             )
             candles.append(candle)
 
@@ -604,7 +593,7 @@ class TestTimeframeIndicators:
             timeframe=TimeFrame.M1,
             strength=75.0,
             volume=100.0,
-            state=OrderBlockState.ACTIVE
+            state=OrderBlockState.ACTIVE,
         )
 
         broken_ob = OrderBlock(
@@ -617,7 +606,7 @@ class TestTimeframeIndicators:
             timeframe=TimeFrame.M1,
             strength=80.0,
             volume=100.0,
-            state=OrderBlockState.BROKEN
+            state=OrderBlockState.BROKEN,
         )
 
         indicators.order_blocks = [active_ob, broken_ob]
@@ -628,8 +617,8 @@ class TestTimeframeIndicators:
 
     def test_clear_removes_all_indicators(self):
         """Test clearing all indicators."""
-        from src.indicators.order_block import OrderBlock
         from src.indicators.fair_value_gap import FairValueGap
+        from src.indicators.order_block import OrderBlock
 
         indicators = TimeframeIndicators(timeframe=TimeFrame.M1)
 
@@ -663,25 +652,24 @@ class TestMultiTimeframeEventIntegration:
         candles = []
 
         for i in range(20):
-            candles.append(Candle(
-                symbol="BTCUSDT",
-                timeframe=TimeFrame.M1,
-                timestamp=base_timestamp + (i * 60000),
-                open=45000.0 + (i * 10),
-                high=45100.0 + (i * 10),
-                low=44900.0 + (i * 10),
-                close=45050.0 + (i * 10),
-                volume=100.0 + i
-            ))
+            candles.append(
+                Candle(
+                    symbol="BTCUSDT",
+                    timeframe=TimeFrame.M1,
+                    timestamp=base_timestamp + (i * 60000),
+                    open=45000.0 + (i * 10),
+                    high=45100.0 + (i * 10),
+                    low=44900.0 + (i * 10),
+                    close=45050.0 + (i * 10),
+                    volume=100.0 + i,
+                )
+            )
 
         return candles
 
     def test_engine_without_event_bus_works(self, sample_candles):
         """Test that engine works without event bus (backward compatibility)."""
-        engine = MultiTimeframeIndicatorEngine(
-            timeframes=[TimeFrame.M1],
-            event_bus=None
-        )
+        engine = MultiTimeframeIndicatorEngine(timeframes=[TimeFrame.M1], event_bus=None)
 
         # Should not raise any errors
         for candle in sample_candles:
@@ -692,10 +680,7 @@ class TestMultiTimeframeEventIntegration:
     @pytest.mark.asyncio
     async def test_order_block_detected_event_emission(self, event_bus, sample_candles):
         """Test ORDER_BLOCK_DETECTED event is emitted when OBs are detected."""
-        engine = MultiTimeframeIndicatorEngine(
-            timeframes=[TimeFrame.M1],
-            event_bus=event_bus
-        )
+        engine = MultiTimeframeIndicatorEngine(timeframes=[TimeFrame.M1], event_bus=event_bus)
 
         # Create pattern for OB detection (strong bearish candle followed by reversal)
         ob_candles = sample_candles[:10]
@@ -707,7 +692,7 @@ class TestMultiTimeframeEventIntegration:
             high=45200.0,
             low=44900.0,
             close=44950.0,
-            volume=500.0  # High volume
+            volume=500.0,  # High volume
         )
 
         # Add candles
@@ -718,23 +703,23 @@ class TestMultiTimeframeEventIntegration:
         await asyncio.sleep(0.1)
 
         # Verify ORDER_BLOCK_DETECTED event was called
-        event_calls = [call for call in event_bus.publish.call_args_list
-                      if call[0][0].event_type == EventType.ORDER_BLOCK_DETECTED]
+        event_calls = [
+            call
+            for call in event_bus.publish.call_args_list
+            if call[0][0].event_type == EventType.ORDER_BLOCK_DETECTED
+        ]
 
         if event_calls:  # OB detection might not always trigger with this pattern
             assert len(event_calls) > 0
             event = event_calls[0][0][0]
-            assert event.data['timeframe'] == TimeFrame.M1.value
-            assert 'count' in event.data
-            assert 'order_blocks' in event.data
+            assert event.data["timeframe"] == TimeFrame.M1.value
+            assert "count" in event.data
+            assert "order_blocks" in event.data
 
     @pytest.mark.asyncio
     async def test_fvg_detected_event_emission(self, event_bus, sample_candles):
         """Test FVG_DETECTED event is emitted when FVGs are detected."""
-        engine = MultiTimeframeIndicatorEngine(
-            timeframes=[TimeFrame.M1],
-            event_bus=event_bus
-        )
+        engine = MultiTimeframeIndicatorEngine(timeframes=[TimeFrame.M1], event_bus=event_bus)
 
         # Create pattern for FVG detection (gap between candles)
         fvg_candles = sample_candles[:5]
@@ -746,7 +731,7 @@ class TestMultiTimeframeEventIntegration:
             high=45050.0,
             low=44950.0,
             close=45000.0,
-            volume=100.0
+            volume=100.0,
         )
         fvg_candles[2] = Candle(
             symbol="BTCUSDT",
@@ -756,7 +741,7 @@ class TestMultiTimeframeEventIntegration:
             high=45500.0,  # Large gap
             low=45000.0,
             close=45400.0,
-            volume=200.0
+            volume=200.0,
         )
         fvg_candles[3] = Candle(
             symbol="BTCUSDT",
@@ -766,7 +751,7 @@ class TestMultiTimeframeEventIntegration:
             high=45450.0,
             low=45350.0,  # Gap doesn't fill
             close=45400.0,
-            volume=100.0
+            volume=100.0,
         )
 
         # Add candles
@@ -777,8 +762,11 @@ class TestMultiTimeframeEventIntegration:
         await asyncio.sleep(0.1)
 
         # Verify FVG_DETECTED event might be called
-        event_calls = [call for call in event_bus.publish.call_args_list
-                      if call[0][0].event_type == EventType.FVG_DETECTED]
+        event_calls = [
+            call
+            for call in event_bus.publish.call_args_list
+            if call[0][0].event_type == EventType.FVG_DETECTED
+        ]
 
         # Note: FVG detection depends on specific price patterns
         # This test verifies the event emission mechanism works
@@ -786,10 +774,7 @@ class TestMultiTimeframeEventIntegration:
     @pytest.mark.asyncio
     async def test_indicators_updated_event_emission(self, event_bus, sample_candles):
         """Test INDICATORS_UPDATED event is emitted after processing."""
-        engine = MultiTimeframeIndicatorEngine(
-            timeframes=[TimeFrame.M1],
-            event_bus=event_bus
-        )
+        engine = MultiTimeframeIndicatorEngine(timeframes=[TimeFrame.M1], event_bus=event_bus)
 
         # Add candles
         for candle in sample_candles[:10]:
@@ -799,32 +784,35 @@ class TestMultiTimeframeEventIntegration:
         await asyncio.sleep(0.1)
 
         # Verify INDICATORS_UPDATED event was called
-        event_calls = [call for call in event_bus.publish.call_args_list
-                      if call[0][0].event_type == EventType.INDICATORS_UPDATED]
+        event_calls = [
+            call
+            for call in event_bus.publish.call_args_list
+            if call[0][0].event_type == EventType.INDICATORS_UPDATED
+        ]
 
         assert len(event_calls) > 0
         event = event_calls[-1][0][0]  # Get last call
-        assert event.data['timeframe'] == TimeFrame.M1.value
-        assert 'order_blocks_count' in event.data
-        assert 'fair_value_gaps_count' in event.data
-        assert 'breaker_blocks_count' in event.data
-        assert 'total_indicators' in event.data
-        assert 'timestamp' in event.data
+        assert event.data["timeframe"] == TimeFrame.M1.value
+        assert "order_blocks_count" in event.data
+        assert "fair_value_gaps_count" in event.data
+        assert "breaker_blocks_count" in event.data
+        assert "total_indicators" in event.data
+        assert "timestamp" in event.data
 
     @pytest.mark.asyncio
     async def test_indicator_expired_event_emission(self, event_bus):
         """Test INDICATOR_EXPIRED event is emitted when indicators expire."""
         from src.indicators.expiration_manager import (
-            ExpirationRules,
             ExpirationConfig,
-            ExpirationType
+            ExpirationRules,
+            ExpirationType,
         )
 
         # Create rules with short expiration for testing
         rules = ExpirationRules(
             order_block=ExpirationConfig(
                 max_age_candles=5,  # Very short expiration
-                expiration_type=ExpirationType.TIME_BASED
+                expiration_type=ExpirationType.TIME_BASED,
             )
         )
 
@@ -832,7 +820,7 @@ class TestMultiTimeframeEventIntegration:
             timeframes=[TimeFrame.M1],
             event_bus=event_bus,
             expiration_rules=rules,
-            auto_remove_expired=True
+            auto_remove_expired=True,
         )
 
         base_timestamp = 1704067200000
@@ -840,16 +828,18 @@ class TestMultiTimeframeEventIntegration:
 
         # Create pattern for OB that will expire
         for i in range(15):
-            candles.append(Candle(
-                symbol="BTCUSDT",
-                timeframe=TimeFrame.M1,
-                timestamp=base_timestamp + (i * 60000),
-                open=45000.0 + (i * 10),
-                high=45100.0 + (i * 10),
-                low=44900.0 + (i * 10),
-                close=45050.0 + (i * 10),
-                volume=100.0 if i != 3 else 500.0  # High volume at index 3
-            ))
+            candles.append(
+                Candle(
+                    symbol="BTCUSDT",
+                    timeframe=TimeFrame.M1,
+                    timestamp=base_timestamp + (i * 60000),
+                    open=45000.0 + (i * 10),
+                    high=45100.0 + (i * 10),
+                    low=44900.0 + (i * 10),
+                    close=45050.0 + (i * 10),
+                    volume=100.0 if i != 3 else 500.0,  # High volume at index 3
+                )
+            )
 
         # Add candles - this should detect OB and then expire it
         for candle in candles:
@@ -859,24 +849,24 @@ class TestMultiTimeframeEventIntegration:
         await asyncio.sleep(0.1)
 
         # Verify INDICATOR_EXPIRED event might be called (depends on actual OB detection)
-        event_calls = [call for call in event_bus.publish.call_args_list
-                      if call[0][0].event_type == EventType.INDICATOR_EXPIRED]
+        event_calls = [
+            call
+            for call in event_bus.publish.call_args_list
+            if call[0][0].event_type == EventType.INDICATOR_EXPIRED
+        ]
 
         # If indicators were detected and expired, events should be present
         if event_calls:
             event = event_calls[0][0][0]
-            assert event.data['timeframe'] == TimeFrame.M1.value
-            assert 'indicator_type' in event.data
-            assert 'expired_count' in event.data
-            assert 'remaining_count' in event.data
+            assert event.data["timeframe"] == TimeFrame.M1.value
+            assert "indicator_type" in event.data
+            assert "expired_count" in event.data
+            assert "remaining_count" in event.data
 
     @pytest.mark.asyncio
     async def test_event_priority_levels(self, event_bus, sample_candles):
         """Test that events have correct priority levels."""
-        engine = MultiTimeframeIndicatorEngine(
-            timeframes=[TimeFrame.M1],
-            event_bus=event_bus
-        )
+        engine = MultiTimeframeIndicatorEngine(timeframes=[TimeFrame.M1], event_bus=event_bus)
 
         # Add candles
         for candle in sample_candles[:10]:
@@ -892,7 +882,7 @@ class TestMultiTimeframeEventIntegration:
             if event.event_type in [
                 EventType.ORDER_BLOCK_DETECTED,
                 EventType.FVG_DETECTED,
-                EventType.BREAKER_BLOCK_DETECTED
+                EventType.BREAKER_BLOCK_DETECTED,
             ]:
                 assert event.priority == 7  # High priority for detections
             elif event.event_type == EventType.INDICATOR_EXPIRED:
@@ -903,10 +893,7 @@ class TestMultiTimeframeEventIntegration:
     @pytest.mark.asyncio
     async def test_event_data_structure(self, event_bus, sample_candles):
         """Test that event data has correct structure."""
-        engine = MultiTimeframeIndicatorEngine(
-            timeframes=[TimeFrame.M1],
-            event_bus=event_bus
-        )
+        engine = MultiTimeframeIndicatorEngine(timeframes=[TimeFrame.M1], event_bus=event_bus)
 
         # Add candles
         for candle in sample_candles[:10]:
@@ -920,17 +907,16 @@ class TestMultiTimeframeEventIntegration:
             event = call[0][0]
 
             # All events should have timeframe
-            assert 'timeframe' in event.data
-            assert event.data['timeframe'] == TimeFrame.M1.value
+            assert "timeframe" in event.data
+            assert event.data["timeframe"] == TimeFrame.M1.value
 
             # Check source
-            assert event.source == 'MultiTimeframeIndicatorEngine'
+            assert event.source == "MultiTimeframeIndicatorEngine"
 
     def test_no_events_when_event_bus_none(self, sample_candles):
         """Test that no errors occur when event_bus is None."""
         engine = MultiTimeframeIndicatorEngine(
-            timeframes=[TimeFrame.M1],
-            event_bus=None  # Explicitly no event bus
+            timeframes=[TimeFrame.M1], event_bus=None  # Explicitly no event bus
         )
 
         # Should work without errors

@@ -13,20 +13,20 @@ Features:
 import asyncio
 import logging
 import time
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, Optional
 
-from src.core.events import Event, EventBus
 from src.core.constants import EventType
-
+from src.core.events import Event, EventBus
 
 logger = logging.getLogger(__name__)
 
 
 class PermissionType(Enum):
     """API permission types."""
+
     READ = "read"
     TRADE = "trade"
     WITHDRAW = "withdraw"  # Not checked by default, but available
@@ -45,6 +45,7 @@ class PermissionStatus:
         check_count: Number of verification checks performed
         error_count: Number of verification errors encountered
     """
+
     read: bool = False
     trade: bool = False
     last_checked: Optional[float] = None
@@ -55,14 +56,18 @@ class PermissionStatus:
     def to_dict(self) -> Dict[str, Any]:
         """Convert status to dictionary."""
         return {
-            'read': self.read,
-            'trade': self.trade,
-            'last_checked': self.last_checked,
-            'last_checked_datetime': datetime.fromtimestamp(self.last_checked).isoformat() if self.last_checked else None,
-            'last_changed': self.last_changed,
-            'last_changed_datetime': datetime.fromtimestamp(self.last_changed).isoformat() if self.last_changed else None,
-            'check_count': self.check_count,
-            'error_count': self.error_count
+            "read": self.read,
+            "trade": self.trade,
+            "last_checked": self.last_checked,
+            "last_checked_datetime": (
+                datetime.fromtimestamp(self.last_checked).isoformat() if self.last_checked else None
+            ),
+            "last_changed": self.last_changed,
+            "last_changed_datetime": (
+                datetime.fromtimestamp(self.last_changed).isoformat() if self.last_changed else None
+            ),
+            "check_count": self.check_count,
+            "error_count": self.error_count,
         }
 
     def has_changed(self, new_read: bool, new_trade: bool) -> bool:
@@ -109,7 +114,7 @@ class PermissionVerifier:
         exchange: Any,
         event_bus: Optional[EventBus] = None,
         cache_ttl: int = 3600,
-        revalidate_interval: int = 3600
+        revalidate_interval: int = 3600,
     ):
         """
         Initialize permission verifier.
@@ -160,10 +165,8 @@ class PermissionVerifier:
         async with self._status_lock:
             # Check cache validity
             if not force_refresh and self._is_cache_valid():
-                logger.debug(
-                    f"Using cached permissions (age: {self._get_cache_age():.1f}s)"
-                )
-                return {'read': self._status.read, 'trade': self._status.trade}
+                logger.debug(f"Using cached permissions (age: {self._get_cache_age():.1f}s)")
+                return {"read": self._status.read, "trade": self._status.trade}
 
             # Perform fresh verification
             logger.info("Performing fresh permission verification...")
@@ -179,10 +182,7 @@ class PermissionVerifier:
                 previous_status = (self._status.read, self._status.trade)
 
                 # Check for changes
-                permissions_changed = self._status.has_changed(
-                    read_permission,
-                    trade_permission
-                )
+                permissions_changed = self._status.has_changed(read_permission, trade_permission)
 
                 # Update status
                 self._status.update(read_permission, trade_permission)
@@ -209,31 +209,35 @@ class PermissionVerifier:
 
                     # Publish error event after reaching threshold
                     if self.event_bus and self._consecutive_errors == self._max_consecutive_errors:
-                        await self.event_bus.publish(Event(
-                            event_type=EventType.EXCHANGE_ERROR,
-                            priority=8,
-                            data={
-                                'exchange': 'binance',
-                                'event': 'permission_verification_failures',
-                                'consecutive_errors': self._consecutive_errors,
-                                'error': 'Permission denied'
-                            },
-                            source='PermissionVerifier'
-                        ))
+                        await self.event_bus.publish(
+                            Event(
+                                event_type=EventType.EXCHANGE_ERROR,
+                                priority=8,
+                                data={
+                                    "exchange": "binance",
+                                    "event": "permission_verification_failures",
+                                    "consecutive_errors": self._consecutive_errors,
+                                    "error": "Permission denied",
+                                },
+                                source="PermissionVerifier",
+                            )
+                        )
 
                 # Publish events
                 if self.event_bus:
                     # Publish verification success
-                    await self.event_bus.publish(Event(
-                        event_type=EventType.EXCHANGE_CONNECTED,
-                        priority=6,
-                        data={
-                            'exchange': 'binance',
-                            'event': 'permissions_verified',
-                            'permissions': self._status.to_dict()
-                        },
-                        source='PermissionVerifier'
-                    ))
+                    await self.event_bus.publish(
+                        Event(
+                            event_type=EventType.EXCHANGE_CONNECTED,
+                            priority=6,
+                            data={
+                                "exchange": "binance",
+                                "event": "permissions_verified",
+                                "permissions": self._status.to_dict(),
+                            },
+                            source="PermissionVerifier",
+                        )
+                    )
 
                     # Publish change event if permissions changed
                     if permissions_changed:
@@ -242,7 +246,7 @@ class PermissionVerifier:
                 # Warn if permissions are insufficient
                 await self._check_permission_sufficiency()
 
-                return {'read': read_permission, 'trade': trade_permission}
+                return {"read": read_permission, "trade": trade_permission}
 
             except Exception as e:
                 self._status.error_count += 1
@@ -259,25 +263,26 @@ class PermissionVerifier:
 
                     # Publish error event after reaching threshold
                     if self.event_bus and self._consecutive_errors == self._max_consecutive_errors:
-                        await self.event_bus.publish(Event(
-                            event_type=EventType.EXCHANGE_ERROR,
-                            priority=8,
-                            data={
-                                'exchange': 'binance',
-                                'event': 'permission_verification_failures',
-                                'consecutive_errors': self._consecutive_errors,
-                                'error': str(e)
-                            },
-                            source='PermissionVerifier'
-                        ))
+                        await self.event_bus.publish(
+                            Event(
+                                event_type=EventType.EXCHANGE_ERROR,
+                                priority=8,
+                                data={
+                                    "exchange": "binance",
+                                    "event": "permission_verification_failures",
+                                    "consecutive_errors": self._consecutive_errors,
+                                    "error": str(e),
+                                },
+                                source="PermissionVerifier",
+                            )
+                        )
 
                 # Return cached data if available, otherwise raise
                 if self._status.last_checked:
                     logger.warning(
-                        f"Using stale cached permissions "
-                        f"(age: {self._get_cache_age():.1f}s)"
+                        f"Using stale cached permissions " f"(age: {self._get_cache_age():.1f}s)"
                     )
-                    return {'read': self._status.read, 'trade': self._status.trade}
+                    return {"read": self._status.read, "trade": self._status.trade}
                 else:
                     raise
 
@@ -327,7 +332,7 @@ class PermissionVerifier:
     def _get_cache_age(self) -> float:
         """Get age of cached data in seconds."""
         if not self._status.last_checked:
-            return float('inf')
+            return float("inf")
         return time.time() - self._status.last_checked
 
     async def _check_permission_sufficiency(self) -> None:
@@ -345,22 +350,21 @@ class PermissionVerifier:
                 logger.warning(warning)
 
             if self.event_bus:
-                await self.event_bus.publish(Event(
-                    event_type=EventType.EXCHANGE_ERROR,
-                    priority=7,
-                    data={
-                        'exchange': 'binance',
-                        'event': 'insufficient_permissions',
-                        'warnings': warnings,
-                        'permissions': self._status.to_dict()
-                    },
-                    source='PermissionVerifier'
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        event_type=EventType.EXCHANGE_ERROR,
+                        priority=7,
+                        data={
+                            "exchange": "binance",
+                            "event": "insufficient_permissions",
+                            "warnings": warnings,
+                            "permissions": self._status.to_dict(),
+                        },
+                        source="PermissionVerifier",
+                    )
+                )
 
-    async def _publish_change_event(
-        self,
-        previous_status: tuple[bool, bool]
-    ) -> None:
+    async def _publish_change_event(self, previous_status: tuple[bool, bool]) -> None:
         """
         Publish permission change event.
 
@@ -380,25 +384,21 @@ class PermissionVerifier:
 
         logger.warning(f"🔔 Permission changes detected: {', '.join(changes)}")
 
-        await self.event_bus.publish(Event(
-            event_type=EventType.EXCHANGE_ERROR,
-            priority=8,
-            data={
-                'exchange': 'binance',
-                'event': 'permissions_changed',
-                'changes': changes,
-                'previous': {
-                    'read': prev_read,
-                    'trade': prev_trade
+        await self.event_bus.publish(
+            Event(
+                event_type=EventType.EXCHANGE_ERROR,
+                priority=8,
+                data={
+                    "exchange": "binance",
+                    "event": "permissions_changed",
+                    "changes": changes,
+                    "previous": {"read": prev_read, "trade": prev_trade},
+                    "current": {"read": self._status.read, "trade": self._status.trade},
+                    "timestamp": time.time(),
                 },
-                'current': {
-                    'read': self._status.read,
-                    'trade': self._status.trade
-                },
-                'timestamp': time.time()
-            },
-            source='PermissionVerifier'
-        ))
+                source="PermissionVerifier",
+            )
+        )
 
     async def start_periodic_validation(self) -> None:
         """
@@ -412,13 +412,11 @@ class PermissionVerifier:
 
         self._validation_running = True
         self._validation_task = asyncio.create_task(
-            self._periodic_validation_loop(),
-            name="permission_validation"
+            self._periodic_validation_loop(), name="permission_validation"
         )
 
         logger.info(
-            f"✓ Periodic permission validation started "
-            f"(interval: {self.revalidate_interval}s)"
+            f"✓ Periodic permission validation started " f"(interval: {self.revalidate_interval}s)"
         )
 
     async def _periodic_validation_loop(self) -> None:
@@ -440,20 +438,14 @@ class PermissionVerifier:
                     raise
 
                 except Exception as e:
-                    logger.error(
-                        f"Error in periodic validation: {e}",
-                        exc_info=True
-                    )
+                    logger.error(f"Error in periodic validation: {e}", exc_info=True)
                     # Continue despite errors
                     await asyncio.sleep(60)  # Wait 1 minute before retry
 
         except asyncio.CancelledError:
             logger.info("Periodic validation loop stopped")
         except Exception as e:
-            logger.error(
-                f"Fatal error in periodic validation loop: {e}",
-                exc_info=True
-            )
+            logger.error(f"Fatal error in periodic validation loop: {e}", exc_info=True)
         finally:
             self._validation_running = False
             logger.info("Periodic validation loop terminated")

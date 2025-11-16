@@ -10,21 +10,21 @@ Tests cover:
 - Edge cases and error handling
 """
 
-import pytest
 from decimal import Decimal
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, Mock
 
-from src.services.risk.stop_loss_calculator import (
-    StopLossCalculator,
-    StopLossCalculationError,
-    StopLossStrategy
-)
-from src.services.risk.position_sizer import PositionSizer
-from src.indicators.order_block import OrderBlock, OrderBlockType, OrderBlockState
-from src.indicators.fair_value_gap import FairValueGap, FVGType, FVGState
-from src.indicators.liquidity_zone import LiquidityLevel, LiquidityType, LiquidityState
+import pytest
+
 from src.core.constants import PositionSide, TimeFrame
+from src.indicators.fair_value_gap import FairValueGap, FVGState, FVGType
+from src.indicators.liquidity_zone import LiquidityLevel, LiquidityState, LiquidityType
+from src.indicators.order_block import OrderBlock, OrderBlockState, OrderBlockType
+from src.services.risk.position_sizer import PositionSizer
+from src.services.risk.stop_loss_calculator import (
+    StopLossCalculationError,
+    StopLossCalculator,
+    StopLossStrategy,
+)
 
 
 class TestStopLossCalculatorInitialization:
@@ -41,15 +41,15 @@ class TestStopLossCalculatorInitialization:
             default_tolerance_pct=0.2,
             min_stop_distance_pct=0.3,
             max_stop_distance_pct=3.0,
-            precision=8
+            precision=8,
         )
 
         assert calculator.position_sizer == position_sizer
-        assert calculator.min_tolerance_pct == Decimal('0.1')
-        assert calculator.max_tolerance_pct == Decimal('0.3')
-        assert calculator.default_tolerance_pct == Decimal('0.2')
-        assert calculator.min_stop_distance_pct == Decimal('0.3')
-        assert calculator.max_stop_distance_pct == Decimal('3.0')
+        assert calculator.min_tolerance_pct == Decimal("0.1")
+        assert calculator.max_tolerance_pct == Decimal("0.3")
+        assert calculator.default_tolerance_pct == Decimal("0.2")
+        assert calculator.min_stop_distance_pct == Decimal("0.3")
+        assert calculator.max_stop_distance_pct == Decimal("3.0")
         assert calculator.precision == 8
 
     def test_initialization_with_defaults(self):
@@ -57,11 +57,11 @@ class TestStopLossCalculatorInitialization:
         position_sizer = Mock(spec=PositionSizer)
         calculator = StopLossCalculator(position_sizer=position_sizer)
 
-        assert calculator.min_tolerance_pct == Decimal('0.1')
-        assert calculator.max_tolerance_pct == Decimal('0.3')
-        assert calculator.default_tolerance_pct == Decimal('0.2')
-        assert calculator.min_stop_distance_pct == Decimal('0.3')
-        assert calculator.max_stop_distance_pct == Decimal('3.0')
+        assert calculator.min_tolerance_pct == Decimal("0.1")
+        assert calculator.max_tolerance_pct == Decimal("0.3")
+        assert calculator.default_tolerance_pct == Decimal("0.2")
+        assert calculator.min_stop_distance_pct == Decimal("0.3")
+        assert calculator.max_stop_distance_pct == Decimal("3.0")
         assert calculator.precision == 8
 
     def test_invalid_position_sizer_type(self):
@@ -74,11 +74,11 @@ class TestStopLossCalculatorInitialization:
         position_sizer = Mock(spec=PositionSizer)
 
         # min_tolerance >= max_tolerance
-        with pytest.raises(ValueError, match="min_tolerance_pct must be less than max_tolerance_pct"):
+        with pytest.raises(
+            ValueError, match="min_tolerance_pct must be less than max_tolerance_pct"
+        ):
             StopLossCalculator(
-                position_sizer=position_sizer,
-                min_tolerance_pct=0.3,
-                max_tolerance_pct=0.1
+                position_sizer=position_sizer, min_tolerance_pct=0.3, max_tolerance_pct=0.1
             )
 
     def test_invalid_default_tolerance(self):
@@ -90,18 +90,18 @@ class TestStopLossCalculatorInitialization:
                 position_sizer=position_sizer,
                 min_tolerance_pct=0.1,
                 max_tolerance_pct=0.3,
-                default_tolerance_pct=0.5  # Outside range
+                default_tolerance_pct=0.5,  # Outside range
             )
 
     def test_invalid_stop_distance_range(self):
         """Test initialization fails with invalid stop distance range."""
         position_sizer = Mock(spec=PositionSizer)
 
-        with pytest.raises(ValueError, match="min_stop_distance_pct must be less than max_stop_distance_pct"):
+        with pytest.raises(
+            ValueError, match="min_stop_distance_pct must be less than max_stop_distance_pct"
+        ):
             StopLossCalculator(
-                position_sizer=position_sizer,
-                min_stop_distance_pct=3.0,
-                max_stop_distance_pct=0.3
+                position_sizer=position_sizer, min_stop_distance_pct=3.0, max_stop_distance_pct=0.3
             )
 
     def test_invalid_precision(self):
@@ -135,7 +135,7 @@ class TestStructuralLevelDetection:
                 timeframe=TimeFrame.M15,
                 strength=0.8,
                 volume=1000000.0,
-                state=OrderBlockState.ACTIVE
+                state=OrderBlockState.ACTIVE,
             ),
             OrderBlock(
                 type=OrderBlockType.BEARISH,
@@ -147,7 +147,7 @@ class TestStructuralLevelDetection:
                 timeframe=TimeFrame.M15,
                 strength=0.7,
                 volume=900000.0,
-                state=OrderBlockState.ACTIVE
+                state=OrderBlockState.ACTIVE,
             ),
         ]
 
@@ -166,7 +166,7 @@ class TestStructuralLevelDetection:
                 size_pips=100.0,
                 size_percentage=0.2,
                 volume=800000.0,
-                state=FVGState.ACTIVE
+                state=FVGState.ACTIVE,
             ),
             FairValueGap(
                 type=FVGType.BEARISH,
@@ -179,7 +179,7 @@ class TestStructuralLevelDetection:
                 size_pips=100.0,
                 size_percentage=0.2,
                 volume=850000.0,
-                state=FVGState.ACTIVE
+                state=FVGState.ACTIVE,
             ),
         ]
 
@@ -196,7 +196,7 @@ class TestStructuralLevelDetection:
                 first_detected_timestamp=1000,
                 last_tested_timestamp=2000,
                 symbol="BTCUSDT",
-                timeframe=TimeFrame.M15
+                timeframe=TimeFrame.M15,
             ),
             LiquidityLevel(
                 type=LiquidityType.BUY_SIDE,
@@ -207,7 +207,7 @@ class TestStructuralLevelDetection:
                 first_detected_timestamp=1500,
                 last_tested_timestamp=2500,
                 symbol="BTCUSDT",
-                timeframe=TimeFrame.M15
+                timeframe=TimeFrame.M15,
             ),
         ]
 
@@ -218,7 +218,7 @@ class TestStructuralLevelDetection:
         ob = calculator._find_nearest_order_block(
             entry_price=entry_price,
             position_side=PositionSide.LONG,
-            order_blocks=sample_order_blocks
+            order_blocks=sample_order_blocks,
         )
 
         assert ob is not None
@@ -233,7 +233,7 @@ class TestStructuralLevelDetection:
         ob = calculator._find_nearest_order_block(
             entry_price=entry_price,
             position_side=PositionSide.SHORT,
-            order_blocks=sample_order_blocks
+            order_blocks=sample_order_blocks,
         )
 
         assert ob is not None
@@ -248,7 +248,7 @@ class TestStructuralLevelDetection:
         ob = calculator._find_nearest_order_block(
             entry_price=entry_price,
             position_side=PositionSide.LONG,
-            order_blocks=sample_order_blocks
+            order_blocks=sample_order_blocks,
         )
 
         assert ob is None
@@ -258,9 +258,7 @@ class TestStructuralLevelDetection:
         entry_price = 50200.0
 
         fvg = calculator._find_nearest_fvg(
-            entry_price=entry_price,
-            position_side=PositionSide.LONG,
-            fvgs=sample_fvgs
+            entry_price=entry_price, position_side=PositionSide.LONG, fvgs=sample_fvgs
         )
 
         assert fvg is not None
@@ -273,9 +271,7 @@ class TestStructuralLevelDetection:
         entry_price = 50300.0
 
         fvg = calculator._find_nearest_fvg(
-            entry_price=entry_price,
-            position_side=PositionSide.SHORT,
-            fvgs=sample_fvgs
+            entry_price=entry_price, position_side=PositionSide.SHORT, fvgs=sample_fvgs
         )
 
         assert fvg is not None
@@ -290,7 +286,7 @@ class TestStructuralLevelDetection:
         level = calculator._find_nearest_liquidity_level(
             entry_price=entry_price,
             position_side=PositionSide.LONG,
-            liquidity_levels=sample_liquidity_levels
+            liquidity_levels=sample_liquidity_levels,
         )
 
         assert level is not None
@@ -305,7 +301,7 @@ class TestStructuralLevelDetection:
         level = calculator._find_nearest_liquidity_level(
             entry_price=entry_price,
             position_side=PositionSide.SHORT,
-            liquidity_levels=sample_liquidity_levels
+            liquidity_levels=sample_liquidity_levels,
         )
 
         assert level is not None
@@ -325,7 +321,7 @@ class TestToleranceApplication:
             position_sizer=position_sizer,
             min_tolerance_pct=0.1,
             max_tolerance_pct=0.3,
-            default_tolerance_pct=0.2
+            default_tolerance_pct=0.2,
         )
 
     def test_apply_tolerance_long_position_default(self, calculator):
@@ -337,7 +333,7 @@ class TestToleranceApplication:
             structural_level=structural_level,
             entry_price=entry_price,
             position_side=PositionSide.LONG,
-            tolerance_pct=None  # Use default
+            tolerance_pct=None,  # Use default
         )
 
         # For LONG, stop should be below structural level
@@ -353,7 +349,7 @@ class TestToleranceApplication:
             structural_level=structural_level,
             entry_price=entry_price,
             position_side=PositionSide.SHORT,
-            tolerance_pct=None  # Use default
+            tolerance_pct=None,  # Use default
         )
 
         # For SHORT, stop should be above structural level
@@ -369,7 +365,7 @@ class TestToleranceApplication:
             structural_level=structural_level,
             entry_price=entry_price,
             position_side=PositionSide.LONG,
-            tolerance_pct=0.15  # Custom 0.15%
+            tolerance_pct=0.15,  # Custom 0.15%
         )
 
         # 50000 - (0.15% of 50000) = 50000 - 75 = 49925
@@ -385,7 +381,7 @@ class TestToleranceApplication:
                 structural_level=structural_level,
                 entry_price=entry_price,
                 position_side=PositionSide.LONG,
-                tolerance_pct=0.5  # Outside valid range
+                tolerance_pct=0.5,  # Outside valid range
             )
 
 
@@ -397,9 +393,7 @@ class TestStopDistanceValidation:
         """Create a calculator instance for testing."""
         position_sizer = Mock(spec=PositionSizer)
         return StopLossCalculator(
-            position_sizer=position_sizer,
-            min_stop_distance_pct=0.3,
-            max_stop_distance_pct=3.0
+            position_sizer=position_sizer, min_stop_distance_pct=0.3, max_stop_distance_pct=3.0
         )
 
     def test_validate_stop_distance_within_range(self, calculator):
@@ -408,9 +402,7 @@ class TestStopDistanceValidation:
         stop_price = 49500.0  # 1% distance
 
         calculator._validate_stop_distance(
-            entry_price=entry_price,
-            stop_price=stop_price,
-            position_side=PositionSide.LONG
+            entry_price=entry_price, stop_price=stop_price, position_side=PositionSide.LONG
         )
         # Should not raise exception
 
@@ -421,9 +413,7 @@ class TestStopDistanceValidation:
 
         with pytest.raises(StopLossCalculationError, match="Stop loss distance too tight"):
             calculator._validate_stop_distance(
-                entry_price=entry_price,
-                stop_price=stop_price,
-                position_side=PositionSide.LONG
+                entry_price=entry_price, stop_price=stop_price, position_side=PositionSide.LONG
             )
 
     def test_validate_stop_distance_too_wide(self, calculator):
@@ -433,9 +423,7 @@ class TestStopDistanceValidation:
 
         with pytest.raises(StopLossCalculationError, match="Stop loss distance too wide"):
             calculator._validate_stop_distance(
-                entry_price=entry_price,
-                stop_price=stop_price,
-                position_side=PositionSide.LONG
+                entry_price=entry_price, stop_price=stop_price, position_side=PositionSide.LONG
             )
 
     def test_validate_stop_distance_short_position(self, calculator):
@@ -444,9 +432,7 @@ class TestStopDistanceValidation:
         stop_price = 50500.0  # 1% distance
 
         calculator._validate_stop_distance(
-            entry_price=entry_price,
-            stop_price=stop_price,
-            position_side=PositionSide.SHORT
+            entry_price=entry_price, stop_price=stop_price, position_side=PositionSide.SHORT
         )
         # Should not raise exception
 
@@ -457,9 +443,7 @@ class TestStopDistanceValidation:
 
         with pytest.raises(StopLossCalculationError, match="Stop loss on wrong side"):
             calculator._validate_stop_distance(
-                entry_price=entry_price,
-                stop_price=stop_price,
-                position_side=PositionSide.LONG
+                entry_price=entry_price, stop_price=stop_price, position_side=PositionSide.LONG
             )
 
     def test_validate_stop_wrong_direction_short(self, calculator):
@@ -469,9 +453,7 @@ class TestStopDistanceValidation:
 
         with pytest.raises(StopLossCalculationError, match="Stop loss on wrong side"):
             calculator._validate_stop_distance(
-                entry_price=entry_price,
-                stop_price=stop_price,
-                position_side=PositionSide.SHORT
+                entry_price=entry_price, stop_price=stop_price, position_side=PositionSide.SHORT
             )
 
 
@@ -482,13 +464,15 @@ class TestPositionSizeRecalculation:
     def calculator(self):
         """Create a calculator instance with mocked position sizer."""
         position_sizer = Mock(spec=PositionSizer)
-        position_sizer.calculate_position_size = AsyncMock(return_value={
-            'balance': 10000.0,
-            'risk_amount': 200.0,  # 2% of 10000
-            'position_size': 1000.0,  # With 5x leverage
-            'leverage': 5,
-            'risk_percentage': 2.0
-        })
+        position_sizer.calculate_position_size = AsyncMock(
+            return_value={
+                "balance": 10000.0,
+                "risk_amount": 200.0,  # 2% of 10000
+                "position_size": 1000.0,  # With 5x leverage
+                "leverage": 5,
+                "risk_percentage": 2.0,
+            }
+        )
         return StopLossCalculator(position_sizer=position_sizer)
 
     @pytest.mark.asyncio
@@ -498,16 +482,14 @@ class TestPositionSizeRecalculation:
         stop_price = 49500.0  # 1% distance
 
         result = await calculator.calculate_position_size_for_stop(
-            entry_price=entry_price,
-            stop_price=stop_price,
-            position_side=PositionSide.LONG
+            entry_price=entry_price, stop_price=stop_price, position_side=PositionSide.LONG
         )
 
-        assert 'position_size_usdt' in result
-        assert 'quantity' in result
-        assert 'risk_amount' in result
-        assert 'stop_distance_pct' in result
-        assert result['stop_distance_pct'] == pytest.approx(1.0, rel=1e-6)
+        assert "position_size_usdt" in result
+        assert "quantity" in result
+        assert "risk_amount" in result
+        assert "stop_distance_pct" in result
+        assert result["stop_distance_pct"] == pytest.approx(1.0, rel=1e-6)
 
     @pytest.mark.asyncio
     async def test_recalculate_position_size_short(self, calculator):
@@ -516,14 +498,12 @@ class TestPositionSizeRecalculation:
         stop_price = 50500.0  # 1% distance
 
         result = await calculator.calculate_position_size_for_stop(
-            entry_price=entry_price,
-            stop_price=stop_price,
-            position_side=PositionSide.SHORT
+            entry_price=entry_price, stop_price=stop_price, position_side=PositionSide.SHORT
         )
 
-        assert 'position_size_usdt' in result
-        assert 'quantity' in result
-        assert result['stop_distance_pct'] == pytest.approx(1.0, rel=1e-6)
+        assert "position_size_usdt" in result
+        assert "quantity" in result
+        assert result["stop_distance_pct"] == pytest.approx(1.0, rel=1e-6)
 
 
 class TestStopLossCalculation:
@@ -533,13 +513,15 @@ class TestStopLossCalculation:
     def calculator(self):
         """Create a calculator instance with mocked position sizer."""
         position_sizer = Mock(spec=PositionSizer)
-        position_sizer.calculate_position_size = AsyncMock(return_value={
-            'balance': 10000.0,
-            'risk_amount': 200.0,
-            'position_size': 1000.0,
-            'leverage': 5,
-            'risk_percentage': 2.0
-        })
+        position_sizer.calculate_position_size = AsyncMock(
+            return_value={
+                "balance": 10000.0,
+                "risk_amount": 200.0,
+                "position_size": 1000.0,
+                "leverage": 5,
+                "risk_percentage": 2.0,
+            }
+        )
         return StopLossCalculator(position_sizer=position_sizer)
 
     @pytest.fixture
@@ -556,7 +538,7 @@ class TestStopLossCalculation:
                 timeframe=TimeFrame.M15,
                 strength=0.8,
                 volume=1000000.0,
-                state=OrderBlockState.ACTIVE
+                state=OrderBlockState.ACTIVE,
             ),
         ]
 
@@ -575,14 +557,12 @@ class TestStopLossCalculation:
                 size_pips=100.0,
                 size_percentage=0.2,
                 volume=800000.0,
-                state=FVGState.ACTIVE
+                state=FVGState.ACTIVE,
             ),
         ]
 
     @pytest.mark.asyncio
-    async def test_calculate_stop_loss_order_block_strategy(
-        self, calculator, sample_order_blocks
-    ):
+    async def test_calculate_stop_loss_order_block_strategy(self, calculator, sample_order_blocks):
         """Test stop loss calculation using ORDER_BLOCK strategy."""
         entry_price = 50000.0
 
@@ -590,14 +570,14 @@ class TestStopLossCalculation:
             entry_price=entry_price,
             position_side=PositionSide.LONG,
             order_blocks=sample_order_blocks,
-            strategy=StopLossStrategy.ORDER_BLOCK
+            strategy=StopLossStrategy.ORDER_BLOCK,
         )
 
-        assert result['strategy_used'] == StopLossStrategy.ORDER_BLOCK.value
-        assert 'stop_loss_price' in result
-        assert 'structural_level' in result
-        assert result['structural_level']['type'] == 'order_block'
-        assert result['position_size_adjusted'] is not None
+        assert result["strategy_used"] == StopLossStrategy.ORDER_BLOCK.value
+        assert "stop_loss_price" in result
+        assert "structural_level" in result
+        assert result["structural_level"]["type"] == "order_block"
+        assert result["position_size_adjusted"] is not None
 
     @pytest.mark.asyncio
     async def test_calculate_stop_loss_fvg_strategy(self, calculator, sample_fvgs):
@@ -608,11 +588,11 @@ class TestStopLossCalculation:
             entry_price=entry_price,
             position_side=PositionSide.LONG,
             fvgs=sample_fvgs,
-            strategy=StopLossStrategy.FAIR_VALUE_GAP
+            strategy=StopLossStrategy.FAIR_VALUE_GAP,
         )
 
-        assert result['strategy_used'] == StopLossStrategy.FAIR_VALUE_GAP.value
-        assert result['structural_level']['type'] == 'fair_value_gap'
+        assert result["strategy_used"] == StopLossStrategy.FAIR_VALUE_GAP.value
+        assert result["structural_level"]["type"] == "fair_value_gap"
 
     @pytest.mark.asyncio
     async def test_calculate_stop_loss_auto_strategy(
@@ -626,12 +606,12 @@ class TestStopLossCalculation:
             position_side=PositionSide.LONG,
             order_blocks=sample_order_blocks,
             fvgs=sample_fvgs,
-            strategy=StopLossStrategy.AUTO
+            strategy=StopLossStrategy.AUTO,
         )
 
         # AUTO should prioritize ORDER_BLOCK when available
-        assert result['strategy_used'] == StopLossStrategy.ORDER_BLOCK.value
-        assert 'stop_loss_price' in result
+        assert result["strategy_used"] == StopLossStrategy.ORDER_BLOCK.value
+        assert "stop_loss_price" in result
 
     @pytest.mark.asyncio
     async def test_calculate_stop_loss_no_structural_levels(self, calculator):
@@ -642,7 +622,7 @@ class TestStopLossCalculation:
             await calculator.calculate_stop_loss(
                 entry_price=entry_price,
                 position_side=PositionSide.LONG,
-                strategy=StopLossStrategy.ORDER_BLOCK
+                strategy=StopLossStrategy.ORDER_BLOCK,
             )
 
     @pytest.mark.asyncio
@@ -650,9 +630,7 @@ class TestStopLossCalculation:
         """Test calculation fails with invalid entry price."""
         with pytest.raises(ValueError, match="entry_price must be positive"):
             await calculator.calculate_stop_loss(
-                entry_price=-50000.0,
-                position_side=PositionSide.LONG,
-                order_blocks=[]
+                entry_price=-50000.0, position_side=PositionSide.LONG, order_blocks=[]
             )
 
 
@@ -669,50 +647,41 @@ class TestParameterManagement:
         """Test getting current parameters."""
         params = calculator.get_parameters()
 
-        assert 'min_tolerance_pct' in params
-        assert 'max_tolerance_pct' in params
-        assert 'default_tolerance_pct' in params
-        assert 'min_stop_distance_pct' in params
-        assert 'max_stop_distance_pct' in params
-        assert 'precision' in params
+        assert "min_tolerance_pct" in params
+        assert "max_tolerance_pct" in params
+        assert "default_tolerance_pct" in params
+        assert "min_stop_distance_pct" in params
+        assert "max_stop_distance_pct" in params
+        assert "precision" in params
 
     def test_update_parameters_tolerance(self, calculator):
         """Test updating tolerance parameters."""
         calculator.update_parameters(
-            min_tolerance_pct=0.15,
-            max_tolerance_pct=0.35,
-            default_tolerance_pct=0.25
+            min_tolerance_pct=0.15, max_tolerance_pct=0.35, default_tolerance_pct=0.25
         )
 
-        assert calculator.min_tolerance_pct == Decimal('0.15')
-        assert calculator.max_tolerance_pct == Decimal('0.35')
-        assert calculator.default_tolerance_pct == Decimal('0.25')
+        assert calculator.min_tolerance_pct == Decimal("0.15")
+        assert calculator.max_tolerance_pct == Decimal("0.35")
+        assert calculator.default_tolerance_pct == Decimal("0.25")
 
     def test_update_parameters_stop_distance(self, calculator):
         """Test updating stop distance parameters."""
-        calculator.update_parameters(
-            min_stop_distance_pct=0.5,
-            max_stop_distance_pct=5.0
-        )
+        calculator.update_parameters(min_stop_distance_pct=0.5, max_stop_distance_pct=5.0)
 
-        assert calculator.min_stop_distance_pct == Decimal('0.5')
-        assert calculator.max_stop_distance_pct == Decimal('5.0')
+        assert calculator.min_stop_distance_pct == Decimal("0.5")
+        assert calculator.max_stop_distance_pct == Decimal("5.0")
 
     def test_update_parameters_invalid_tolerance_range(self, calculator):
         """Test updating with invalid tolerance range fails."""
-        with pytest.raises(ValueError, match="min_tolerance_pct must be less than max_tolerance_pct"):
-            calculator.update_parameters(
-                min_tolerance_pct=0.3,
-                max_tolerance_pct=0.1
-            )
+        with pytest.raises(
+            ValueError, match="min_tolerance_pct must be less than max_tolerance_pct"
+        ):
+            calculator.update_parameters(min_tolerance_pct=0.3, max_tolerance_pct=0.1)
 
     def test_update_parameters_invalid_default_tolerance(self, calculator):
         """Test updating with invalid default tolerance fails."""
         # First set valid range
-        calculator.update_parameters(
-            min_tolerance_pct=0.1,
-            max_tolerance_pct=0.3
-        )
+        calculator.update_parameters(min_tolerance_pct=0.1, max_tolerance_pct=0.3)
 
         # Then try to set default outside range
         with pytest.raises(ValueError, match="default_tolerance_pct must be between"):

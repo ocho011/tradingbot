@@ -10,31 +10,32 @@ Liquidity sweeps are key trading signals in ICT methodology, often indicating
 institutional activity and potential high-probability reversal points.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any, Tuple
-import logging
+from typing import Any, Dict, List, Optional
 
-from src.models.candle import Candle
-from src.core.constants import TimeFrame, EventType
+from src.core.constants import EventType, TimeFrame
 from src.core.events import Event, EventBus
-from src.indicators.liquidity_zone import LiquidityLevel, LiquidityType, LiquidityState
-
+from src.indicators.liquidity_zone import LiquidityLevel, LiquidityState, LiquidityType
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 
 
 class SweepDirection(str, Enum):
     """Direction of the liquidity sweep."""
+
     BULLISH = "BULLISH"  # Sweep of sell-side liquidity (downward sweep)
     BEARISH = "BEARISH"  # Sweep of buy-side liquidity (upward sweep)
 
 
 class SweepState(str, Enum):
     """State tracking for potential sweep detection."""
-    NO_BREACH = "NO_BREACH"          # No breach detected
-    BREACHED = "BREACHED"            # Level breached but not confirmed
+
+    NO_BREACH = "NO_BREACH"  # No breach detected
+    BREACHED = "BREACHED"  # Level breached but not confirmed
     CLOSE_CONFIRMED = "CLOSE_CONFIRMED"  # Candle closed beyond level
     SWEEP_COMPLETED = "SWEEP_COMPLETED"  # Full sweep pattern confirmed
 
@@ -75,27 +76,29 @@ class LiquiditySweep:
     def to_dict(self) -> Dict[str, Any]:
         """Convert sweep to dictionary format."""
         return {
-            'liquidity_level': self.liquidity_level.to_dict(),
-            'direction': self.direction.value,
-            'breach_timestamp': self.breach_timestamp,
-            'breach_datetime': datetime.fromtimestamp(self.breach_timestamp / 1000).isoformat(),
-            'breach_candle_index': self.breach_candle_index,
-            'close_timestamp': self.close_timestamp,
-            'close_datetime': (
+            "liquidity_level": self.liquidity_level.to_dict(),
+            "direction": self.direction.value,
+            "breach_timestamp": self.breach_timestamp,
+            "breach_datetime": datetime.fromtimestamp(self.breach_timestamp / 1000).isoformat(),
+            "breach_candle_index": self.breach_candle_index,
+            "close_timestamp": self.close_timestamp,
+            "close_datetime": (
                 datetime.fromtimestamp(self.close_timestamp / 1000).isoformat()
-                if self.close_timestamp else None
+                if self.close_timestamp
+                else None
             ),
-            'reversal_timestamp': self.reversal_timestamp,
-            'reversal_datetime': (
+            "reversal_timestamp": self.reversal_timestamp,
+            "reversal_datetime": (
                 datetime.fromtimestamp(self.reversal_timestamp / 1000).isoformat()
-                if self.reversal_timestamp else None
+                if self.reversal_timestamp
+                else None
             ),
-            'reversal_candle_index': self.reversal_candle_index,
-            'breach_distance': self.breach_distance,
-            'reversal_strength': self.reversal_strength,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe.value,
-            'is_valid': self.is_valid
+            "reversal_candle_index": self.reversal_candle_index,
+            "breach_distance": self.breach_distance,
+            "reversal_strength": self.reversal_strength,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe.value,
+            "is_valid": self.is_valid,
         }
 
     def __repr__(self) -> str:
@@ -143,7 +146,7 @@ class LiquiditySweepDetector:
         max_candles_for_reversal: int = 5,
         min_reversal_strength: float = 30.0,
         pip_size: float = 0.0001,
-        event_bus: Optional[EventBus] = None
+        event_bus: Optional[EventBus] = None,
     ):
         """
         Initialize Liquidity Sweep detector.
@@ -171,10 +174,7 @@ class LiquiditySweepDetector:
         self.logger = logging.getLogger(f"{__name__}.LiquiditySweepDetector")
 
     def detect_sweeps(
-        self,
-        candles: List[Candle],
-        liquidity_levels: List[LiquidityLevel],
-        start_index: int = 0
+        self, candles: List[Candle], liquidity_levels: List[LiquidityLevel], start_index: int = 0
     ) -> List[LiquiditySweep]:
         """
         Detect liquidity sweep patterns in candle data.
@@ -199,7 +199,8 @@ class LiquiditySweepDetector:
 
         # Filter active levels only
         active_levels = [
-            level for level in liquidity_levels
+            level
+            for level in liquidity_levels
             if level.state in (LiquidityState.ACTIVE, LiquidityState.PARTIAL)
         ]
 
@@ -239,10 +240,7 @@ class LiquiditySweepDetector:
         return sweeps_detected
 
     def _check_breach(
-        self,
-        candle: Candle,
-        level: LiquidityLevel,
-        candle_index: int
+        self, candle: Candle, level: LiquidityLevel, candle_index: int
     ) -> Optional[SweepCandidate]:
         """
         Check if a candle breaches a liquidity level.
@@ -275,7 +273,7 @@ class LiquiditySweepDetector:
                     breach_candle_index=candle_index,
                     breach_timestamp=candle.timestamp,
                     breach_price=candle.high,
-                    state=SweepState.BREACHED
+                    state=SweepState.BREACHED,
                 )
 
         else:  # SELL_SIDE
@@ -298,16 +296,13 @@ class LiquiditySweepDetector:
                     breach_candle_index=candle_index,
                     breach_timestamp=candle.timestamp,
                     breach_price=candle.low,
-                    state=SweepState.BREACHED
+                    state=SweepState.BREACHED,
                 )
 
         return None
 
     def _update_candidates(
-        self,
-        candle: Candle,
-        candle_index: int,
-        all_candles: List[Candle]
+        self, candle: Candle, candle_index: int, all_candles: List[Candle]
     ) -> None:
         """
         Update state of existing sweep candidates.
@@ -345,11 +340,7 @@ class LiquiditySweepDetector:
                         f"Sweep completed: {candidate.direction.value} at {candidate.level.price:.5f}"
                     )
 
-    def _check_close_confirmation(
-        self,
-        candle: Candle,
-        candidate: SweepCandidate
-    ) -> bool:
+    def _check_close_confirmation(self, candle: Candle, candidate: SweepCandidate) -> bool:
         """
         Check if candle close confirms the breach.
 
@@ -370,10 +361,7 @@ class LiquiditySweepDetector:
             return candle.close < level_price
 
     def _check_reversal(
-        self,
-        candle: Candle,
-        candidate: SweepCandidate,
-        all_candles: List[Candle]
+        self, candle: Candle, candidate: SweepCandidate, all_candles: List[Candle]
     ) -> bool:
         """
         Check if price has reversed after the sweep.
@@ -393,31 +381,20 @@ class LiquiditySweepDetector:
             # For bearish sweep, reversal is downward (price back below level)
             if candle.close < (level_price - reversal_threshold):
                 # Calculate reversal strength
-                strength = self._calculate_reversal_strength(
-                    candidate,
-                    candle,
-                    all_candles
-                )
+                strength = self._calculate_reversal_strength(candidate, candle, all_candles)
                 return strength >= self.min_reversal_strength
 
         else:  # BULLISH
             # For bullish sweep, reversal is upward (price back above level)
             if candle.close > (level_price + reversal_threshold):
                 # Calculate reversal strength
-                strength = self._calculate_reversal_strength(
-                    candidate,
-                    candle,
-                    all_candles
-                )
+                strength = self._calculate_reversal_strength(candidate, candle, all_candles)
                 return strength >= self.min_reversal_strength
 
         return False
 
     def _calculate_reversal_strength(
-        self,
-        candidate: SweepCandidate,
-        reversal_candle: Candle,
-        all_candles: List[Candle]
+        self, candidate: SweepCandidate, reversal_candle: Candle, all_candles: List[Candle]
     ) -> float:
         """
         Calculate strength of the reversal move.
@@ -447,10 +424,7 @@ class LiquiditySweepDetector:
         distance_score = min(30, reversal_distance_pips * 2)
 
         # Speed factor (0-30 points) - faster reversal is stronger
-        candles_to_reverse = (
-            (candidate.close_candle_index or 0) -
-            candidate.breach_candle_index + 1
-        )
+        candles_to_reverse = (candidate.close_candle_index or 0) - candidate.breach_candle_index + 1
         speed_score = max(0, 30 - (candles_to_reverse * 5))
 
         # Volume factor (0-25 points)
@@ -479,9 +453,9 @@ class LiquiditySweepDetector:
         for candidate in self._candidates:
             if candidate.state == SweepState.SWEEP_COMPLETED:
                 # Create the completed sweep
-                breach_distance_pips = abs(
-                    candidate.breach_price - candidate.level.price
-                ) / self.pip_size
+                breach_distance_pips = (
+                    abs(candidate.breach_price - candidate.level.price) / self.pip_size
+                )
 
                 sweep = LiquiditySweep(
                     liquidity_level=candidate.level,
@@ -495,7 +469,7 @@ class LiquiditySweepDetector:
                     reversal_strength=0.0,  # Will be calculated
                     symbol=candidate.level.symbol,
                     timeframe=candidate.level.timeframe,
-                    is_valid=True
+                    is_valid=True,
                 )
 
                 # Mark the liquidity level as swept
@@ -558,11 +532,12 @@ class LiquiditySweepDetector:
             event_type=EventType.LIQUIDITY_SWEEP_DETECTED,
             timestamp=datetime.now(),
             data=sweep.to_dict(),
-            source="LiquiditySweepDetector"
+            source="LiquiditySweepDetector",
         )
 
         # Publish asynchronously (fire and forget)
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
@@ -573,9 +548,7 @@ class LiquiditySweepDetector:
             self.logger.error(f"Failed to publish sweep event: {e}")
 
     def get_completed_sweeps(
-        self,
-        direction: Optional[SweepDirection] = None,
-        min_strength: Optional[float] = None
+        self, direction: Optional[SweepDirection] = None, min_strength: Optional[float] = None
     ) -> List[LiquiditySweep]:
         """
         Get completed sweeps with optional filtering.

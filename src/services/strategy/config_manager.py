@@ -11,18 +11,13 @@ Manages runtime configuration for trading strategies, including:
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import Dict, Any, Optional, Callable
-from datetime import datetime
-from decimal import Decimal
+from typing import Any, Callable, Dict, Optional
 
 from src.models.strategy_config import (
     StrategyConfig,
-    StrategyParameters,
-    FilterConfiguration,
-    PriorityConfiguration,
-    StrategyType,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 class ConfigurationError(Exception):
     """Configuration-related errors"""
-    pass
+
 
 
 class StrategyConfigManager:
@@ -77,12 +72,12 @@ class StrategyConfigManager:
 
         # Performance metrics
         self.metrics = {
-            'config_updates': 0,
-            'successful_updates': 0,
-            'failed_updates': 0,
-            'rollbacks': 0,
-            'saves': 0,
-            'loads': 0,
+            "config_updates": 0,
+            "successful_updates": 0,
+            "failed_updates": 0,
+            "rollbacks": 0,
+            "saves": 0,
+            "loads": 0,
         }
 
         # Validate initial config
@@ -119,11 +114,11 @@ class StrategyConfigManager:
                 self.config.validate()
 
                 # Track metrics
-                self.metrics['config_updates'] += 1
-                self.metrics['successful_updates'] += 1
+                self.metrics["config_updates"] += 1
+                self.metrics["successful_updates"] += 1
 
                 # Notify callbacks
-                self._notify_change('strategy_enabled', strategy_name, old_value)
+                self._notify_change("strategy_enabled", strategy_name, old_value)
 
                 # Auto-save
                 if self.auto_save and self.config_file:
@@ -133,7 +128,7 @@ class StrategyConfigManager:
                 return True
 
             except Exception as e:
-                self.metrics['failed_updates'] += 1
+                self.metrics["failed_updates"] += 1
                 logger.error(f"Failed to enable strategy {strategy_name}: {e}")
                 raise ConfigurationError(f"Failed to enable strategy: {e}")
 
@@ -163,11 +158,11 @@ class StrategyConfigManager:
                 self.config.validate()
 
                 # Track metrics
-                self.metrics['config_updates'] += 1
-                self.metrics['successful_updates'] += 1
+                self.metrics["config_updates"] += 1
+                self.metrics["successful_updates"] += 1
 
                 # Notify callbacks
-                self._notify_change('strategy_disabled', strategy_name, old_value)
+                self._notify_change("strategy_disabled", strategy_name, old_value)
 
                 # Auto-save
                 if self.auto_save and self.config_file:
@@ -177,7 +172,7 @@ class StrategyConfigManager:
                 return True
 
             except Exception as e:
-                self.metrics['failed_updates'] += 1
+                self.metrics["failed_updates"] += 1
                 logger.error(f"Failed to disable strategy {strategy_name}: {e}")
                 raise ConfigurationError(f"Failed to disable strategy: {e}")
 
@@ -217,15 +212,19 @@ class StrategyConfigManager:
                     self.config.validate()
 
                 # Track metrics
-                self.metrics['config_updates'] += 1
-                self.metrics['successful_updates'] += 1
+                self.metrics["config_updates"] += 1
+                self.metrics["successful_updates"] += 1
 
                 # Notify callbacks
-                self._notify_change('strategy_params_updated', strategy_name, {
-                    'old': old_params,
-                    'new': self.config.strategies[strategy_name].to_dict(),
-                    'changed': params,
-                })
+                self._notify_change(
+                    "strategy_params_updated",
+                    strategy_name,
+                    {
+                        "old": old_params,
+                        "new": self.config.strategies[strategy_name].to_dict(),
+                        "changed": params,
+                    },
+                )
 
                 # Auto-save
                 if self.auto_save and self.config_file:
@@ -235,7 +234,7 @@ class StrategyConfigManager:
                 return True
 
             except Exception as e:
-                self.metrics['failed_updates'] += 1
+                self.metrics["failed_updates"] += 1
                 logger.error(f"Failed to update strategy params: {e}")
                 # Rollback on failure
                 self._rollback_from_history()
@@ -274,15 +273,19 @@ class StrategyConfigManager:
                 self.config.updated_at = datetime.utcnow()
 
                 # Track metrics
-                self.metrics['config_updates'] += 1
-                self.metrics['successful_updates'] += 1
+                self.metrics["config_updates"] += 1
+                self.metrics["successful_updates"] += 1
 
                 # Notify callbacks
-                self._notify_change('filter_config_updated', 'filter', {
-                    'old': old_config,
-                    'new': self.config.filter_config.to_dict(),
-                    'changed': kwargs,
-                })
+                self._notify_change(
+                    "filter_config_updated",
+                    "filter",
+                    {
+                        "old": old_config,
+                        "new": self.config.filter_config.to_dict(),
+                        "changed": kwargs,
+                    },
+                )
 
                 # Auto-save
                 if self.auto_save and self.config_file:
@@ -292,7 +295,7 @@ class StrategyConfigManager:
                 return True
 
             except Exception as e:
-                self.metrics['failed_updates'] += 1
+                self.metrics["failed_updates"] += 1
                 logger.error(f"Failed to update filter config: {e}")
                 self._rollback_from_history()
                 raise ConfigurationError(f"Failed to update filter config: {e}")
@@ -330,15 +333,19 @@ class StrategyConfigManager:
                 self.config.updated_at = datetime.utcnow()
 
                 # Track metrics
-                self.metrics['config_updates'] += 1
-                self.metrics['successful_updates'] += 1
+                self.metrics["config_updates"] += 1
+                self.metrics["successful_updates"] += 1
 
                 # Notify callbacks
-                self._notify_change('priority_config_updated', 'priority', {
-                    'old': old_config,
-                    'new': self.config.priority_config.to_dict(),
-                    'changed': kwargs,
-                })
+                self._notify_change(
+                    "priority_config_updated",
+                    "priority",
+                    {
+                        "old": old_config,
+                        "new": self.config.priority_config.to_dict(),
+                        "changed": kwargs,
+                    },
+                )
 
                 # Auto-save
                 if self.auto_save and self.config_file:
@@ -348,7 +355,7 @@ class StrategyConfigManager:
                 return True
 
             except Exception as e:
-                self.metrics['failed_updates'] += 1
+                self.metrics["failed_updates"] += 1
                 logger.error(f"Failed to update priority config: {e}")
                 self._rollback_from_history()
                 raise ConfigurationError(f"Failed to update priority config: {e}")
@@ -359,7 +366,7 @@ class StrategyConfigManager:
             old_value = self.config.global_enabled
             self.config.global_enabled = True
             self.config.updated_at = datetime.utcnow()
-            self._notify_change('global_enabled', 'all', old_value)
+            self._notify_change("global_enabled", "all", old_value)
             if self.auto_save and self.config_file:
                 self.save_config()
             logger.info("Global strategy enable activated")
@@ -371,7 +378,7 @@ class StrategyConfigManager:
             old_value = self.config.global_enabled
             self.config.global_enabled = False
             self.config.updated_at = datetime.utcnow()
-            self._notify_change('global_disabled', 'all', old_value)
+            self._notify_change("global_disabled", "all", old_value)
             if self.auto_save and self.config_file:
                 self.save_config()
             logger.warning("Global strategy disable activated - all strategies stopped")
@@ -399,10 +406,10 @@ class StrategyConfigManager:
             target_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Write config
-            with open(target_path, 'w') as f:
+            with open(target_path, "w") as f:
                 f.write(self.config.to_json(indent=2))
 
-            self.metrics['saves'] += 1
+            self.metrics["saves"] += 1
             logger.info(f"Configuration saved to {target_path}")
             return True
 
@@ -436,7 +443,7 @@ class StrategyConfigManager:
                 self._save_to_history()
 
                 # Load from file
-                with open(source_path, 'r') as f:
+                with open(source_path, "r") as f:
                     config_data = json.load(f)
 
                 # Parse and validate
@@ -446,7 +453,7 @@ class StrategyConfigManager:
                 # Apply new config
                 self.config = new_config
 
-                self.metrics['loads'] += 1
+                self.metrics["loads"] += 1
                 logger.info(f"Configuration loaded from {source_path}")
                 return True
 
@@ -464,36 +471,37 @@ class StrategyConfigManager:
         """
         with self._lock:
             return {
-                'global_enabled': self.config.global_enabled,
-                'strategies': {
+                "global_enabled": self.config.global_enabled,
+                "strategies": {
                     name: {
-                        'enabled': params.enabled,
-                        'effective_enabled': params.enabled and self.config.global_enabled,
-                        'confidence_threshold': params.confidence_threshold,
-                        'min_risk_reward': params.min_risk_reward,
-                        'max_position_size': params.max_position_size,
+                        "enabled": params.enabled,
+                        "effective_enabled": params.enabled and self.config.global_enabled,
+                        "confidence_threshold": params.confidence_threshold,
+                        "min_risk_reward": params.min_risk_reward,
+                        "max_position_size": params.max_position_size,
                     }
                     for name, params in self.config.strategies.items()
                 },
-                'filter_config': self.config.filter_config.to_dict(),
-                'priority_config': self.config.priority_config.to_dict(),
-                'version': self.config.version,
-                'updated_at': self.config.updated_at.isoformat(),
+                "filter_config": self.config.filter_config.to_dict(),
+                "priority_config": self.config.priority_config.to_dict(),
+                "version": self.config.version,
+                "updated_at": self.config.updated_at.isoformat(),
             }
 
     def get_performance_metrics(self) -> Dict[str, Any]:
         """Get configuration manager performance metrics"""
         with self._lock:
             success_rate = (
-                self.metrics['successful_updates'] / self.metrics['config_updates'] * 100
-                if self.metrics['config_updates'] > 0 else 0.0
+                self.metrics["successful_updates"] / self.metrics["config_updates"] * 100
+                if self.metrics["config_updates"] > 0
+                else 0.0
             )
 
             return {
                 **self.metrics,
-                'success_rate_pct': success_rate,
-                'config_history_size': len(self._config_history),
-                'callbacks_registered': len(self._change_callbacks),
+                "success_rate_pct": success_rate,
+                "config_history_size": len(self._config_history),
+                "callbacks_registered": len(self._change_callbacks),
             }
 
     def register_change_callback(
@@ -526,7 +534,7 @@ class StrategyConfigManager:
             return False
 
         self.config = self._config_history.pop()
-        self.metrics['rollbacks'] += 1
+        self.metrics["rollbacks"] += 1
         logger.info("Configuration rolled back to previous state")
         return True
 

@@ -2,12 +2,12 @@
 Unit tests for Strategy A (Conservative Trading Strategy).
 """
 
-import pytest
 from datetime import datetime
 
+
 from src.core.constants import PositionSide, TimeFrame
-from src.strategies.strategy_a import StrategyA
 from src.strategies.base_strategy import TradingSignal
+from src.strategies.strategy_a import StrategyA
 
 
 class TestStrategyAInitialization:
@@ -240,11 +240,7 @@ class TestStrategyALowerTimeframeAnalysis:
         strategy = StrategyA()
 
         entry_zone = {"high": 50000, "low": 49900}
-        indicators = {
-            "1m": {
-                "market_structure": {"recent_events": [{"type": "liquidity_sweep"}]}
-            }
-        }
+        indicators = {"1m": {"market_structure": {"recent_events": [{"type": "liquidity_sweep"}]}}}
 
         result = strategy._analyze_lower_timeframe(indicators, 49950, entry_zone)
 
@@ -331,9 +327,7 @@ class TestStrategyASignalGeneration:
             "current_price": 49950,
             "indicators": {
                 "1h": {
-                    "market_structure": {
-                        "breaks": [{"new_structure": "BULLISH", "strength": 0.8}]
-                    },
+                    "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.8}]},
                     "trend": {"current_trend": "BULLISH"},
                 },
                 "15m": {
@@ -347,9 +341,7 @@ class TestStrategyASignalGeneration:
                     ],
                     "order_blocks": [],
                 },
-                "1m": {
-                    "market_structure": {"recent_events": [{"type": "confirmation"}]}
-                },
+                "1m": {"market_structure": {"recent_events": [{"type": "confirmation"}]}},
             },
         }
 
@@ -388,9 +380,7 @@ class TestStrategyASignalGeneration:
                     ],
                     "order_blocks": [],
                 },
-                "1m": {
-                    "market_structure": {"recent_events": [{"type": "confirmation"}]}
-                },
+                "1m": {"market_structure": {"recent_events": [{"type": "confirmation"}]}},
             },
         }
 
@@ -410,9 +400,7 @@ class TestStrategyASignalGeneration:
             "current_price": 49950,
             "indicators": {
                 "1h": {
-                    "market_structure": {
-                        "breaks": [{"new_structure": "BULLISH", "strength": 0.5}]
-                    },
+                    "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.5}]},
                     "trend": {"current_trend": "UNCERTAIN"},
                 },
                 "15m": {
@@ -444,9 +432,7 @@ class TestStrategyASignalGeneration:
             "current_price": 49950,
             "indicators": {
                 "1h": {
-                    "market_structure": {
-                        "breaks": [{"new_structure": "BULLISH", "strength": 0.8}]
-                    },
+                    "market_structure": {"breaks": [{"new_structure": "BULLISH", "strength": 0.8}]},
                     "trend": {"current_trend": "BULLISH"},
                 },
                 "15m": {
@@ -460,9 +446,7 @@ class TestStrategyASignalGeneration:
                     ],
                     "order_blocks": [],
                 },
-                "1m": {
-                    "market_structure": {"recent_events": [{"type": "confirmation"}]}
-                },
+                "1m": {"market_structure": {"recent_events": [{"type": "confirmation"}]}},
             },
         }
 

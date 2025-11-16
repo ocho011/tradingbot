@@ -2,18 +2,17 @@
 Unit tests for Signal Priority Management System
 """
 
-import pytest
 from decimal import Decimal
-from datetime import datetime, timedelta
 
-from src.services.strategy.signal import Signal, SignalDirection
+import pytest
+
 from src.services.strategy.priority_manager import (
-    SignalPriorityManager,
-    PriorityConfig,
     MarketCondition,
-    StrategyType,
     PrioritizedSignal,
+    PriorityConfig,
+    SignalPriorityManager,
 )
+from src.services.strategy.signal import Signal, SignalDirection
 
 
 class TestPriorityConfig:
@@ -30,10 +29,10 @@ class TestPriorityConfig:
 
         # Weights should sum to 1.0
         total = (
-            config.confidence_weight +
-            config.strategy_type_weight +
-            config.market_condition_weight +
-            config.risk_reward_weight
+            config.confidence_weight
+            + config.strategy_type_weight
+            + config.market_condition_weight
+            + config.risk_reward_weight
         )
         assert abs(total - 1.0) < 0.01
 
@@ -53,12 +52,12 @@ class TestPriorityConfig:
         """Test strategy type multipliers"""
         config = PriorityConfig()
 
-        assert 'Strategy_A' in config.strategy_multipliers
-        assert 'Strategy_B' in config.strategy_multipliers
-        assert 'Strategy_C' in config.strategy_multipliers
+        assert "Strategy_A" in config.strategy_multipliers
+        assert "Strategy_B" in config.strategy_multipliers
+        assert "Strategy_C" in config.strategy_multipliers
 
         # Strategy B (aggressive) should have highest multiplier
-        assert config.strategy_multipliers['Strategy_B'] > config.strategy_multipliers['Strategy_A']
+        assert config.strategy_multipliers["Strategy_B"] > config.strategy_multipliers["Strategy_A"]
 
     def test_market_condition_multipliers(self):
         """Test market condition multipliers"""
@@ -69,8 +68,8 @@ class TestPriorityConfig:
 
         # Trending should have higher multiplier than volatile
         assert (
-            config.market_condition_multipliers[MarketCondition.TRENDING_UP] >
-            config.market_condition_multipliers[MarketCondition.VOLATILE]
+            config.market_condition_multipliers[MarketCondition.TRENDING_UP]
+            > config.market_condition_multipliers[MarketCondition.VOLATILE]
         )
 
 
@@ -100,7 +99,7 @@ class TestSignalPriorityManager:
         assert manager.config is not None
         assert manager.signal_queue == []
         assert manager.max_concurrent_signals == 10
-        assert manager.metrics['signals_scored'] == 0
+        assert manager.metrics["signals_scored"] == 0
 
     def test_calculate_priority_score_basic(self, manager, sample_signal):
         """Test basic priority score calculation"""
@@ -110,21 +109,19 @@ class TestSignalPriorityManager:
         assert 0 <= score <= 100
 
         # Verify details structure
-        assert 'confidence_score' in details
-        assert 'strategy_multiplier' in details
-        assert 'final_score' in details
-        assert details['final_score'] == score
+        assert "confidence_score" in details
+        assert "strategy_multiplier" in details
+        assert "final_score" in details
+        assert details["final_score"] == score
 
     def test_calculate_priority_score_with_market_condition(self, manager, sample_signal):
         """Test priority score with market condition"""
         score_trending, _ = manager.calculate_priority_score(
-            sample_signal,
-            market_condition=MarketCondition.TRENDING_UP
+            sample_signal, market_condition=MarketCondition.TRENDING_UP
         )
 
         score_volatile, _ = manager.calculate_priority_score(
-            sample_signal,
-            market_condition=MarketCondition.VOLATILE
+            sample_signal, market_condition=MarketCondition.VOLATILE
         )
 
         # Trending should score higher than volatile
@@ -221,7 +218,7 @@ class TestSignalPriorityManager:
         assert isinstance(prioritized, PrioritizedSignal)
         assert prioritized.signal == sample_signal
         assert len(manager.signal_queue) == 1
-        assert manager.metrics['signals_scored'] == 1
+        assert manager.metrics["signals_scored"] == 1
 
     def test_add_multiple_signals(self, manager):
         """Test adding multiple signals maintains priority order"""
@@ -316,8 +313,8 @@ class TestSignalPriorityManager:
 
         best_signal, details = result
         assert best_signal.confidence == 85.0
-        assert details['total_candidates'] == 3
-        assert details['selected_signal_id'] == best_signal.signal_id
+        assert details["total_candidates"] == 3
+        assert details["selected_signal_id"] == best_signal.signal_id
 
     def test_select_best_signal_with_thresholds(self, manager):
         """Test signal selection with minimum thresholds"""
@@ -343,7 +340,7 @@ class TestSignalPriorityManager:
         best_signal, details = result
         # Only 85% confidence signal should pass threshold
         assert best_signal.confidence == 85.0
-        assert details['rejected_count'] == 2
+        assert details["rejected_count"] == 2
 
     def test_select_best_signal_empty_list(self, manager):
         """Test selecting from empty signal list"""
@@ -432,14 +429,14 @@ class TestSignalPriorityManager:
         snapshot = manager.get_queue_snapshot()
 
         assert len(snapshot) == 3
-        assert all('rank' in item for item in snapshot)
-        assert all('priority_score' in item for item in snapshot)
+        assert all("rank" in item for item in snapshot)
+        assert all("priority_score" in item for item in snapshot)
 
         # First item should have highest priority (80% confidence)
-        assert snapshot[0]['rank'] == 1
+        assert snapshot[0]["rank"] == 1
         # Verify priorities are descending
-        assert snapshot[0]['priority_score'] >= snapshot[1]['priority_score']
-        assert snapshot[1]['priority_score'] >= snapshot[2]['priority_score']
+        assert snapshot[0]["priority_score"] >= snapshot[1]["priority_score"]
+        assert snapshot[1]["priority_score"] >= snapshot[2]["priority_score"]
 
     def test_get_metrics(self, manager):
         """Test getting metrics"""
@@ -460,10 +457,10 @@ class TestSignalPriorityManager:
 
         metrics = manager.get_metrics()
 
-        assert metrics['signals_scored'] == 3
-        assert metrics['signals_selected'] == 1
-        assert metrics['queue_size'] == 2
-        assert 'average_score' in metrics
+        assert metrics["signals_scored"] == 3
+        assert metrics["signals_selected"] == 1
+        assert metrics["queue_size"] == 2
+        assert "average_score" in metrics
 
     def test_update_config(self, manager):
         """Test updating configuration at runtime"""
@@ -509,16 +506,10 @@ class TestSignalPriorityManager:
         )
 
         # Score in trending market
-        score_trending, _ = manager.calculate_priority_score(
-            signal_a,
-            MarketCondition.TRENDING_UP
-        )
+        score_trending, _ = manager.calculate_priority_score(signal_a, MarketCondition.TRENDING_UP)
 
         # Score in ranging market
-        score_ranging, _ = manager.calculate_priority_score(
-            signal_a,
-            MarketCondition.RANGING
-        )
+        score_ranging, _ = manager.calculate_priority_score(signal_a, MarketCondition.RANGING)
 
         # Trending should score higher
         assert score_trending > score_ranging

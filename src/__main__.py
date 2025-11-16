@@ -23,12 +23,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from src.api.server import app as fastapi_app
 from src.core.config import settings
 from src.core.config_manager import ConfigurationManager
 from src.core.events import EventBus
 from src.core.metrics import MetricsCollector, MonitoringSystem
 from src.core.orchestrator import TradingSystemOrchestrator
-from src.api.server import app as fastapi_app
 
 # Global instances for signal handling
 orchestrator: Optional[TradingSystemOrchestrator] = None
@@ -42,9 +42,10 @@ logger = logging.getLogger(__name__)
 # Environment Validation
 # ============================================================================
 
+
 class EnvironmentValidationError(Exception):
     """Raised when environment validation fails."""
-    pass
+
 
 
 def validate_environment() -> None:
@@ -67,9 +68,9 @@ def validate_environment() -> None:
 
     if missing_required:
         error_msg = (
-            "❌ Missing required environment variables:\n" +
-            "\n".join(missing_required) +
-            "\n\nPlease set these variables in your .env file or environment."
+            "❌ Missing required environment variables:\n"
+            + "\n".join(missing_required)
+            + "\n\nPlease set these variables in your .env file or environment."
         )
         raise EnvironmentValidationError(error_msg)
 
@@ -93,6 +94,7 @@ def validate_environment() -> None:
 # ============================================================================
 # Logging Configuration
 # ============================================================================
+
 
 def setup_logging() -> None:
     """
@@ -124,18 +126,17 @@ def setup_logging() -> None:
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
     console_formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        "%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
 
     # File handler with detailed formatting
-    file_handler = logging.FileHandler(log_file, mode='a')
+    file_handler = logging.FileHandler(log_file, mode="a")
     file_handler.setLevel(logging.DEBUG)  # Always DEBUG in file
     file_formatter = logging.Formatter(
         "%(asctime)s | %(levelname)-8s | %(name)s | %(funcName)s:%(lineno)d | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
@@ -152,6 +153,7 @@ def setup_logging() -> None:
 # Signal Handlers
 # ============================================================================
 
+
 def setup_signal_handlers() -> None:
     """
     Configure signal handlers for graceful shutdown.
@@ -160,6 +162,7 @@ def setup_signal_handlers() -> None:
     - SIGTERM: Graceful shutdown from system
     - SIGINT: Ctrl+C from user
     """
+
     def signal_handler(sig, frame):
         """Handle shutdown signals."""
         sig_name = signal.Signals(sig).name
@@ -177,6 +180,7 @@ def setup_signal_handlers() -> None:
 # ============================================================================
 # System Lifecycle
 # ============================================================================
+
 
 async def initialize_system() -> tuple[
     TradingSystemOrchestrator,
@@ -290,6 +294,7 @@ async def shutdown_system(
 # API Server Integration
 # ============================================================================
 
+
 async def run_api_server(
     orch: TradingSystemOrchestrator,
     cfg_manager: ConfigurationManager,
@@ -308,10 +313,11 @@ async def run_api_server(
         evt_bus: Event bus
     """
     import uvicorn
-    from src.api.websocket import WebSocketManager
 
     # Set global instances in API module
     import src.api.server as server_module
+    from src.api.websocket import WebSocketManager
+
     server_module.orchestrator = orch
     server_module.config_manager = cfg_manager
     server_module.metrics_collector = metrics
@@ -345,6 +351,7 @@ async def run_api_server(
 # ============================================================================
 # Main Entry Point
 # ============================================================================
+
 
 async def main() -> None:
     """
@@ -381,9 +388,7 @@ async def main() -> None:
         await start_system(orch)
 
         # 6. Start API server in background
-        api_task = asyncio.create_task(
-            run_api_server(orch, cfg_mgr, metrics, monitoring, evt_bus)
-        )
+        api_task = asyncio.create_task(run_api_server(orch, cfg_mgr, metrics, monitoring, evt_bus))
 
         logger.info("=" * 80)
         logger.info("✅ Trading Bot is now running")

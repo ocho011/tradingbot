@@ -6,31 +6,32 @@ based on swing highs and lows. Liquidity zones represent areas where stop losses
 and pending orders accumulate, often becoming targets for institutional traders.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any, Tuple
-import logging
+from typing import Any, Dict, List, Optional, Tuple
 
-from src.models.candle import Candle
 from src.core.constants import TimeFrame
-
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 
 
 class LiquidityType(str, Enum):
     """Type of liquidity based on location."""
-    BUY_SIDE = "BUY_SIDE"    # Liquidity above swing highs (sell stops, buy limits)
+
+    BUY_SIDE = "BUY_SIDE"  # Liquidity above swing highs (sell stops, buy limits)
     SELL_SIDE = "SELL_SIDE"  # Liquidity below swing lows (buy stops, sell limits)
 
 
 class LiquidityState(str, Enum):
     """Current state of a liquidity level."""
-    ACTIVE = "ACTIVE"        # Currently valid and untouched
-    SWEPT = "SWEPT"          # Price has swept through the level
-    PARTIAL = "PARTIAL"      # Price has touched but not fully swept
-    EXPIRED = "EXPIRED"      # Time-based expiration
+
+    ACTIVE = "ACTIVE"  # Currently valid and untouched
+    SWEPT = "SWEPT"  # Price has swept through the level
+    PARTIAL = "PARTIAL"  # Price has touched but not fully swept
+    EXPIRED = "EXPIRED"  # Time-based expiration
 
 
 @dataclass
@@ -82,7 +83,9 @@ class LiquidityLevel:
         if self.volume_profile < 0:
             raise ValueError(f"Volume profile must be non-negative, got {self.volume_profile}")
 
-    def is_price_near(self, price: float, tolerance_pips: float = 2.0, pip_size: float = 0.0001) -> bool:
+    def is_price_near(
+        self, price: float, tolerance_pips: float = 2.0, pip_size: float = 0.0001
+    ) -> bool:
         """
         Check if a price is near this liquidity level.
 
@@ -126,27 +129,29 @@ class LiquidityLevel:
     def to_dict(self) -> Dict[str, Any]:
         """Convert liquidity level to dictionary."""
         return {
-            'type': self.type.value,
-            'price': self.price,
-            'origin_timestamp': self.origin_timestamp,
-            'origin_datetime': datetime.fromtimestamp(self.origin_timestamp / 1000).isoformat(),
-            'origin_candle_index': self.origin_candle_index,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe.value,
-            'touch_count': self.touch_count,
-            'strength': self.strength,
-            'volume_profile': self.volume_profile,
-            'state': self.state.value,
-            'last_touch_timestamp': self.last_touch_timestamp,
-            'last_touch_datetime': (
+            "type": self.type.value,
+            "price": self.price,
+            "origin_timestamp": self.origin_timestamp,
+            "origin_datetime": datetime.fromtimestamp(self.origin_timestamp / 1000).isoformat(),
+            "origin_candle_index": self.origin_candle_index,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe.value,
+            "touch_count": self.touch_count,
+            "strength": self.strength,
+            "volume_profile": self.volume_profile,
+            "state": self.state.value,
+            "last_touch_timestamp": self.last_touch_timestamp,
+            "last_touch_datetime": (
                 datetime.fromtimestamp(self.last_touch_timestamp / 1000).isoformat()
-                if self.last_touch_timestamp else None
+                if self.last_touch_timestamp
+                else None
             ),
-            'swept_timestamp': self.swept_timestamp,
-            'swept_datetime': (
+            "swept_timestamp": self.swept_timestamp,
+            "swept_datetime": (
                 datetime.fromtimestamp(self.swept_timestamp / 1000).isoformat()
-                if self.swept_timestamp else None
-            )
+                if self.swept_timestamp
+                else None
+            ),
         }
 
     def __repr__(self) -> str:
@@ -200,7 +205,7 @@ class LiquidityZoneDetector:
         proximity_tolerance_pips: float = 2.0,
         min_touches_for_strong: int = 2,
         pip_size: float = 0.0001,
-        volume_lookback: int = 20
+        volume_lookback: int = 20,
     ):
         """
         Initialize Liquidity Zone detector.
@@ -220,9 +225,7 @@ class LiquidityZoneDetector:
         self.logger = logging.getLogger(f"{__name__}.LiquidityZoneDetector")
 
     def detect_swing_highs(
-        self,
-        candles: List[Candle],
-        lookback: Optional[int] = None
+        self, candles: List[Candle], lookback: Optional[int] = None
     ) -> List[SwingPoint]:
         """
         Detect swing high points in candle data.
@@ -252,10 +255,7 @@ class LiquidityZoneDetector:
             current_high = candles[i].high
 
             # Check if this is higher than all previous lookback candles
-            is_swing_high = all(
-                current_high > candles[j].high
-                for j in range(i - lookback, i)
-            )
+            is_swing_high = all(current_high > candles[j].high for j in range(i - lookback, i))
 
             # Check if this is higher than all following lookback candles
             if is_swing_high:
@@ -265,14 +265,16 @@ class LiquidityZoneDetector:
                 )
 
             if is_swing_high:
-                swing_highs.append(SwingPoint(
-                    price=current_high,
-                    timestamp=candles[i].timestamp,
-                    candle_index=i,
-                    is_high=True,
-                    strength=lookback,
-                    volume=candles[i].volume
-                ))
+                swing_highs.append(
+                    SwingPoint(
+                        price=current_high,
+                        timestamp=candles[i].timestamp,
+                        candle_index=i,
+                        is_high=True,
+                        strength=lookback,
+                        volume=candles[i].volume,
+                    )
+                )
                 self.logger.debug(
                     f"Swing high detected at index {i}: "
                     f"price={current_high:.5f}, time={candles[i].get_datetime_iso()}"
@@ -281,9 +283,7 @@ class LiquidityZoneDetector:
         return swing_highs
 
     def detect_swing_lows(
-        self,
-        candles: List[Candle],
-        lookback: Optional[int] = None
+        self, candles: List[Candle], lookback: Optional[int] = None
     ) -> List[SwingPoint]:
         """
         Detect swing low points in candle data.
@@ -313,10 +313,7 @@ class LiquidityZoneDetector:
             current_low = candles[i].low
 
             # Check if this is lower than all previous lookback candles
-            is_swing_low = all(
-                current_low < candles[j].low
-                for j in range(i - lookback, i)
-            )
+            is_swing_low = all(current_low < candles[j].low for j in range(i - lookback, i))
 
             # Check if this is lower than all following lookback candles
             if is_swing_low:
@@ -326,14 +323,16 @@ class LiquidityZoneDetector:
                 )
 
             if is_swing_low:
-                swing_lows.append(SwingPoint(
-                    price=current_low,
-                    timestamp=candles[i].timestamp,
-                    candle_index=i,
-                    is_high=False,
-                    strength=lookback,
-                    volume=candles[i].volume
-                ))
+                swing_lows.append(
+                    SwingPoint(
+                        price=current_low,
+                        timestamp=candles[i].timestamp,
+                        candle_index=i,
+                        is_high=False,
+                        strength=lookback,
+                        volume=candles[i].volume,
+                    )
+                )
                 self.logger.debug(
                     f"Swing low detected at index {i}: "
                     f"price={current_low:.5f}, time={candles[i].get_datetime_iso()}"
@@ -341,11 +340,7 @@ class LiquidityZoneDetector:
 
         return swing_lows
 
-    def calculate_volume_profile(
-        self,
-        candles: List[Candle],
-        center_index: int
-    ) -> float:
+    def calculate_volume_profile(self, candles: List[Candle], center_index: int) -> float:
         """
         Calculate average volume around a liquidity level.
 
@@ -366,10 +361,7 @@ class LiquidityZoneDetector:
         return sum(c.volume for c in relevant_candles) / len(relevant_candles)
 
     def calculate_liquidity_strength(
-        self,
-        swing_point: SwingPoint,
-        candles: List[Candle],
-        touch_count: int = 0
+        self, swing_point: SwingPoint, candles: List[Candle], touch_count: int = 0
     ) -> float:
         """
         Calculate strength score for a liquidity level.
@@ -398,16 +390,15 @@ class LiquidityZoneDetector:
         # Volume factor (0-30 points)
         volume_profile = self.calculate_volume_profile(candles, swing_point.candle_index)
         avg_volume = sum(c.volume for c in candles) / len(candles) if candles else 1.0
-        volume_ratio = (swing_point.volume + volume_profile) / (2 * avg_volume) if avg_volume > 0 else 1.0
+        volume_ratio = (
+            (swing_point.volume + volume_profile) / (2 * avg_volume) if avg_volume > 0 else 1.0
+        )
         volume_score = min(30, volume_ratio * 15)
 
         total_score = swing_score + touch_score + volume_score
         return min(100, max(0, total_score))
 
-    def cluster_nearby_levels(
-        self,
-        levels: List[LiquidityLevel]
-    ) -> List[LiquidityLevel]:
+    def cluster_nearby_levels(self, levels: List[LiquidityLevel]) -> List[LiquidityLevel]:
         """
         Cluster nearby liquidity levels into single stronger levels.
 
@@ -475,7 +466,9 @@ class LiquidityZoneDetector:
         total_touches = sum(l.touch_count for l in cluster)
 
         # Combine strengths (with diminishing returns)
-        combined_strength = min(100, base_level.strength + sum(l.strength * 0.3 for l in cluster if l != base_level))
+        combined_strength = min(
+            100, base_level.strength + sum(l.strength * 0.3 for l in cluster if l != base_level)
+        )
 
         # Use earliest timestamp
         earliest_timestamp = min(l.origin_timestamp for l in cluster)
@@ -492,11 +485,15 @@ class LiquidityZoneDetector:
             strength=combined_strength,
             volume_profile=max(l.volume_profile for l in cluster),
             state=base_level.state,
-            last_touch_timestamp=max((l.last_touch_timestamp for l in cluster if l.last_touch_timestamp), default=None),
-            swept_timestamp=None
+            last_touch_timestamp=max(
+                (l.last_touch_timestamp for l in cluster if l.last_touch_timestamp), default=None
+            ),
+            swept_timestamp=None,
         )
 
-    def detect_liquidity_levels(self, candles: List[Candle]) -> Tuple[List[LiquidityLevel], List[LiquidityLevel]]:
+    def detect_liquidity_levels(
+        self, candles: List[Candle]
+    ) -> Tuple[List[LiquidityLevel], List[LiquidityLevel]]:
         """
         Detect all liquidity levels (both buy-side and sell-side) from candle data.
 
@@ -525,9 +522,7 @@ class LiquidityZoneDetector:
         swing_highs = self.detect_swing_highs(candles)
         swing_lows = self.detect_swing_lows(candles)
 
-        self.logger.info(
-            f"Found {len(swing_highs)} swing highs and {len(swing_lows)} swing lows"
-        )
+        self.logger.info(f"Found {len(swing_highs)} swing highs and {len(swing_lows)} swing lows")
 
         # Convert swing highs to buy-side liquidity (above highs)
         buy_side_levels = []
@@ -543,7 +538,7 @@ class LiquidityZoneDetector:
                 symbol=candles[0].symbol,
                 timeframe=candles[0].timeframe,
                 strength=strength,
-                volume_profile=volume_profile
+                volume_profile=volume_profile,
             )
             buy_side_levels.append(level)
 
@@ -561,7 +556,7 @@ class LiquidityZoneDetector:
                 symbol=candles[0].symbol,
                 timeframe=candles[0].timeframe,
                 strength=strength,
-                volume_profile=volume_profile
+                volume_profile=volume_profile,
             )
             sell_side_levels.append(level)
 
@@ -581,7 +576,7 @@ class LiquidityZoneDetector:
         buy_side_levels: List[LiquidityLevel],
         sell_side_levels: List[LiquidityLevel],
         candles: List[Candle],
-        start_index: int = 0
+        start_index: int = 0,
     ) -> None:
         """
         Update the state of liquidity levels based on price action.
@@ -595,7 +590,9 @@ class LiquidityZoneDetector:
             start_index: Starting index for updates
         """
         all_levels = buy_side_levels + sell_side_levels
-        active_levels = [l for l in all_levels if l.state in (LiquidityState.ACTIVE, LiquidityState.PARTIAL)]
+        active_levels = [
+            l for l in all_levels if l.state in (LiquidityState.ACTIVE, LiquidityState.PARTIAL)
+        ]
 
         for i in range(start_index, len(candles)):
             candle = candles[i]

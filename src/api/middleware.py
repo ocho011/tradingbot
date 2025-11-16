@@ -18,7 +18,6 @@ from starlette.types import ASGIApp
 
 from src.core.security import SecurityManager
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -37,12 +36,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     - Proper retry-after headers
     """
 
-    def __init__(
-        self,
-        app: ASGIApp,
-        security_manager: SecurityManager,
-        enabled: bool = True
-    ):
+    def __init__(self, app: ASGIApp, security_manager: SecurityManager, enabled: bool = True):
         """
         Initialize rate limiting middleware.
 
@@ -57,11 +51,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         logger.info(f"Rate limiting middleware initialized: {'enabled' if enabled else 'disabled'}")
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         Process request with rate limiting.
 
@@ -83,8 +73,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Check rate limit
         allowed, retry_after = self.security_manager.rate_limiter.check_rate_limit(
-            identifier=client_ip,
-            endpoint=endpoint
+            identifier=client_ip, endpoint=endpoint
         )
 
         if not allowed:
@@ -98,11 +87,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 content={
                     "error": "Rate limit exceeded",
                     "detail": f"Too many requests. Please retry after {retry_after:.2f} seconds",
-                    "retry_after": retry_after
+                    "retry_after": retry_after,
                 },
-                headers={
-                    "Retry-After": str(int(retry_after) + 1)
-                }
+                headers={"Retry-After": str(int(retry_after) + 1)},
             )
 
         # Process request
@@ -137,7 +124,7 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         security_manager: SecurityManager,
         enabled: bool = False,
-        bypass_paths: Optional[list] = None
+        bypass_paths: Optional[list] = None,
     ):
         """
         Initialize IP whitelist middleware.
@@ -153,15 +140,9 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
         self.enabled = enabled
         self.bypass_paths = set(bypass_paths or ["/health", "/metrics"])
 
-        logger.info(
-            f"IP whitelist middleware initialized: {'enabled' if enabled else 'disabled'}"
-        )
+        logger.info(f"IP whitelist middleware initialized: {'enabled' if enabled else 'disabled'}")
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         Process request with IP whitelist check.
 
@@ -190,8 +171,8 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={
                     "error": "Access forbidden",
-                    "detail": f"IP address {client_ip} is not authorized to access this resource"
-                }
+                    "detail": f"IP address {client_ip} is not authorized to access this resource",
+                },
             )
 
         return await call_next(request)
@@ -221,7 +202,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         enable_hsts: bool = True,
         hsts_max_age: int = 31536000,  # 1 year
-        csp_policy: Optional[str] = None
+        csp_policy: Optional[str] = None,
     ):
         """
         Initialize security headers middleware.
@@ -235,15 +216,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.enable_hsts = enable_hsts
         self.hsts_max_age = hsts_max_age
-        self.csp_policy = csp_policy or "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        self.csp_policy = (
+            csp_policy
+            or "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        )
 
         logger.info("Security headers middleware initialized")
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         Add security headers to response.
 
@@ -278,9 +258,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         # Permissions-Policy - Control browser features
-        response.headers["Permissions-Policy"] = (
-            "geolocation=(), microphone=(), camera=()"
-        )
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
         # X-Permitted-Cross-Domain-Policies - Adobe products policy
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
@@ -298,7 +276,7 @@ def configure_security_middleware(
     security_manager: SecurityManager,
     rate_limit_enabled: bool = True,
     ip_whitelist_enabled: bool = False,
-    security_headers_enabled: bool = True
+    security_headers_enabled: bool = True,
 ) -> None:
     """
     Configure all security middleware for the application.
@@ -320,18 +298,14 @@ def configure_security_middleware(
     # Rate limiting (executes after IP whitelist)
     if rate_limit_enabled:
         app.add_middleware(
-            RateLimitMiddleware,
-            security_manager=security_manager,
-            enabled=rate_limit_enabled
+            RateLimitMiddleware, security_manager=security_manager, enabled=rate_limit_enabled
         )
         logger.info("Rate limiting middleware configured")
 
     # IP whitelist (executes first, before rate limiting)
     if ip_whitelist_enabled:
         app.add_middleware(
-            IPWhitelistMiddleware,
-            security_manager=security_manager,
-            enabled=ip_whitelist_enabled
+            IPWhitelistMiddleware, security_manager=security_manager, enabled=ip_whitelist_enabled
         )
         logger.info("IP whitelist middleware configured")
 

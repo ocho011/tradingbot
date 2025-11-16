@@ -13,7 +13,6 @@ from src.core.events import Event, EventBus, EventHandler
 from src.models.candle import Candle
 from src.services.candle_storage import CandleStorage
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -41,7 +40,7 @@ class RealtimeCandleProcessor(EventHandler):
         self,
         event_bus: EventBus,
         storage: Optional[CandleStorage] = None,
-        outlier_threshold: float = 3.0
+        outlier_threshold: float = 3.0,
     ):
         """
         Initialize realtime candle processor.
@@ -90,9 +89,9 @@ class RealtimeCandleProcessor(EventHandler):
             candle_data = event.data
 
             # Extract candle information
-            symbol = candle_data.get('symbol')
-            timeframe_str = candle_data.get('timeframe')
-            timestamp = candle_data.get('timestamp')
+            symbol = candle_data.get("symbol")
+            timeframe_str = candle_data.get("timeframe")
+            timestamp = candle_data.get("timestamp")
 
             if not all([symbol, timeframe_str, timestamp]):
                 logger.warning(f"Incomplete candle data: {candle_data}")
@@ -111,12 +110,12 @@ class RealtimeCandleProcessor(EventHandler):
                     symbol=symbol,
                     timeframe=timeframe,
                     timestamp=timestamp,
-                    open=float(candle_data['open']),
-                    high=float(candle_data['high']),
-                    low=float(candle_data['low']),
-                    close=float(candle_data['close']),
-                    volume=float(candle_data['volume']),
-                    is_closed=False  # Will be determined by completion detection
+                    open=float(candle_data["open"]),
+                    high=float(candle_data["high"]),
+                    low=float(candle_data["low"]),
+                    close=float(candle_data["close"]),
+                    volume=float(candle_data["volume"]),
+                    is_closed=False,  # Will be determined by completion detection
                 )
             except (KeyError, ValueError, TypeError) as e:
                 logger.error(f"Failed to create candle from data: {e}")
@@ -146,20 +145,22 @@ class RealtimeCandleProcessor(EventHandler):
 
                 # Publish CANDLE_CLOSED event for the PREVIOUS candle
                 self._candles_closed += 1
-                await self.event_bus.publish(Event(
-                    event_type=EventType.CANDLE_CLOSED,
-                    priority=7,  # Higher priority than CANDLE_RECEIVED
-                    data={
-                        'candle': completed_candle,
-                        'symbol': symbol,
-                        'timeframe': timeframe.value,
-                        'timestamp': completed_candle.timestamp,
-                        'datetime': completed_candle.get_datetime_iso(),
-                        'close': completed_candle.close,
-                        'volume': completed_candle.volume
-                    },
-                    source='RealtimeCandleProcessor'
-                ))
+                await self.event_bus.publish(
+                    Event(
+                        event_type=EventType.CANDLE_CLOSED,
+                        priority=7,  # Higher priority than CANDLE_RECEIVED
+                        data={
+                            "candle": completed_candle,
+                            "symbol": symbol,
+                            "timeframe": timeframe.value,
+                            "timestamp": completed_candle.timestamp,
+                            "datetime": completed_candle.get_datetime_iso(),
+                            "close": completed_candle.close,
+                            "volume": completed_candle.volume,
+                        },
+                        source="RealtimeCandleProcessor",
+                    )
+                )
 
                 logger.info(
                     f"✓ Candle closed: {symbol} {timeframe.value} "
@@ -269,9 +270,7 @@ class RealtimeCandleProcessor(EventHandler):
         if prev_candle.close == 0:
             return False
 
-        price_change_pct = abs(
-            (curr_candle.close - prev_candle.close) / prev_candle.close
-        )
+        price_change_pct = abs((curr_candle.close - prev_candle.close) / prev_candle.close)
 
         # Simple outlier detection: flag if change > threshold
         # For crypto, a 10% change in one candle could be suspicious
@@ -295,11 +294,11 @@ class RealtimeCandleProcessor(EventHandler):
             Dictionary containing processing metrics
         """
         return {
-            'candles_processed': self._candles_processed,
-            'candles_closed': self._candles_closed,
-            'duplicates_filtered': self._duplicates_filtered,
-            'outliers_filtered': self._outliers_filtered,
-            'active_streams': len(self._last_candles)
+            "candles_processed": self._candles_processed,
+            "candles_closed": self._candles_closed,
+            "duplicates_filtered": self._duplicates_filtered,
+            "outliers_filtered": self._outliers_filtered,
+            "active_streams": len(self._last_candles),
         }
 
     def clear_statistics(self) -> None:

@@ -4,11 +4,11 @@ Unit tests for StatisticsDAO specialized operations.
 Tests statistics aggregation, performance analysis, and trend tracking.
 """
 
-import pytest
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
 
-from src.database.models import Statistics
+import pytest
+
 
 
 @pytest.mark.asyncio
@@ -105,8 +105,7 @@ class TestStatisticsDAO:
                 )
 
         comparison = await statistics_dao.get_strategy_comparison(
-            strategies,
-            start_date=start - timedelta(days=7)
+            strategies, start_date=start - timedelta(days=7)
         )
 
         assert len(comparison) == 3
@@ -132,11 +131,7 @@ class TestStatisticsDAO:
                 total_pnl=pnl,
             )
 
-        best = await statistics_dao.get_best_performing_period(
-            "MACD",
-            metric="total_pnl",
-            limit=2
-        )
+        best = await statistics_dao.get_best_performing_period("MACD", metric="total_pnl", limit=2)
 
         assert len(best) == 2
         assert best[0].total_pnl >= best[1].total_pnl
@@ -165,7 +160,7 @@ class TestStatisticsDAO:
 
         trend = await statistics_dao.get_performance_trend("MACD", lookback_periods=10)
 
-        assert len(trend['periods']) == 10
-        assert trend['pnl_trend'] in ['improving', 'declining', 'stable']
-        assert trend['win_rate_trend'] in ['improving', 'declining', 'stable']
-        assert trend['total_pnl'] > 0
+        assert len(trend["periods"]) == 10
+        assert trend["pnl_trend"] in ["improving", "declining", "stable"]
+        assert trend["win_rate_trend"] in ["improving", "declining", "stable"]
+        assert trend["total_pnl"] > 0

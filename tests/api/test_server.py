@@ -10,23 +10,29 @@ Tests cover:
 - CORS and security headers
 """
 
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock
+
+import pytest
 from fastapi.testclient import TestClient
 
-from src.api.server import app, verify_token, require_admin
+from src.api.server import app, require_admin, verify_token
 from src.core.config_manager import ConfigurationManager
-from src.core.metrics import MetricsCollector, MonitoringSystem, HealthStatus, HealthCheck, SystemMetricsCollector
-
+from src.core.metrics import (
+    HealthCheck,
+    HealthStatus,
+    MetricsCollector,
+)
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def client():
     """Create test client."""
+
     # Override authentication dependencies for testing
     def mock_verify_token():
         return {"user": "test_user", "role": "admin"}
@@ -107,14 +113,14 @@ def mock_monitoring_system():
             status=HealthStatus.HEALTHY,
             message="Connected",
             details={"websocket": "connected"},
-            response_time_ms=5.2
+            response_time_ms=5.2,
         ),
         HealthCheck(
             component="database",
             status=HealthStatus.HEALTHY,
             message="Operational",
             details={"connections": 5},
-            response_time_ms=2.1
+            response_time_ms=2.1,
         ),
     ]
     monitor.get_health_status.return_value = health_checks
@@ -133,7 +139,7 @@ def mock_orchestrator():
             "binance": "running",
             "strategy": "running",
             "risk": "running",
-        }
+        },
     }
 
     return orchestrator
@@ -147,10 +153,7 @@ def mock_metrics_collector():
 
 @pytest.fixture(autouse=True)
 def setup_global_instances(
-    mock_orchestrator,
-    mock_config_manager,
-    mock_metrics_collector,
-    mock_monitoring_system
+    mock_orchestrator, mock_config_manager, mock_metrics_collector, mock_monitoring_system
 ):
     """Setup global instances for all tests."""
     import src.api.server as server_module
@@ -173,6 +176,7 @@ def setup_global_instances(
 # Health & Status Endpoint Tests
 # ============================================================================
 
+
 class TestHealthEndpoints:
     """Test health and status endpoints."""
 
@@ -193,11 +197,7 @@ class TestHealthEndpoints:
         """Test health check with degraded component."""
         # Mock degraded health
         health_checks = [
-            HealthCheck(
-                component="binance",
-                status=HealthStatus.DEGRADED,
-                message="High latency"
-            ),
+            HealthCheck(component="binance", status=HealthStatus.DEGRADED, message="High latency"),
         ]
         mock_monitoring_system.get_health_status.return_value = health_checks
 
@@ -212,9 +212,7 @@ class TestHealthEndpoints:
         # Mock unhealthy health
         health_checks = [
             HealthCheck(
-                component="binance",
-                status=HealthStatus.UNHEALTHY,
-                message="Connection lost"
+                component="binance", status=HealthStatus.UNHEALTHY, message="Connection lost"
             ),
         ]
         mock_monitoring_system.get_health_status.return_value = health_checks
@@ -250,6 +248,7 @@ class TestHealthEndpoints:
 # Configuration Endpoint Tests
 # ============================================================================
 
+
 class TestConfigurationEndpoints:
     """Test configuration management endpoints."""
 
@@ -267,11 +266,7 @@ class TestConfigurationEndpoints:
 
     def test_update_configuration_success(self, client, mock_config_manager):
         """Test successful configuration update."""
-        request_data = {
-            "section": "trading",
-            "updates": {"mode": "live"},
-            "validate": True
-        }
+        request_data = {"section": "trading", "updates": {"mode": "live"}, "validate": True}
 
         response = client.post("/config/update", json=request_data)
 
@@ -284,19 +279,13 @@ class TestConfigurationEndpoints:
 
         # Verify config_manager was called correctly
         mock_config_manager.update_config.assert_called_once_with(
-            section="trading",
-            updates={"mode": "live"},
-            validate=True
+            section="trading", updates={"mode": "live"}, validate=True
         )
 
     def test_update_configuration_requires_admin(self, client):
         """Test that configuration update requires admin role."""
         # In production, this would fail without proper admin token
-        request_data = {
-            "section": "trading",
-            "updates": {"mode": "live"},
-            "validate": True
-        }
+        request_data = {"section": "trading", "updates": {"mode": "live"}, "validate": True}
 
         response = client.post("/config/update", json=request_data)
         # Currently allows in development mode
@@ -310,7 +299,7 @@ class TestConfigurationEndpoints:
         request_data = {
             "section": "trading",
             "updates": {"invalid_key": "invalid_value"},
-            "validate": True
+            "validate": True,
         }
 
         response = client.post("/config/update", json=request_data)
@@ -396,6 +385,7 @@ class TestConfigurationEndpoints:
 # Metrics Endpoint Tests
 # ============================================================================
 
+
 class TestMetricsEndpoints:
     """Test metrics and monitoring endpoints."""
 
@@ -438,6 +428,7 @@ class TestMetricsEndpoints:
 # Security & CORS Tests
 # ============================================================================
 
+
 class TestSecurityAndCORS:
     """Test security headers and CORS configuration."""
 
@@ -457,10 +448,7 @@ class TestSecurityAndCORS:
         """Test CORS headers for allowed origins."""
         response = client.options(
             "/health",
-            headers={
-                "Origin": "http://localhost:3000",
-                "Access-Control-Request-Method": "GET"
-            }
+            headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "GET"},
         )
 
         assert response.status_code == 200
@@ -470,6 +458,7 @@ class TestSecurityAndCORS:
 # ============================================================================
 # Error Handling Tests
 # ============================================================================
+
 
 class TestErrorHandling:
     """Test error handling and exception responses."""
@@ -502,6 +491,7 @@ class TestErrorHandling:
 # API Documentation Tests
 # ============================================================================
 
+
 class TestAPIDocumentation:
     """Test API documentation endpoints."""
 
@@ -533,6 +523,7 @@ class TestAPIDocumentation:
 # Integration Tests
 # ============================================================================
 
+
 class TestAPIIntegration:
     """Integration tests for API workflows."""
 
@@ -543,11 +534,7 @@ class TestAPIIntegration:
         assert response.status_code == 200
 
         # 2. Update config
-        update_data = {
-            "section": "trading",
-            "updates": {"mode": "live"},
-            "validate": True
-        }
+        update_data = {"section": "trading", "updates": {"mode": "live"}, "validate": True}
         response = client.post("/config/update", json=update_data)
         assert response.status_code == 200
 

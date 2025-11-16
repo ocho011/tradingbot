@@ -10,10 +10,12 @@ Tests cover:
 - Utility methods
 """
 
-import pytest
 from datetime import datetime, timezone
-from src.models.candle import Candle
+
+import pytest
+
 from src.core.constants import TimeFrame
+from src.models.candle import Candle
 
 
 class TestCandleCreation:
@@ -29,7 +31,7 @@ class TestCandleCreation:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
 
         assert candle.symbol == "BTCUSDT"
@@ -52,7 +54,7 @@ class TestCandleCreation:
             low=2195.0,
             close=2205.0,
             volume=50.0,
-            is_closed=True
+            is_closed=True,
         )
 
         assert candle.is_closed is True
@@ -72,7 +74,7 @@ class TestCandleValidation:
                 high=42500.0,
                 low=41800.0,
                 close=42300.0,
-                volume=150.5
+                volume=150.5,
             )
 
     def test_validation_rejects_zero_prices(self):
@@ -86,7 +88,7 @@ class TestCandleValidation:
                 high=0.0,  # Invalid
                 low=41800.0,
                 close=42300.0,
-                volume=150.5
+                volume=150.5,
             )
 
     def test_validation_rejects_negative_volume(self):
@@ -100,7 +102,7 @@ class TestCandleValidation:
                 high=42500.0,
                 low=41800.0,
                 close=42300.0,
-                volume=-150.5  # Invalid
+                volume=-150.5,  # Invalid
             )
 
     def test_validation_rejects_invalid_ohlc_relationships(self):
@@ -115,7 +117,7 @@ class TestCandleValidation:
                 high=42500.0,
                 low=41800.0,
                 close=42300.0,
-                volume=150.5
+                volume=150.5,
             )
 
         # Close below low
@@ -128,7 +130,7 @@ class TestCandleValidation:
                 high=42500.0,
                 low=41800.0,
                 close=41700.0,  # Invalid: below low
-                volume=150.5
+                volume=150.5,
             )
 
         # Close above high (which makes it the new high, should fail)
@@ -141,7 +143,7 @@ class TestCandleValidation:
                 high=42300.0,
                 low=41800.0,
                 close=42500.0,  # Invalid: above high
-                volume=150.5
+                volume=150.5,
             )
 
 
@@ -195,7 +197,7 @@ class TestTimestampNormalization:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
 
         # Should be normalized to 10:45:00
@@ -235,7 +237,7 @@ class TestTimeCalculations:
             low=41800.0,
             close=42300.0,
             volume=150.5,
-            is_closed=True
+            is_closed=True,
         )
 
         assert candle.is_complete() is True
@@ -252,7 +254,7 @@ class TestTimeCalculations:
             low=41800.0,
             close=42300.0,
             volume=150.5,
-            is_closed=False
+            is_closed=False,
         )
 
         # Current time before 11:00:00 - not complete
@@ -279,34 +281,34 @@ class TestConversionMethods:
             low=41800.0,
             close=42300.0,
             volume=150.5,
-            is_closed=True
+            is_closed=True,
         )
 
         data = candle.to_dict()
 
-        assert data['symbol'] == "BTCUSDT"
-        assert data['timeframe'] == "15m"
-        assert data['timestamp'] == 1704105900000  # Normalized timestamp
-        assert 'datetime' in data
-        assert data['open'] == 42000.0
-        assert data['high'] == 42500.0
-        assert data['low'] == 41800.0
-        assert data['close'] == 42300.0
-        assert data['volume'] == 150.5
-        assert data['is_closed'] is True
+        assert data["symbol"] == "BTCUSDT"
+        assert data["timeframe"] == "15m"
+        assert data["timestamp"] == 1704105900000  # Normalized timestamp
+        assert "datetime" in data
+        assert data["open"] == 42000.0
+        assert data["high"] == 42500.0
+        assert data["low"] == 41800.0
+        assert data["close"] == 42300.0
+        assert data["volume"] == 150.5
+        assert data["is_closed"] is True
 
     def test_from_dict(self):
         """Test creating candle from dictionary."""
         data = {
-            'symbol': 'ETHUSDT',
-            'timeframe': '1m',
-            'timestamp': 1704106200000,
-            'open': 2200.0,
-            'high': 2210.0,
-            'low': 2195.0,
-            'close': 2205.0,
-            'volume': 50.0,
-            'is_closed': True
+            "symbol": "ETHUSDT",
+            "timeframe": "1m",
+            "timestamp": 1704106200000,
+            "open": 2200.0,
+            "high": 2210.0,
+            "low": 2195.0,
+            "close": 2205.0,
+            "volume": 50.0,
+            "is_closed": True,
         }
 
         candle = Candle.from_dict(data)
@@ -319,8 +321,8 @@ class TestConversionMethods:
     def test_from_dict_missing_fields(self):
         """Test that from_dict raises error for missing fields."""
         data = {
-            'symbol': 'BTCUSDT',
-            'timeframe': '15m',
+            "symbol": "BTCUSDT",
+            "timeframe": "15m",
             # Missing timestamp, OHLCV
         }
 
@@ -332,10 +334,7 @@ class TestConversionMethods:
         ohlcv = [1704106200000, 42000.0, 42500.0, 41800.0, 42300.0, 150.5]
 
         candle = Candle.from_ccxt_ohlcv(
-            symbol="BTCUSDT",
-            timeframe=TimeFrame.M15,
-            ohlcv=ohlcv,
-            is_closed=True
+            symbol="BTCUSDT", timeframe=TimeFrame.M15, ohlcv=ohlcv, is_closed=True
         )
 
         assert candle.symbol == "BTCUSDT"
@@ -354,7 +353,7 @@ class TestConversionMethods:
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.M15,
                 ohlcv=[1704106200000, 42000.0],  # Too short
-                is_closed=False
+                is_closed=False,
             )
 
 
@@ -371,7 +370,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
 
         dt = candle.get_datetime()
@@ -392,7 +391,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
 
         iso_str = candle.get_datetime_iso()
@@ -411,7 +410,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
         assert bullish.get_body_size() == 300.0
 
@@ -424,7 +423,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42000.0,
-            volume=150.5
+            volume=150.5,
         )
         assert bearish.get_body_size() == 300.0
 
@@ -438,7 +437,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
 
         # Upper wick: 42500 - 42300 = 200
@@ -457,7 +456,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
 
         # 42500 - 41800 = 700
@@ -473,7 +472,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
         assert bullish.is_bullish() is True
         assert bullish.is_bearish() is False
@@ -488,7 +487,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42000.0,
-            volume=150.5
+            volume=150.5,
         )
         assert bearish.is_bearish() is True
         assert bearish.is_bullish() is False
@@ -504,7 +503,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42000.0,
-            volume=150.5
+            volume=150.5,
         )
         assert doji.is_doji() is True
 
@@ -517,7 +516,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42005.0,  # Only 5 points difference on 700 range
-            volume=150.5
+            volume=150.5,
         )
         assert near_doji.is_doji(threshold_percent=1.0) is True
 
@@ -530,7 +529,7 @@ class TestUtilityMethods:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
         assert not_doji.is_doji() is False
 
@@ -548,7 +547,7 @@ class TestStringRepresentations:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
 
         repr_str = repr(candle)
@@ -567,7 +566,7 @@ class TestStringRepresentations:
             high=42500.0,
             low=41800.0,
             close=42300.0,
-            volume=150.5
+            volume=150.5,
         )
 
         str_repr = str(candle)
@@ -585,7 +584,7 @@ class TestStringRepresentations:
             high=42500.0,
             low=41800.0,
             close=42000.0,
-            volume=150.5
+            volume=150.5,
         )
 
         str_repr = str(candle)
@@ -602,7 +601,7 @@ class TestStringRepresentations:
             high=42500.0,
             low=41800.0,
             close=42000.0,
-            volume=150.5
+            volume=150.5,
         )
 
         str_repr = str(candle)

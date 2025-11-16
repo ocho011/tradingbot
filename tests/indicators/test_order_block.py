@@ -2,19 +2,19 @@
 Unit tests for Order Block detection and analysis.
 """
 
-import pytest
-from datetime import datetime, timezone
 from typing import List
 
+import pytest
+
+from src.core.constants import TimeFrame
 from src.indicators.order_block import (
     OrderBlock,
-    OrderBlockType,
-    OrderBlockState,
     OrderBlockDetector,
-    SwingPoint
+    OrderBlockState,
+    OrderBlockType,
+    SwingPoint,
 )
 from src.models.candle import Candle
-from src.core.constants import TimeFrame
 
 
 class TestOrderBlock:
@@ -31,7 +31,7 @@ class TestOrderBlock:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M15,
             strength=75.5,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         assert ob.type == OrderBlockType.BULLISH
@@ -53,7 +53,7 @@ class TestOrderBlock:
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.M15,
                 strength=75.0,
-                volume=1000000.0
+                volume=1000000.0,
             )
 
     def test_order_block_validation_strength(self):
@@ -68,7 +68,7 @@ class TestOrderBlock:
                 symbol="BTCUSDT",
                 timeframe=TimeFrame.M15,
                 strength=150.0,  # Invalid: > 100
-                volume=1000000.0
+                volume=1000000.0,
             )
 
     def test_order_block_range(self):
@@ -82,7 +82,7 @@ class TestOrderBlock:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M15,
             strength=75.0,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         assert ob.get_range() == 500.0
@@ -99,7 +99,7 @@ class TestOrderBlock:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M15,
             strength=75.0,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         assert ob.contains_price(49750.0)
@@ -119,7 +119,7 @@ class TestOrderBlock:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M15,
             strength=75.0,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         assert ob.is_price_above(50100.0)
@@ -138,7 +138,7 @@ class TestOrderBlock:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M15,
             strength=75.0,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         test_time = 1704067500000
@@ -163,7 +163,7 @@ class TestOrderBlock:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M15,
             strength=75.0,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         assert ob.state == OrderBlockState.ACTIVE
@@ -185,18 +185,18 @@ class TestOrderBlock:
             symbol="BTCUSDT",
             timeframe=TimeFrame.M15,
             strength=75.0,
-            volume=1000000.0
+            volume=1000000.0,
         )
 
         ob_dict = ob.to_dict()
 
-        assert ob_dict['type'] == 'BULLISH'
-        assert ob_dict['high'] == 50000.0
-        assert ob_dict['low'] == 49500.0
-        assert ob_dict['strength'] == 75.0
-        assert ob_dict['state'] == 'ACTIVE'
-        assert ob_dict['range'] == 500.0
-        assert ob_dict['midpoint'] == 49750.0
+        assert ob_dict["type"] == "BULLISH"
+        assert ob_dict["high"] == 50000.0
+        assert ob_dict["low"] == 49500.0
+        assert ob_dict["strength"] == 75.0
+        assert ob_dict["state"] == "ACTIVE"
+        assert ob_dict["range"] == 500.0
+        assert ob_dict["midpoint"] == 49750.0
 
 
 class TestSwingPoint:
@@ -205,11 +205,7 @@ class TestSwingPoint:
     def test_swing_point_creation(self):
         """Test creating swing points."""
         swing_high = SwingPoint(
-            price=50000.0,
-            timestamp=1704067200000,
-            candle_index=10,
-            is_high=True,
-            strength=3
+            price=50000.0, timestamp=1704067200000, candle_index=10, is_high=True, strength=3
         )
 
         assert swing_high.is_high
@@ -217,11 +213,7 @@ class TestSwingPoint:
         assert swing_high.strength == 3
 
         swing_low = SwingPoint(
-            price=49000.0,
-            timestamp=1704067500000,
-            candle_index=15,
-            is_high=False,
-            strength=2
+            price=49000.0, timestamp=1704067500000, candle_index=15, is_high=False, strength=2
         )
 
         assert not swing_low.is_high
@@ -237,7 +229,7 @@ def create_test_candle(
     low: float,
     close: float,
     volume: float,
-    is_closed: bool = True
+    is_closed: bool = True,
 ) -> Candle:
     """Helper function to create test candles."""
     return Candle(
@@ -249,7 +241,7 @@ def create_test_candle(
         low=low,
         close=close,
         volume=volume,
-        is_closed=is_closed
+        is_closed=is_closed,
     )
 
 
@@ -267,19 +259,88 @@ class TestOrderBlockDetector:
 
         candles = [
             # Downtrend leading to swing low
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time, 50000, 50100, 49900, 49950, 100000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval, 49950, 50000, 49800, 49850, 110000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 2, 49850, 49900, 49700, 49750, 120000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 3, 49750, 49800, 49600, 49650, 130000),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time, 50000, 50100, 49900, 49950, 100000
+            ),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time + interval, 49950, 50000, 49800, 49850, 110000
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 2,
+                49850,
+                49900,
+                49700,
+                49750,
+                120000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 3,
+                49750,
+                49800,
+                49600,
+                49650,
+                130000,
+            ),
             # Last bearish candle (potential OB) - high volume
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 4, 49650, 49700, 49500, 49550, 200000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 4,
+                49650,
+                49700,
+                49500,
+                49550,
+                200000,
+            ),
             # Swing low
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 5, 49550, 49600, 49450, 49500, 90000),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time + interval * 5, 49550, 49600, 49450, 49500, 90000
+            ),
             # Strong move up (confirming the order block)
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 6, 49500, 49900, 49500, 49850, 150000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 7, 49850, 50200, 49800, 50100, 160000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 8, 50100, 50400, 50000, 50300, 140000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 9, 50300, 50500, 50200, 50400, 130000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 6,
+                49500,
+                49900,
+                49500,
+                49850,
+                150000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 7,
+                49850,
+                50200,
+                49800,
+                50100,
+                160000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 8,
+                50100,
+                50400,
+                50000,
+                50300,
+                140000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 9,
+                50300,
+                50500,
+                50200,
+                50400,
+                130000,
+            ),
         ]
 
         return candles
@@ -295,19 +356,88 @@ class TestOrderBlockDetector:
 
         candles = [
             # Uptrend leading to swing high
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time, 49000, 49100, 48950, 49050, 100000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval, 49050, 49200, 49000, 49150, 110000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 2, 49150, 49300, 49100, 49250, 120000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 3, 49250, 49400, 49200, 49350, 130000),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time, 49000, 49100, 48950, 49050, 100000
+            ),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time + interval, 49050, 49200, 49000, 49150, 110000
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 2,
+                49150,
+                49300,
+                49100,
+                49250,
+                120000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 3,
+                49250,
+                49400,
+                49200,
+                49350,
+                130000,
+            ),
             # Last bullish candle (potential OB) - high volume
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 4, 49350, 49500, 49300, 49450, 200000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 4,
+                49350,
+                49500,
+                49300,
+                49450,
+                200000,
+            ),
             # Swing high
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 5, 49450, 49550, 49400, 49500, 90000),
+            create_test_candle(
+                "BTCUSDT", TimeFrame.M1, base_time + interval * 5, 49450, 49550, 49400, 49500, 90000
+            ),
             # Strong move down (confirming the order block)
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 6, 49500, 49500, 49100, 49150, 150000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 7, 49150, 49200, 48800, 48900, 160000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 8, 48900, 49000, 48600, 48700, 140000),
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + interval * 9, 48700, 48800, 48500, 48600, 130000),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 6,
+                49500,
+                49500,
+                49100,
+                49150,
+                150000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 7,
+                49150,
+                49200,
+                48800,
+                48900,
+                160000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 8,
+                48900,
+                49000,
+                48600,
+                48700,
+                140000,
+            ),
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + interval * 9,
+                48700,
+                48800,
+                48500,
+                48600,
+                130000,
+            ),
         ]
 
         return candles
@@ -318,7 +448,7 @@ class TestOrderBlockDetector:
             min_swing_strength=3,
             min_candles_for_ob=5,
             max_candles_for_ob=7,
-            volume_multiplier_threshold=1.5
+            volume_multiplier_threshold=1.5,
         )
 
         assert detector.min_swing_strength == 3
@@ -420,8 +550,16 @@ class TestOrderBlockDetector:
         interval = 60000
 
         candles = [
-            create_test_candle("BTCUSDT", TimeFrame.M1, base_time + i * interval,
-                             50000, 50050, 49950, 50000, 100000)
+            create_test_candle(
+                "BTCUSDT",
+                TimeFrame.M1,
+                base_time + i * interval,
+                50000,
+                50050,
+                49950,
+                50000,
+                100000,
+            )
             for i in range(10)
         ]
 

@@ -11,18 +11,19 @@
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
-from src.core.events import Event, EventBus
 from src.core.constants import EventType, OrderSide, PositionSide
-from src.services.position.position_manager import PositionManager
+from src.core.events import Event, EventBus
 from src.services.exchange.order_executor import OrderExecutor
+from src.services.position.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 
 
 class EmergencyStatus:
     """긴급 상태."""
+
     NORMAL = "normal"
     LIQUIDATING = "liquidating"
     PAUSED = "paused"
@@ -144,11 +145,13 @@ class EmergencyManager:
                 else:
                     logger.error(f"Unknown position side: {position.side}")
                     failed += 1
-                    details.append({
-                        "symbol": position.symbol,
-                        "status": "failed",
-                        "error": "Unknown position side",
-                    })
+                    details.append(
+                        {
+                            "symbol": position.symbol,
+                            "status": "failed",
+                            "error": "Unknown position side",
+                        }
+                    )
                     continue
 
                 # 시장가 청산 주문 실행
@@ -170,18 +173,27 @@ class EmergencyManager:
                     # 포지션 종료
                     await self.position_manager.close_position(
                         symbol=position.symbol,
-                        exit_price=response.average_price or response.price or position.current_price or position.entry_price,
+                        exit_price=response.average_price
+                        or response.price
+                        or position.current_price
+                        or position.entry_price,
                         exit_reason=f"Emergency liquidation: {reason}",
                         fees=Decimal("0"),  # 수수료는 별도로 계산
                     )
 
                     successful += 1
-                    details.append({
-                        "symbol": position.symbol,
-                        "status": "success",
-                        "order_id": response.order_id,
-                        "price": str(response.average_price or response.price) if (response.average_price or response.price) else None,
-                    })
+                    details.append(
+                        {
+                            "symbol": position.symbol,
+                            "status": "success",
+                            "order_id": response.order_id,
+                            "price": (
+                                str(response.average_price or response.price)
+                                if (response.average_price or response.price)
+                                else None
+                            ),
+                        }
+                    )
 
                 else:
                     # 청산 실패 또는 부분 체결
@@ -191,23 +203,26 @@ class EmergencyManager:
                     )
 
                     failed += 1
-                    details.append({
-                        "symbol": position.symbol,
-                        "status": "failed",
-                        "error": f"Order not filled: {response.status.value}",
-                    })
+                    details.append(
+                        {
+                            "symbol": position.symbol,
+                            "status": "failed",
+                            "error": f"Order not filled: {response.status.value}",
+                        }
+                    )
 
             except Exception as e:
                 logger.error(
-                    f"Exception during liquidation of {position.symbol}: {e}",
-                    exc_info=True
+                    f"Exception during liquidation of {position.symbol}: {e}", exc_info=True
                 )
                 failed += 1
-                details.append({
-                    "symbol": position.symbol,
-                    "status": "failed",
-                    "error": str(e),
-                })
+                details.append(
+                    {
+                        "symbol": position.symbol,
+                        "status": "failed",
+                        "error": str(e),
+                    }
+                )
 
         # 통계 업데이트
         self._stats["total_liquidations"] += total

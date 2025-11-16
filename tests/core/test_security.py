@@ -22,7 +22,6 @@ from src.core.security import (
     TokenBucket,
 )
 
-
 # ============================================================================
 # API Key Encryption Tests
 # ============================================================================
@@ -247,7 +246,7 @@ class TestRateLimiter:
         limiter = RateLimiter(
             default_capacity=100,
             default_refill_rate=100.0,  # Fast refill
-            cleanup_interval=0  # Immediate cleanup
+            cleanup_interval=0,  # Immediate cleanup
         )
 
         # Create buckets
@@ -338,7 +337,7 @@ class TestSecurityManager:
             encryption_key="test-key-32-characters-minimum!",
             rate_limit_capacity=10,
             rate_limit_refill_rate=10.0,
-            ip_whitelist=["127.0.0.1", "192.168.1.1"]
+            ip_whitelist=["127.0.0.1", "192.168.1.1"],
         )
 
     def test_initialization(self, security_manager):
@@ -350,9 +349,7 @@ class TestSecurityManager:
     def test_validate_request_success(self, security_manager):
         """Test successful request validation."""
         allowed, error = security_manager.validate_request(
-            ip_address="127.0.0.1",
-            identifier="user1",
-            endpoint="/api/test"
+            ip_address="127.0.0.1", identifier="user1", endpoint="/api/test"
         )
         assert allowed is True
         assert error is None
@@ -360,9 +357,7 @@ class TestSecurityManager:
     def test_validate_request_ip_blocked(self, security_manager):
         """Test request blocked by IP whitelist."""
         allowed, error = security_manager.validate_request(
-            ip_address="1.2.3.4",
-            identifier="user1",
-            endpoint="/api/test"
+            ip_address="1.2.3.4", identifier="user1", endpoint="/api/test"
         )
         assert allowed is False
         assert "not in whitelist" in error
@@ -372,16 +367,12 @@ class TestSecurityManager:
         # Exhaust rate limit
         for _ in range(10):
             security_manager.validate_request(
-                ip_address="127.0.0.1",
-                identifier="user1",
-                endpoint="/api/test"
+                ip_address="127.0.0.1", identifier="user1", endpoint="/api/test"
             )
 
         # Next request should be rate limited
         allowed, error = security_manager.validate_request(
-            ip_address="127.0.0.1",
-            identifier="user1",
-            endpoint="/api/test"
+            ip_address="127.0.0.1", identifier="user1", endpoint="/api/test"
         )
         assert allowed is False
         assert "Rate limit exceeded" in error

@@ -3,28 +3,25 @@ Tests for the Metrics Collection and Monitoring System.
 """
 
 import asyncio
-import pytest
-import time
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
 
+import pytest
+
+from src.core.constants import EventType
+from src.core.events import Event, EventBus
 from src.core.metrics import (
+    AlertManager,
+    AlertThreshold,
+    ErrorTracker,
+    HealthCheck,
+    HealthCheckManager,
     HealthStatus,
+    MetricsCollector,
     MetricType,
     MetricValue,
-    HealthCheck,
-    ErrorRecord,
-    Alert,
-    AlertThreshold,
-    MetricsCollector,
-    HealthCheckManager,
-    ErrorTracker,
+    MonitoringSystem,
     SystemMetricsCollector,
-    AlertManager,
-    MonitoringSystem
 )
-from src.core.events import EventBus, Event
-from src.core.constants import EventType
 
 
 class TestMetricValue:
@@ -37,7 +34,7 @@ class TestMetricValue:
             value=42.0,
             metric_type=MetricType.GAUGE,
             tags={"env": "test"},
-            unit="ms"
+            unit="ms",
         )
 
         assert metric.name == "test.metric"
@@ -182,11 +179,10 @@ class TestHealthCheckManager:
 
     def test_register_and_perform_check(self, manager):
         """Test registering and performing a health check."""
+
         def healthy_check():
             return HealthCheck(
-                component="test_service",
-                status=HealthStatus.HEALTHY,
-                message="All good"
+                component="test_service", status=HealthStatus.HEALTHY, message="All good"
             )
 
         manager.register_check("test_service", healthy_check)
@@ -199,6 +195,7 @@ class TestHealthCheckManager:
 
     def test_perform_check_with_error(self, manager):
         """Test health check that raises an error."""
+
         def failing_check():
             raise Exception("Check failed!")
 
@@ -218,12 +215,10 @@ class TestHealthCheckManager:
     def test_perform_all_checks(self, manager):
         """Test performing all registered checks."""
         manager.register_check(
-            "service1",
-            lambda: HealthCheck(component="service1", status=HealthStatus.HEALTHY)
+            "service1", lambda: HealthCheck(component="service1", status=HealthStatus.HEALTHY)
         )
         manager.register_check(
-            "service2",
-            lambda: HealthCheck(component="service2", status=HealthStatus.DEGRADED)
+            "service2", lambda: HealthCheck(component="service2", status=HealthStatus.DEGRADED)
         )
 
         results = manager.perform_all_checks()
@@ -236,7 +231,7 @@ class TestHealthCheckManager:
         """Test getting status of a component."""
         manager.register_check(
             "test_service",
-            lambda: HealthCheck(component="test_service", status=HealthStatus.HEALTHY)
+            lambda: HealthCheck(component="test_service", status=HealthStatus.HEALTHY),
         )
 
         manager.perform_check("test_service")
@@ -248,12 +243,10 @@ class TestHealthCheckManager:
     def test_get_overall_status_all_healthy(self, manager):
         """Test overall status when all components healthy."""
         manager.register_check(
-            "service1",
-            lambda: HealthCheck(component="service1", status=HealthStatus.HEALTHY)
+            "service1", lambda: HealthCheck(component="service1", status=HealthStatus.HEALTHY)
         )
         manager.register_check(
-            "service2",
-            lambda: HealthCheck(component="service2", status=HealthStatus.HEALTHY)
+            "service2", lambda: HealthCheck(component="service2", status=HealthStatus.HEALTHY)
         )
 
         manager.perform_all_checks()
@@ -264,12 +257,10 @@ class TestHealthCheckManager:
     def test_get_overall_status_with_unhealthy(self, manager):
         """Test overall status with unhealthy component."""
         manager.register_check(
-            "service1",
-            lambda: HealthCheck(component="service1", status=HealthStatus.HEALTHY)
+            "service1", lambda: HealthCheck(component="service1", status=HealthStatus.HEALTHY)
         )
         manager.register_check(
-            "service2",
-            lambda: HealthCheck(component="service2", status=HealthStatus.UNHEALTHY)
+            "service2", lambda: HealthCheck(component="service2", status=HealthStatus.UNHEALTHY)
         )
 
         manager.perform_all_checks()
@@ -280,12 +271,10 @@ class TestHealthCheckManager:
     def test_get_overall_status_degraded(self, manager):
         """Test overall status with degraded component."""
         manager.register_check(
-            "service1",
-            lambda: HealthCheck(component="service1", status=HealthStatus.HEALTHY)
+            "service1", lambda: HealthCheck(component="service1", status=HealthStatus.HEALTHY)
         )
         manager.register_check(
-            "service2",
-            lambda: HealthCheck(component="service2", status=HealthStatus.DEGRADED)
+            "service2", lambda: HealthCheck(component="service2", status=HealthStatus.DEGRADED)
         )
 
         manager.perform_all_checks()
@@ -309,7 +298,7 @@ class TestErrorTracker:
             message="Invalid value",
             component="test_service",
             severity="error",
-            context={"value": 42}
+            context={"value": 42},
         )
 
         errors = tracker.get_recent_errors(limit=10)
@@ -459,10 +448,7 @@ class TestAlertManager:
         alert_mgr, _, _ = manager
 
         threshold = AlertThreshold(
-            metric_name="cpu.percent",
-            operator="gt",
-            value=80.0,
-            cooldown_seconds=60
+            metric_name="cpu.percent", operator="gt", value=80.0, cooldown_seconds=60
         )
 
         alert_mgr.add_threshold(threshold)
@@ -474,10 +460,7 @@ class TestAlertManager:
 
         # Add threshold
         threshold = AlertThreshold(
-            metric_name="cpu.percent",
-            operator="gt",
-            value=50.0,
-            cooldown_seconds=0
+            metric_name="cpu.percent", operator="gt", value=50.0, cooldown_seconds=0
         )
         alert_mgr.add_threshold(threshold)
 
@@ -495,11 +478,7 @@ class TestAlertManager:
         """Test threshold not triggering."""
         alert_mgr, metrics, _ = manager
 
-        threshold = AlertThreshold(
-            metric_name="cpu.percent",
-            operator="gt",
-            value=80.0
-        )
+        threshold = AlertThreshold(metric_name="cpu.percent", operator="gt", value=80.0)
         alert_mgr.add_threshold(threshold)
 
         # Record metric below threshold
@@ -513,10 +492,7 @@ class TestAlertManager:
         alert_mgr, metrics, _ = manager
 
         threshold = AlertThreshold(
-            metric_name="cpu.percent",
-            operator="gt",
-            value=50.0,
-            cooldown_seconds=10
+            metric_name="cpu.percent", operator="gt", value=50.0, cooldown_seconds=10
         )
         alert_mgr.add_threshold(threshold)
 
@@ -535,13 +511,13 @@ class TestAlertManager:
         alert_mgr, metrics, _ = manager
 
         test_cases = [
-            ("gt", 50.0, 60.0, True),   # 60 > 50
+            ("gt", 50.0, 60.0, True),  # 60 > 50
             ("gt", 50.0, 40.0, False),  # 40 > 50
-            ("lt", 50.0, 40.0, True),   # 40 < 50
+            ("lt", 50.0, 40.0, True),  # 40 < 50
             ("lt", 50.0, 60.0, False),  # 60 < 50
             ("gte", 50.0, 50.0, True),  # 50 >= 50
             ("lte", 50.0, 50.0, True),  # 50 <= 50
-            ("eq", 50.0, 50.0, True),   # 50 == 50
+            ("eq", 50.0, 50.0, True),  # 50 == 50
             ("neq", 50.0, 60.0, True),  # 60 != 50
         ]
 
@@ -551,10 +527,7 @@ class TestAlertManager:
             alert_mgr._last_alert_times.clear()
 
             thresh = AlertThreshold(
-                metric_name="test.metric",
-                operator=operator,
-                value=threshold,
-                cooldown_seconds=0
+                metric_name="test.metric", operator=operator, value=threshold, cooldown_seconds=0
             )
             alert_mgr.add_threshold(thresh)
 
@@ -571,10 +544,7 @@ class TestAlertManager:
         alert_mgr, metrics, _ = manager
 
         threshold = AlertThreshold(
-            metric_name="cpu.percent",
-            operator="gt",
-            value=50.0,
-            cooldown_seconds=0
+            metric_name="cpu.percent", operator="gt", value=50.0, cooldown_seconds=0
         )
         alert_mgr.add_threshold(threshold)
 
@@ -589,10 +559,7 @@ class TestAlertManager:
         alert_mgr, metrics, _ = manager
 
         threshold = AlertThreshold(
-            metric_name="cpu.percent",
-            operator="gt",
-            value=50.0,
-            cooldown_seconds=0
+            metric_name="cpu.percent", operator="gt", value=50.0, cooldown_seconds=0
         )
         alert_mgr.add_threshold(threshold)
 
@@ -644,10 +611,8 @@ class TestMonitoringSystem:
         monitoring.health_checks.register_check(
             "test_service",
             lambda: HealthCheck(
-                component="test_service",
-                status=HealthStatus.HEALTHY,
-                message="OK"
-            )
+                component="test_service", status=HealthStatus.HEALTHY, message="OK"
+            ),
         )
 
         # Perform check
@@ -658,9 +623,7 @@ class TestMonitoringSystem:
 
         # Record an error
         monitoring.errors.record_error(
-            error_type="TestError",
-            message="Test message",
-            component="test"
+            error_type="TestError", message="Test message", component="test"
         )
 
         # Get dashboard data
@@ -695,10 +658,7 @@ class TestMonitoringSystem:
 
         # Add threshold and trigger alert
         threshold = AlertThreshold(
-            metric_name="test.metric",
-            operator="gt",
-            value=50.0,
-            cooldown_seconds=0
+            metric_name="test.metric", operator="gt", value=50.0, cooldown_seconds=0
         )
         monitoring.alerts.add_threshold(threshold)
 

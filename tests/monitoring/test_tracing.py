@@ -10,15 +10,14 @@ Tests cover:
 - Performance overhead measurement
 """
 
-import pytest
 import asyncio
-from decimal import Decimal
-from unittest.mock import Mock, patch, MagicMock
-import pandas as pd
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from src.monitoring.tracing import (
-    TradingTracer,
     TracingConfig,
+    TradingTracer,
     get_tracer,
     init_tracing,
     shutdown_tracing,
@@ -88,8 +87,8 @@ class TestTradingTracer:
         assert tracer._tracer is None
         assert tracer._provider is None
 
-    @patch('src.monitoring.tracing.JaegerExporter')
-    @patch('src.monitoring.tracing.TracerProvider')
+    @patch("src.monitoring.tracing.JaegerExporter")
+    @patch("src.monitoring.tracing.TracerProvider")
     def test_tracer_initialization_enabled(self, mock_provider_cls, mock_exporter_cls):
         """Test tracer initialization when enabled."""
         config = TracingConfig(enabled=True)
@@ -98,7 +97,7 @@ class TestTradingTracer:
         mock_provider = MagicMock()
         mock_provider_cls.return_value = mock_provider
 
-        tracer = TradingTracer(config)
+        TradingTracer(config)
 
         # Verify Jaeger exporter was created with correct parameters
         mock_exporter_cls.assert_called_once_with(
@@ -118,7 +117,7 @@ class TestTradingTracer:
         with tracer.start_span("test_span") as span:
             assert span is None  # Should return None when disabled
 
-    @patch('src.monitoring.tracing.trace')
+    @patch("src.monitoring.tracing.trace")
     def test_span_context_manager_enabled(self, mock_trace):
         """Test span context manager when tracing is enabled."""
         config = TracingConfig(enabled=True)
@@ -128,18 +127,15 @@ class TestTradingTracer:
         mock_span = MagicMock()
         mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
 
-        with patch.object(TradingTracer, '_setup_tracing'):
+        with patch.object(TradingTracer, "_setup_tracing"):
             tracer = TradingTracer(config)
             tracer._tracer = mock_tracer
 
-            with tracer.start_span(
-                "test_span",
-                attributes={"test_key": "test_value"}
-            ) as span:
+            with tracer.start_span("test_span", attributes={"test_key": "test_value"}) as span:
                 assert span is mock_span
                 mock_span.set_attribute.assert_called_with("test_key", "test_value")
 
-    @patch('src.monitoring.tracing.trace')
+    @patch("src.monitoring.tracing.trace")
     def test_span_exception_handling(self, mock_trace):
         """Test exception recording in spans."""
         config = TracingConfig(enabled=True)
@@ -148,7 +144,7 @@ class TestTradingTracer:
         mock_span = MagicMock()
         mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
 
-        with patch.object(TradingTracer, '_setup_tracing'):
+        with patch.object(TradingTracer, "_setup_tracing"):
             tracer = TradingTracer(config)
             tracer._tracer = mock_tracer
 
@@ -174,7 +170,7 @@ class TestTradingTracer:
         result = test_func(1, 2)
         assert result == 3  # Function should work normally
 
-    @patch('src.monitoring.tracing.trace')
+    @patch("src.monitoring.tracing.trace")
     async def test_trace_async_function(self, mock_trace):
         """Test tracing async functions."""
         config = TracingConfig(enabled=True)
@@ -183,7 +179,7 @@ class TestTradingTracer:
         mock_span = MagicMock()
         mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
 
-        with patch.object(TradingTracer, '_setup_tracing'):
+        with patch.object(TradingTracer, "_setup_tracing"):
             tracer = TradingTracer(config)
             tracer._tracer = mock_tracer
 
@@ -243,8 +239,7 @@ class TestGlobalTracerManagement:
     def test_init_tracing_with_custom_config(self):
         """Test initializing tracing with custom configuration."""
         config = TracingConfig(
-            service_name="custom_test",
-            enabled=False  # Disable to avoid actual connections
+            service_name="custom_test", enabled=False  # Disable to avoid actual connections
         )
         tracer = init_tracing(config)
 

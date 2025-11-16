@@ -6,31 +6,32 @@ analysis and candlestick patterns. Order Blocks represent institutional trading
 zones where significant buying or selling occurred.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any
-import logging
+from typing import Any, Dict, List, Optional
 
-from src.models.candle import Candle
 from src.core.constants import TimeFrame
-
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 
 
 class OrderBlockType(str, Enum):
     """Type of Order Block based on direction."""
+
     BULLISH = "BULLISH"  # Support zone - buying interest
     BEARISH = "BEARISH"  # Resistance zone - selling interest
 
 
 class OrderBlockState(str, Enum):
     """Current state of an Order Block."""
-    ACTIVE = "ACTIVE"      # Currently valid and untested
-    TESTED = "TESTED"      # Price has reacted to the block
-    BROKEN = "BROKEN"      # Price has broken through the block
-    EXPIRED = "EXPIRED"    # Time-based expiration
+
+    ACTIVE = "ACTIVE"  # Currently valid and untested
+    TESTED = "TESTED"  # Price has reacted to the block
+    BROKEN = "BROKEN"  # Price has broken through the block
+    EXPIRED = "EXPIRED"  # Time-based expiration
 
 
 @dataclass
@@ -125,25 +126,26 @@ class OrderBlock:
     def to_dict(self) -> Dict[str, Any]:
         """Convert order block to dictionary."""
         return {
-            'type': self.type.value,
-            'high': self.high,
-            'low': self.low,
-            'origin_timestamp': self.origin_timestamp,
-            'origin_datetime': datetime.fromtimestamp(self.origin_timestamp / 1000).isoformat(),
-            'origin_candle_index': self.origin_candle_index,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe.value,
-            'strength': self.strength,
-            'volume': self.volume,
-            'state': self.state.value,
-            'last_tested_timestamp': self.last_tested_timestamp,
-            'last_tested_datetime': (
+            "type": self.type.value,
+            "high": self.high,
+            "low": self.low,
+            "origin_timestamp": self.origin_timestamp,
+            "origin_datetime": datetime.fromtimestamp(self.origin_timestamp / 1000).isoformat(),
+            "origin_candle_index": self.origin_candle_index,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe.value,
+            "strength": self.strength,
+            "volume": self.volume,
+            "state": self.state.value,
+            "last_tested_timestamp": self.last_tested_timestamp,
+            "last_tested_datetime": (
                 datetime.fromtimestamp(self.last_tested_timestamp / 1000).isoformat()
-                if self.last_tested_timestamp else None
+                if self.last_tested_timestamp
+                else None
             ),
-            'test_count': self.test_count,
-            'range': self.get_range(),
-            'midpoint': self.get_midpoint()
+            "test_count": self.test_count,
+            "range": self.get_range(),
+            "midpoint": self.get_midpoint(),
         }
 
     def __repr__(self) -> str:
@@ -191,7 +193,7 @@ class OrderBlockDetector:
         min_swing_strength: int = 2,
         min_candles_for_ob: int = 3,
         max_candles_for_ob: int = 5,
-        volume_multiplier_threshold: float = 1.2
+        volume_multiplier_threshold: float = 1.2,
     ):
         """
         Initialize Order Block detector.
@@ -208,11 +210,7 @@ class OrderBlockDetector:
         self.volume_multiplier_threshold = volume_multiplier_threshold
         self.logger = logging.getLogger(f"{__name__}.OrderBlockDetector")
 
-    def detect_swing_highs(
-        self,
-        candles: List[Candle],
-        lookback: int = 5
-    ) -> List[SwingPoint]:
+    def detect_swing_highs(self, candles: List[Candle], lookback: int = 5) -> List[SwingPoint]:
         """
         Detect swing high points in candle data.
 
@@ -235,26 +233,24 @@ class OrderBlockDetector:
             current_high = candles[i].high
 
             # Check if this is higher than all previous lookback candles
-            is_swing_high = all(
-                current_high > candles[j].high
-                for j in range(i - lookback, i)
-            )
+            is_swing_high = all(current_high > candles[j].high for j in range(i - lookback, i))
 
             # Check if this is higher than all following lookback candles
             if is_swing_high:
                 is_swing_high = all(
-                    current_high > candles[j].high
-                    for j in range(i + 1, i + lookback + 1)
+                    current_high > candles[j].high for j in range(i + 1, i + lookback + 1)
                 )
 
             if is_swing_high:
-                swing_highs.append(SwingPoint(
-                    price=current_high,
-                    timestamp=candles[i].timestamp,
-                    candle_index=i,
-                    is_high=True,
-                    strength=lookback
-                ))
+                swing_highs.append(
+                    SwingPoint(
+                        price=current_high,
+                        timestamp=candles[i].timestamp,
+                        candle_index=i,
+                        is_high=True,
+                        strength=lookback,
+                    )
+                )
                 self.logger.debug(
                     f"Swing high detected at index {i}: "
                     f"price={current_high:.2f}, time={candles[i].get_datetime_iso()}"
@@ -262,11 +258,7 @@ class OrderBlockDetector:
 
         return swing_highs
 
-    def detect_swing_lows(
-        self,
-        candles: List[Candle],
-        lookback: int = 5
-    ) -> List[SwingPoint]:
+    def detect_swing_lows(self, candles: List[Candle], lookback: int = 5) -> List[SwingPoint]:
         """
         Detect swing low points in candle data.
 
@@ -289,26 +281,24 @@ class OrderBlockDetector:
             current_low = candles[i].low
 
             # Check if this is lower than all previous lookback candles
-            is_swing_low = all(
-                current_low < candles[j].low
-                for j in range(i - lookback, i)
-            )
+            is_swing_low = all(current_low < candles[j].low for j in range(i - lookback, i))
 
             # Check if this is lower than all following lookback candles
             if is_swing_low:
                 is_swing_low = all(
-                    current_low < candles[j].low
-                    for j in range(i + 1, i + lookback + 1)
+                    current_low < candles[j].low for j in range(i + 1, i + lookback + 1)
                 )
 
             if is_swing_low:
-                swing_lows.append(SwingPoint(
-                    price=current_low,
-                    timestamp=candles[i].timestamp,
-                    candle_index=i,
-                    is_high=False,
-                    strength=lookback
-                ))
+                swing_lows.append(
+                    SwingPoint(
+                        price=current_low,
+                        timestamp=candles[i].timestamp,
+                        candle_index=i,
+                        is_high=False,
+                        strength=lookback,
+                    )
+                )
                 self.logger.debug(
                     f"Swing low detected at index {i}: "
                     f"price={current_low:.2f}, time={candles[i].get_datetime_iso()}"
@@ -317,10 +307,7 @@ class OrderBlockDetector:
         return swing_lows
 
     def calculate_order_block_strength(
-        self,
-        ob_candle: Candle,
-        candles: List[Candle],
-        ob_candle_index: int
+        self, ob_candle: Candle, candles: List[Candle], ob_candle_index: int
     ) -> float:
         """
         Calculate strength score for an order block.
@@ -343,7 +330,7 @@ class OrderBlockDetector:
         if lookback_vol == 0:
             avg_volume = ob_candle.volume
         else:
-            recent_candles = candles[max(0, ob_candle_index - lookback_vol):ob_candle_index]
+            recent_candles = candles[max(0, ob_candle_index - lookback_vol) : ob_candle_index]
             avg_volume = sum(c.volume for c in recent_candles) / len(recent_candles)
 
         # Volume factor (0-40 points)
@@ -370,9 +357,7 @@ class OrderBlockDetector:
         return min(100, max(0, total_score))
 
     def detect_bullish_order_blocks(
-        self,
-        candles: List[Candle],
-        swing_lows: List[SwingPoint]
+        self, candles: List[Candle], swing_lows: List[SwingPoint]
     ) -> List[OrderBlock]:
         """
         Detect bullish (support) order blocks.
@@ -393,10 +378,7 @@ class OrderBlockDetector:
 
             # Look for the last bearish candle before the swing low
             # within the max_candles_for_ob window
-            for i in range(
-                max(0, swing_idx - self.max_candles_for_ob),
-                swing_idx
-            ):
+            for i in range(max(0, swing_idx - self.max_candles_for_ob), swing_idx):
                 candle = candles[i]
 
                 # Must be a bearish candle (or at least not bullish)
@@ -406,13 +388,11 @@ class OrderBlockDetector:
                     if swing_idx < len(candles) - 1:
                         move_up_confirmed = any(
                             c.close > candle.high
-                            for c in candles[i + 1:min(len(candles), swing_idx + 3)]
+                            for c in candles[i + 1 : min(len(candles), swing_idx + 3)]
                         )
 
                         if move_up_confirmed:
-                            strength = self.calculate_order_block_strength(
-                                candle, candles, i
-                            )
+                            strength = self.calculate_order_block_strength(candle, candles, i)
 
                             ob = OrderBlock(
                                 type=OrderBlockType.BULLISH,
@@ -423,7 +403,7 @@ class OrderBlockDetector:
                                 symbol=candle.symbol,
                                 timeframe=candle.timeframe,
                                 strength=strength,
-                                volume=candle.volume
+                                volume=candle.volume,
                             )
 
                             order_blocks.append(ob)
@@ -433,9 +413,7 @@ class OrderBlockDetector:
         return order_blocks
 
     def detect_bearish_order_blocks(
-        self,
-        candles: List[Candle],
-        swing_highs: List[SwingPoint]
+        self, candles: List[Candle], swing_highs: List[SwingPoint]
     ) -> List[OrderBlock]:
         """
         Detect bearish (resistance) order blocks.
@@ -456,10 +434,7 @@ class OrderBlockDetector:
 
             # Look for the last bullish candle before the swing high
             # within the max_candles_for_ob window
-            for i in range(
-                max(0, swing_idx - self.max_candles_for_ob),
-                swing_idx
-            ):
+            for i in range(max(0, swing_idx - self.max_candles_for_ob), swing_idx):
                 candle = candles[i]
 
                 # Must be a bullish candle
@@ -468,13 +443,11 @@ class OrderBlockDetector:
                     if swing_idx < len(candles) - 1:
                         move_down_confirmed = any(
                             c.close < candle.low
-                            for c in candles[i + 1:min(len(candles), swing_idx + 3)]
+                            for c in candles[i + 1 : min(len(candles), swing_idx + 3)]
                         )
 
                         if move_down_confirmed:
-                            strength = self.calculate_order_block_strength(
-                                candle, candles, i
-                            )
+                            strength = self.calculate_order_block_strength(candle, candles, i)
 
                             ob = OrderBlock(
                                 type=OrderBlockType.BEARISH,
@@ -485,7 +458,7 @@ class OrderBlockDetector:
                                 symbol=candle.symbol,
                                 timeframe=candle.timeframe,
                                 strength=strength,
-                                volume=candle.volume
+                                volume=candle.volume,
                             )
 
                             order_blocks.append(ob)
@@ -522,9 +495,7 @@ class OrderBlockDetector:
         swing_highs = self.detect_swing_highs(candles, self.min_swing_strength)
         swing_lows = self.detect_swing_lows(candles, self.min_swing_strength)
 
-        self.logger.info(
-            f"Found {len(swing_highs)} swing highs and {len(swing_lows)} swing lows"
-        )
+        self.logger.info(f"Found {len(swing_highs)} swing highs and {len(swing_lows)} swing lows")
 
         # Detect order blocks
         bullish_obs = self.detect_bullish_order_blocks(candles, swing_lows)

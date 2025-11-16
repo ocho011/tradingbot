@@ -5,20 +5,20 @@ Tests service initialization, dependency ordering, lifecycle management,
 state transitions, and error handling.
 """
 
-import pytest
 import asyncio
-from decimal import Decimal
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
+from src.core.config import BinanceConfig
 from src.core.orchestrator import (
-    TradingSystemOrchestrator,
+    OrchestratorError,
+    ServiceInfo,
     ServiceState,
     SystemState,
-    ServiceInfo,
-    OrchestratorError
+    TradingSystemOrchestrator,
 )
-from src.core.config import BinanceConfig
 
 
 @pytest.fixture
@@ -34,10 +34,7 @@ def mock_config():
 @pytest.fixture
 async def orchestrator(mock_config):
     """Create orchestrator instance for testing."""
-    orch = TradingSystemOrchestrator(
-        config=mock_config,
-        enable_testnet=True
-    )
+    orch = TradingSystemOrchestrator(config=mock_config, enable_testnet=True)
     yield orch
 
     # Cleanup
@@ -83,7 +80,7 @@ class TestOrchestratorInitialization:
             "strategy_layer",
             "risk_validator",
             "order_executor",
-            "position_manager"
+            "position_manager",
         ]
 
         for service_name in expected_services:
@@ -144,9 +141,7 @@ class TestOrchestratorInitialization:
         """Test that initialization failure sets system to error state."""
         # Mock a service initialization to fail
         with patch.object(
-            orchestrator,
-            '_initialize_event_bus',
-            side_effect=Exception("Init failed")
+            orchestrator, "_initialize_event_bus", side_effect=Exception("Init failed")
         ):
             with pytest.raises(OrchestratorError):
                 await orchestrator.initialize()
@@ -193,7 +188,7 @@ class TestServiceLifecycle:
 
         for service_name, service_info in orchestrator._services.items():
             if service_info.start_callback:
-                original_callback = service_info.start_callback
+                service_info.start_callback
                 service_info.start_callback = lambda sn=service_name: track_start(sn)
 
         await orchestrator.start()
@@ -262,7 +257,7 @@ class TestServiceLifecycle:
         await orchestrator.initialize()
 
         # Mock a service to fail during start
-        original_callback = orchestrator._services["event_bus"].start_callback
+        orchestrator._services["event_bus"].start_callback
         orchestrator._services["event_bus"].start_callback = AsyncMock(
             side_effect=Exception("Start failed")
         )
@@ -324,10 +319,7 @@ class TestStateManagement:
     @pytest.mark.asyncio
     async def test_service_info_update_state_changes_timestamp(self, orchestrator):
         """Test that ServiceInfo.update_state changes timestamp."""
-        service_info = ServiceInfo(
-            name="test_service",
-            instance=Mock()
-        )
+        service_info = ServiceInfo(name="test_service", instance=Mock())
 
         first_time = service_info.last_state_change
         await asyncio.sleep(0.01)
@@ -383,8 +375,7 @@ class TestSystemMonitoring:
 
         # Simulate service error
         orchestrator._services["event_bus"].update_state(
-            ServiceState.ERROR,
-            error=Exception("Test error")
+            ServiceState.ERROR, error=Exception("Test error")
         )
 
         assert orchestrator.is_healthy() is False
@@ -421,8 +412,8 @@ class TestErrorHandling:
         """Test that service initialization failure is properly handled."""
         with patch.object(
             orchestrator,
-            '_initialize_binance_manager',
-            side_effect=Exception("Binance init failed")
+            "_initialize_binance_manager",
+            side_effect=Exception("Binance init failed"),
         ):
             with pytest.raises(OrchestratorError):
                 await orchestrator.initialize()
@@ -443,10 +434,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_service_state_error_propagation(self, orchestrator):
         """Test that service errors are captured in state."""
-        service_info = ServiceInfo(
-            name="test_service",
-            instance=Mock()
-        )
+        service_info = ServiceInfo(name="test_service", instance=Mock())
 
         error = Exception("Test error")
         service_info.update_state(ServiceState.ERROR, error=error)
@@ -525,7 +513,7 @@ class TestConcurrency:
 
         async def read_state():
             for _ in range(100):
-                state = orchestrator.get_system_state()
+                orchestrator.get_system_state()
                 await asyncio.sleep(0.001)
 
         # Run multiple concurrent readers

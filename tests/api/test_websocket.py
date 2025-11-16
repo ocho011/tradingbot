@@ -8,7 +8,7 @@ subscription system, message broadcasting, and heartbeat mechanism.
 import asyncio
 import json
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import WebSocket
@@ -17,17 +17,16 @@ from src.api.websocket import (
     MessageType,
     SubscriptionTopic,
     WebSocketConnection,
-    WebSocketEventHandler,
     WebSocketManager,
     WebSocketMessage,
 )
 from src.core.constants import EventType
 from src.core.events import Event, EventBus
 
-
 # ============================================================================
 # Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 async def event_bus():
@@ -62,6 +61,7 @@ def mock_websocket():
 # WebSocketConnection Tests
 # ============================================================================
 
+
 class TestWebSocketConnection:
     """Tests for WebSocketConnection class."""
 
@@ -71,8 +71,7 @@ class TestWebSocketConnection:
         connection = WebSocketConnection(mock_websocket, "test-id")
 
         message = WebSocketMessage(
-            type=MessageType.CANDLE_UPDATE,
-            data={"symbol": "BTCUSDT", "price": 50000}
+            type=MessageType.CANDLE_UPDATE, data={"symbol": "BTCUSDT", "price": 50000}
         )
 
         result = await connection.send_message(message)
@@ -155,6 +154,7 @@ class TestWebSocketConnection:
 # WebSocketManager Tests
 # ============================================================================
 
+
 class TestWebSocketManager:
     """Tests for WebSocketManager class."""
 
@@ -198,11 +198,13 @@ class TestWebSocketManager:
         """Test handling subscribe message."""
         connection_id = await ws_manager.connect(mock_websocket)
 
-        message = json.dumps({
-            "type": "subscribe",
-            "topics": ["candles", "signals"],
-            "filters": {"symbol": "BTCUSDT"}
-        })
+        message = json.dumps(
+            {
+                "type": "subscribe",
+                "topics": ["candles", "signals"],
+                "filters": {"symbol": "BTCUSDT"},
+            }
+        )
 
         await ws_manager.handle_message(connection_id, message)
 
@@ -219,10 +221,7 @@ class TestWebSocketManager:
         connection.subscriptions.add(SubscriptionTopic.CANDLES)
         connection.subscriptions.add(SubscriptionTopic.SIGNALS)
 
-        message = json.dumps({
-            "type": "unsubscribe",
-            "topics": ["candles"]
-        })
+        message = json.dumps({"type": "unsubscribe", "topics": ["candles"]})
 
         await ws_manager.handle_message(connection_id, message)
 
@@ -274,7 +273,7 @@ class TestWebSocketManager:
         sent_count = await ws_manager.broadcast(
             message_type=MessageType.CANDLE_UPDATE,
             data={"symbol": "BTCUSDT", "price": 50000},
-            topic=SubscriptionTopic.CANDLES
+            topic=SubscriptionTopic.CANDLES,
         )
 
         # Only conn1 should receive it
@@ -306,7 +305,7 @@ class TestWebSocketManager:
         sent_count = await ws_manager.broadcast(
             message_type=MessageType.CANDLE_UPDATE,
             data={"symbol": "BTCUSDT", "price": 50000},
-            topic=SubscriptionTopic.CANDLES
+            topic=SubscriptionTopic.CANDLES,
         )
 
         # Only conn1 should receive it
@@ -353,6 +352,7 @@ class TestWebSocketManager:
 # WebSocketEventHandler Tests
 # ============================================================================
 
+
 class TestWebSocketEventHandler:
     """Tests for WebSocketEventHandler class."""
 
@@ -372,7 +372,7 @@ class TestWebSocketEventHandler:
             priority=5,
             event_type=EventType.CANDLE_RECEIVED,
             data={"symbol": "BTCUSDT", "price": 50000},
-            source="test"
+            source="test",
         )
 
         await ws_manager.event_bus.publish(event)
@@ -398,12 +398,8 @@ class TestWebSocketEventHandler:
         event = Event(
             priority=8,
             event_type=EventType.SIGNAL_GENERATED,
-            data={
-                "symbol": "BTCUSDT",
-                "side": "BUY",
-                "confidence": 0.85
-            },
-            source="strategy"
+            data={"symbol": "BTCUSDT", "side": "BUY", "confidence": 0.85},
+            source="strategy",
         )
 
         await ws_manager.event_bus.publish(event)
@@ -429,12 +425,8 @@ class TestWebSocketEventHandler:
         event = Event(
             priority=9,
             event_type=EventType.ORDER_FILLED,
-            data={
-                "order_id": "123456",
-                "symbol": "BTCUSDT",
-                "filled_qty": 0.1
-            },
-            source="exchange"
+            data={"order_id": "123456", "symbol": "BTCUSDT", "filled_qty": 0.1},
+            source="exchange",
         )
 
         await ws_manager.event_bus.publish(event)
@@ -463,7 +455,7 @@ class TestWebSocketEventHandler:
             priority=5,
             event_type=EventType.ORDERBOOK_UPDATE,  # Not in WebSocket mapping
             data={"test": "data"},
-            source="test"
+            source="test",
         )
 
         await ws_manager.event_bus.publish(event)
@@ -476,6 +468,7 @@ class TestWebSocketEventHandler:
 # ============================================================================
 # Integration Tests
 # ============================================================================
+
 
 class TestWebSocketIntegration:
     """Integration tests for complete WebSocket system."""
@@ -493,11 +486,13 @@ class TestWebSocketIntegration:
         assert conn_id in ws_manager.connections
 
         # Subscribe
-        subscribe_msg = json.dumps({
-            "type": "subscribe",
-            "topics": ["candles", "signals"],
-            "filters": {"symbol": "BTCUSDT"}
-        })
+        subscribe_msg = json.dumps(
+            {
+                "type": "subscribe",
+                "topics": ["candles", "signals"],
+                "filters": {"symbol": "BTCUSDT"},
+            }
+        )
         await ws_manager.handle_message(conn_id, subscribe_msg)
 
         # Ping
@@ -505,20 +500,19 @@ class TestWebSocketIntegration:
         await ws_manager.handle_message(conn_id, ping_msg)
 
         # Publish events
-        await ws_manager.event_bus.publish(Event(
-            priority=5,
-            event_type=EventType.CANDLE_RECEIVED,
-            data={"symbol": "BTCUSDT", "price": 50000},
-            source="test"
-        ))
+        await ws_manager.event_bus.publish(
+            Event(
+                priority=5,
+                event_type=EventType.CANDLE_RECEIVED,
+                data={"symbol": "BTCUSDT", "price": 50000},
+                source="test",
+            )
+        )
 
         await asyncio.sleep(0.1)
 
         # Unsubscribe
-        unsubscribe_msg = json.dumps({
-            "type": "unsubscribe",
-            "topics": ["candles"]
-        })
+        unsubscribe_msg = json.dumps({"type": "unsubscribe", "topics": ["candles"]})
         await ws_manager.handle_message(conn_id, unsubscribe_msg)
 
         # Disconnect
@@ -544,16 +538,10 @@ class TestWebSocketIntegration:
 
         # Broadcast to each topic
         await ws_manager.broadcast(
-            MessageType.CANDLE_UPDATE,
-            {"symbol": "BTCUSDT"},
-            SubscriptionTopic.CANDLES
+            MessageType.CANDLE_UPDATE, {"symbol": "BTCUSDT"}, SubscriptionTopic.CANDLES
         )
 
-        await ws_manager.broadcast(
-            MessageType.SIGNAL,
-            {"side": "BUY"},
-            SubscriptionTopic.SIGNALS
-        )
+        await ws_manager.broadcast(MessageType.SIGNAL, {"side": "BUY"}, SubscriptionTopic.SIGNALS)
 
         # Client 0 should get candle only
         # Client 1 should get signal only

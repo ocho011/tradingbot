@@ -5,28 +5,28 @@ Coordinates multiple trading strategies, manages signal generation,
 applies filtering, and publishes validated signals through the event system.
 """
 
-from typing import List, Optional, Dict, Any
-from decimal import Decimal
 import logging
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
 
-from src.core.events import EventBus, Event, EventType
+from src.core.events import Event, EventBus, EventType
 from src.services.candle_storage import CandleStorage
-from src.services.strategy.signal import Signal
+from src.services.strategy.events import (
+    get_event_publisher,
+    publish_signal_generated,
+    publish_signal_rejected,
+    publish_signal_validated,
+)
 from src.services.strategy.generator import (
     SignalGenerator,
     StrategyAGenerator,
     StrategyBGenerator,
     StrategyCGenerator,
 )
-from src.services.strategy.signal_filter import SignalFilter, FilterConfig
-from src.services.strategy.events import (
-    SignalEventType,
-    publish_signal_generated,
-    publish_signal_validated,
-    publish_signal_rejected,
-    get_event_publisher,
-)
+from src.services.strategy.signal import Signal
+from src.services.strategy.signal_filter import FilterConfig, SignalFilter
 
 logger = logging.getLogger(__name__)
 
@@ -75,23 +75,23 @@ class StrategyIntegrationLayer:
         self.strategy_enabled: Dict[str, bool] = {}
 
         if enable_strategy_a:
-            self.strategies['Strategy_A'] = StrategyAGenerator()
-            self.strategy_enabled['Strategy_A'] = True
+            self.strategies["Strategy_A"] = StrategyAGenerator()
+            self.strategy_enabled["Strategy_A"] = True
 
         if enable_strategy_b:
-            self.strategies['Strategy_B'] = StrategyBGenerator()
-            self.strategy_enabled['Strategy_B'] = True
+            self.strategies["Strategy_B"] = StrategyBGenerator()
+            self.strategy_enabled["Strategy_B"] = True
 
         if enable_strategy_c:
-            self.strategies['Strategy_C'] = StrategyCGenerator()
-            self.strategy_enabled['Strategy_C'] = True
+            self.strategies["Strategy_C"] = StrategyCGenerator()
+            self.strategy_enabled["Strategy_C"] = True
 
         # Performance metrics
         self.metrics = {
-            'signals_generated': 0,
-            'signals_filtered': 0,
-            'signals_published': 0,
-            'strategy_signals': {name: 0 for name in self.strategies.keys()},
+            "signals_generated": 0,
+            "signals_filtered": 0,
+            "signals_published": 0,
+            "strategy_signals": {name: 0 for name in self.strategies.keys()},
         }
 
         # Event publisher
@@ -103,11 +103,7 @@ class StrategyIntegrationLayer:
         )
 
     def generate_signals(
-        self,
-        symbol: str,
-        current_price: Decimal,
-        candles: pd.DataFrame,
-        **kwargs
+        self, symbol: str, current_price: Decimal, candles: pd.DataFrame, **kwargs
     ) -> List[Signal]:
         """
         Generate signals from all active strategies.
@@ -131,10 +127,7 @@ class StrategyIntegrationLayer:
 
             try:
                 signal = generator.generate_signal(
-                    symbol=symbol,
-                    current_price=current_price,
-                    candles=candles,
-                    **kwargs
+                    symbol=symbol, current_price=current_price, candles=candles, **kwargs
                 )
 
                 if signal is None:
@@ -142,16 +135,16 @@ class StrategyIntegrationLayer:
                     continue
 
                 # Signal generated
-                self.metrics['signals_generated'] += 1
-                self.metrics['strategy_signals'][strategy_name] += 1
+                self.metrics["signals_generated"] += 1
+                self.metrics["strategy_signals"][strategy_name] += 1
 
                 # Publish signal_generated event
                 publish_signal_generated(
                     signal,
                     metadata={
-                        'strategy': strategy_name,
-                        'symbol': symbol,
-                    }
+                        "strategy": strategy_name,
+                        "symbol": symbol,
+                    },
                 )
 
                 # Apply filtering
@@ -159,38 +152,31 @@ class StrategyIntegrationLayer:
 
                 if not is_accepted:
                     # Signal was filtered (duplicate)
-                    self.metrics['signals_filtered'] += 1
+                    self.metrics["signals_filtered"] += 1
                     publish_signal_rejected(
                         signal,
                         metadata={
-                            'reason': 'duplicate_filtered',
-                            'strategy': strategy_name,
-                        }
+                            "reason": "duplicate_filtered",
+                            "strategy": strategy_name,
+                        },
                     )
-                    logger.info(
-                        f"Signal from {strategy_name} filtered as duplicate: {signal}"
-                    )
+                    logger.info(f"Signal from {strategy_name} filtered as duplicate: {signal}")
                 else:
                     # Signal passed filtering
-                    self.metrics['signals_published'] += 1
+                    self.metrics["signals_published"] += 1
                     validated_signals.append(signal)
 
                     publish_signal_validated(
                         signal,
                         metadata={
-                            'strategy': strategy_name,
-                            'filter_passed': True,
-                        }
+                            "strategy": strategy_name,
+                            "filter_passed": True,
+                        },
                     )
-                    logger.info(
-                        f"Signal from {strategy_name} validated and published: {signal}"
-                    )
+                    logger.info(f"Signal from {strategy_name} validated and published: {signal}")
 
             except Exception as e:
-                logger.error(
-                    f"Error generating signal from {strategy_name}: {e}",
-                    exc_info=True
-                )
+                logger.error(f"Error generating signal from {strategy_name}: {e}", exc_info=True)
                 continue
 
         logger.info(
@@ -228,6 +214,7 @@ class StrategyIntegrationLayer:
         try:
             # Retrieve candles for this symbol/timeframe from storage
             from src.models.timeframe import TimeFrame
+
             tf = TimeFrame(timeframe)
             candles_df = self.candle_storage.get_candles(symbol, tf, limit=100)
 
@@ -236,14 +223,14 @@ class StrategyIntegrationLayer:
                 return []
 
             # Get current price from latest candle
-            current_price = Decimal(str(candles_df.iloc[-1]['close']))
+            current_price = Decimal(str(candles_df.iloc[-1]["close"]))
 
             # Generate signals using existing method
             signals = self.generate_signals(
                 symbol=symbol,
                 current_price=current_price,
                 candles=candles_df,
-                indicators=indicators
+                indicators=indicators,
             )
 
             # Publish SIGNAL_GENERATED events to main EventBus if configured
@@ -253,12 +240,16 @@ class StrategyIntegrationLayer:
                         priority=6,
                         event_type=EventType.SIGNAL_GENERATED,
                         data={
-                            'signal': signal.to_dict(),
-                            'symbol': symbol,
-                            'timeframe': timeframe,
-                            'strategy': signal.strategy_name if hasattr(signal, 'strategy_name') else 'unknown'
+                            "signal": signal.to_dict(),
+                            "symbol": symbol,
+                            "timeframe": timeframe,
+                            "strategy": (
+                                signal.strategy_name
+                                if hasattr(signal, "strategy_name")
+                                else "unknown"
+                            ),
                         },
-                        source='StrategyIntegrationLayer'
+                        source="StrategyIntegrationLayer",
                     )
                     await self.event_bus.publish(event)
                     logger.debug(f"Published SIGNAL_GENERATED event for {symbol} {timeframe}")
@@ -266,7 +257,9 @@ class StrategyIntegrationLayer:
             return signals
 
         except Exception as e:
-            logger.error(f"Error evaluating strategies for {symbol} {timeframe}: {e}", exc_info=True)
+            logger.error(
+                f"Error evaluating strategies for {symbol} {timeframe}: {e}", exc_info=True
+            )
             return []
 
     def enable_strategy(self, strategy_name: str):
@@ -330,14 +323,14 @@ class StrategyIntegrationLayer:
             Dictionary with strategy status and configuration
         """
         return {
-            'strategies': {
+            "strategies": {
                 name: {
-                    'enabled': self.strategy_enabled.get(name, False),
-                    'signals_generated': self.metrics['strategy_signals'].get(name, 0),
+                    "enabled": self.strategy_enabled.get(name, False),
+                    "signals_generated": self.metrics["strategy_signals"].get(name, 0),
                 }
                 for name in self.strategies.keys()
             },
-            'filter_config': self.signal_filter.config.to_dict(),
+            "filter_config": self.signal_filter.config.to_dict(),
         }
 
     def get_metrics(self) -> Dict[str, Any]:
@@ -350,20 +343,20 @@ class StrategyIntegrationLayer:
         filter_stats = self.signal_filter.get_statistics()
 
         return {
-            'signals_generated': self.metrics['signals_generated'],
-            'signals_filtered': self.metrics['signals_filtered'],
-            'signals_published': self.metrics['signals_published'],
-            'strategy_signals': self.metrics['strategy_signals'],
-            'filter_statistics': filter_stats,
+            "signals_generated": self.metrics["signals_generated"],
+            "signals_filtered": self.metrics["signals_filtered"],
+            "signals_published": self.metrics["signals_published"],
+            "strategy_signals": self.metrics["strategy_signals"],
+            "filter_statistics": filter_stats,
         }
 
     def reset_metrics(self):
         """Reset all performance metrics"""
         self.metrics = {
-            'signals_generated': 0,
-            'signals_filtered': 0,
-            'signals_published': 0,
-            'strategy_signals': {name: 0 for name in self.strategies.keys()},
+            "signals_generated": 0,
+            "signals_filtered": 0,
+            "signals_published": 0,
+            "strategy_signals": {name: 0 for name in self.strategies.keys()},
         }
         self.signal_filter.reset_statistics()
         logger.info("Integration layer metrics reset")

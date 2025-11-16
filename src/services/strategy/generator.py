@@ -5,13 +5,14 @@ Defines the abstract base class for all trading signal generators.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List
 from decimal import Decimal
+from typing import Optional
+
 import pandas as pd
 
-from src.services.strategy.signal import Signal
-from src.monitoring.metrics import record_signal_generated, ExecutionTimer
+from src.monitoring.metrics import ExecutionTimer, record_signal_generated
 from src.monitoring.tracing import get_tracer
+from src.services.strategy.signal import Signal
 
 
 class SignalGenerator(ABC):
@@ -35,11 +36,7 @@ class SignalGenerator(ABC):
 
     @abstractmethod
     def _generate_signal_impl(
-        self,
-        symbol: str,
-        current_price: Decimal,
-        candles: pd.DataFrame,
-        **kwargs
+        self, symbol: str, current_price: Decimal, candles: pd.DataFrame, **kwargs
     ) -> Optional[Signal]:
         """
         Internal signal generation implementation.
@@ -59,14 +56,9 @@ class SignalGenerator(ABC):
         Raises:
             ValueError: If input data is invalid
         """
-        pass
 
     def generate_signal(
-        self,
-        symbol: str,
-        current_price: Decimal,
-        candles: pd.DataFrame,
-        **kwargs
+        self, symbol: str, current_price: Decimal, candles: pd.DataFrame, **kwargs
     ) -> Optional[Signal]:
         """
         Generate a trading signal based on current market conditions.
@@ -95,7 +87,7 @@ class SignalGenerator(ABC):
                 "trading.symbol": symbol,
                 "trading.price": str(current_price),
                 "market.candles_count": len(candles) if candles is not None else 0,
-            }
+            },
         ) as span:
             # Time the strategy execution
             with ExecutionTimer(self.strategy_name, symbol):
@@ -109,31 +101,28 @@ class SignalGenerator(ABC):
                         span.set_attribute("signal.direction", signal.direction)
                         span.set_attribute("signal.confidence", signal.confidence)
                         span.set_attribute("signal.entry_price", str(signal.entry_price))
-                        tracer.add_event("signal_generated", {
-                            "direction": signal.direction,
-                            "symbol": symbol,
-                            "strategy": self.strategy_name,
-                        })
+                        tracer.add_event(
+                            "signal_generated",
+                            {
+                                "direction": signal.direction,
+                                "symbol": symbol,
+                                "strategy": self.strategy_name,
+                            },
+                        )
                     else:
                         span.set_attribute("signal.generated", False)
 
                 # Record signal generation metric if signal was generated
                 if signal and self._metrics_enabled:
                     record_signal_generated(
-                        strategy=self.strategy_name,
-                        symbol=symbol,
-                        direction=signal.direction
+                        strategy=self.strategy_name, symbol=symbol, direction=signal.direction
                     )
 
                 return signal
 
     @abstractmethod
     def calculate_stop_loss(
-        self,
-        entry_price: Decimal,
-        direction: str,
-        candles: pd.DataFrame,
-        **kwargs
+        self, entry_price: Decimal, direction: str, candles: pd.DataFrame, **kwargs
     ) -> Decimal:
         """
         Calculate stop loss level for the signal.
@@ -147,15 +136,10 @@ class SignalGenerator(ABC):
         Returns:
             Stop loss price level
         """
-        pass
 
     @abstractmethod
     def calculate_take_profit(
-        self,
-        entry_price: Decimal,
-        direction: str,
-        candles: pd.DataFrame,
-        **kwargs
+        self, entry_price: Decimal, direction: str, candles: pd.DataFrame, **kwargs
     ) -> Decimal:
         """
         Calculate take profit level for the signal.
@@ -169,14 +153,9 @@ class SignalGenerator(ABC):
         Returns:
             Take profit price level
         """
-        pass
 
     @abstractmethod
-    def calculate_confidence(
-        self,
-        candles: pd.DataFrame,
-        **kwargs
-    ) -> float:
+    def calculate_confidence(self, candles: pd.DataFrame, **kwargs) -> float:
         """
         Calculate confidence score for the signal (0-100).
 
@@ -187,13 +166,8 @@ class SignalGenerator(ABC):
         Returns:
             Confidence score between 0 and 100
         """
-        pass
 
-    def validate_market_conditions(
-        self,
-        candles: pd.DataFrame,
-        min_candles: int = 100
-    ) -> bool:
+    def validate_market_conditions(self, candles: pd.DataFrame, min_candles: int = 100) -> bool:
         """
         Validate that market conditions are suitable for signal generation.
 
@@ -211,7 +185,7 @@ class SignalGenerator(ABC):
             return False
 
         # Check for required columns
-        required_columns = ['open', 'high', 'low', 'close', 'volume']
+        required_columns = ["open", "high", "low", "close", "volume"]
         if not all(col in candles.columns for col in required_columns):
             return False
 
@@ -242,11 +216,7 @@ class StrategyAGenerator(SignalGenerator):
         super().__init__("Strategy_A_Conservative")
 
     def _generate_signal_impl(
-        self,
-        symbol: str,
-        current_price: Decimal,
-        candles: pd.DataFrame,
-        **kwargs
+        self, symbol: str, current_price: Decimal, candles: pd.DataFrame, **kwargs
     ) -> Optional[Signal]:
         """
         Generate signal for Strategy A (Conservative).
@@ -259,34 +229,26 @@ class StrategyAGenerator(SignalGenerator):
         return None
 
     def calculate_stop_loss(
-        self,
-        entry_price: Decimal,
-        direction: str,
-        candles: pd.DataFrame,
-        **kwargs
+        self, entry_price: Decimal, direction: str, candles: pd.DataFrame, **kwargs
     ) -> Decimal:
         """Calculate conservative stop loss (tight risk management)"""
         # Placeholder - implement in Task 8.1
-        atr_multiplier = kwargs.get('atr_multiplier', 1.5)
+        kwargs.get("atr_multiplier", 1.5)
         # This should use actual ATR calculation
-        return entry_price * Decimal('0.98') if direction == 'LONG' else entry_price * Decimal('1.02')
+        return (
+            entry_price * Decimal("0.98") if direction == "LONG" else entry_price * Decimal("1.02")
+        )
 
     def calculate_take_profit(
-        self,
-        entry_price: Decimal,
-        direction: str,
-        candles: pd.DataFrame,
-        **kwargs
+        self, entry_price: Decimal, direction: str, candles: pd.DataFrame, **kwargs
     ) -> Decimal:
         """Calculate conservative take profit"""
         # Placeholder - implement in Task 8.1
-        return entry_price * Decimal('1.03') if direction == 'LONG' else entry_price * Decimal('0.97')
+        return (
+            entry_price * Decimal("1.03") if direction == "LONG" else entry_price * Decimal("0.97")
+        )
 
-    def calculate_confidence(
-        self,
-        candles: pd.DataFrame,
-        **kwargs
-    ) -> float:
+    def calculate_confidence(self, candles: pd.DataFrame, **kwargs) -> float:
         """Calculate confidence for conservative strategy"""
         # Placeholder - implement in Task 8.1
         return 70.0
@@ -303,11 +265,7 @@ class StrategyBGenerator(SignalGenerator):
         super().__init__("Strategy_B_Aggressive")
 
     def _generate_signal_impl(
-        self,
-        symbol: str,
-        current_price: Decimal,
-        candles: pd.DataFrame,
-        **kwargs
+        self, symbol: str, current_price: Decimal, candles: pd.DataFrame, **kwargs
     ) -> Optional[Signal]:
         """
         Generate signal for Strategy B (Aggressive).
@@ -319,32 +277,24 @@ class StrategyBGenerator(SignalGenerator):
         return None
 
     def calculate_stop_loss(
-        self,
-        entry_price: Decimal,
-        direction: str,
-        candles: pd.DataFrame,
-        **kwargs
+        self, entry_price: Decimal, direction: str, candles: pd.DataFrame, **kwargs
     ) -> Decimal:
         """Calculate aggressive stop loss (wider risk tolerance)"""
         # Placeholder - implement in Task 8.2
-        return entry_price * Decimal('0.95') if direction == 'LONG' else entry_price * Decimal('1.05')
+        return (
+            entry_price * Decimal("0.95") if direction == "LONG" else entry_price * Decimal("1.05")
+        )
 
     def calculate_take_profit(
-        self,
-        entry_price: Decimal,
-        direction: str,
-        candles: pd.DataFrame,
-        **kwargs
+        self, entry_price: Decimal, direction: str, candles: pd.DataFrame, **kwargs
     ) -> Decimal:
         """Calculate aggressive take profit (higher targets)"""
         # Placeholder - implement in Task 8.2
-        return entry_price * Decimal('1.06') if direction == 'LONG' else entry_price * Decimal('0.94')
+        return (
+            entry_price * Decimal("1.06") if direction == "LONG" else entry_price * Decimal("0.94")
+        )
 
-    def calculate_confidence(
-        self,
-        candles: pd.DataFrame,
-        **kwargs
-    ) -> float:
+    def calculate_confidence(self, candles: pd.DataFrame, **kwargs) -> float:
         """Calculate confidence for aggressive strategy"""
         # Placeholder - implement in Task 8.2
         return 65.0
@@ -361,11 +311,7 @@ class StrategyCGenerator(SignalGenerator):
         super().__init__("Strategy_C_Hybrid")
 
     def _generate_signal_impl(
-        self,
-        symbol: str,
-        current_price: Decimal,
-        candles: pd.DataFrame,
-        **kwargs
+        self, symbol: str, current_price: Decimal, candles: pd.DataFrame, **kwargs
     ) -> Optional[Signal]:
         """
         Generate signal for Strategy C (Hybrid).
@@ -377,32 +323,26 @@ class StrategyCGenerator(SignalGenerator):
         return None
 
     def calculate_stop_loss(
-        self,
-        entry_price: Decimal,
-        direction: str,
-        candles: pd.DataFrame,
-        **kwargs
+        self, entry_price: Decimal, direction: str, candles: pd.DataFrame, **kwargs
     ) -> Decimal:
         """Calculate hybrid stop loss (adaptive based on conditions)"""
         # Placeholder - implement in Task 8.3
-        return entry_price * Decimal('0.97') if direction == 'LONG' else entry_price * Decimal('1.03')
+        return (
+            entry_price * Decimal("0.97") if direction == "LONG" else entry_price * Decimal("1.03")
+        )
 
     def calculate_take_profit(
-        self,
-        entry_price: Decimal,
-        direction: str,
-        candles: pd.DataFrame,
-        **kwargs
+        self, entry_price: Decimal, direction: str, candles: pd.DataFrame, **kwargs
     ) -> Decimal:
         """Calculate hybrid take profit (adaptive targets)"""
         # Placeholder - implement in Task 8.3
-        return entry_price * Decimal('1.045') if direction == 'LONG' else entry_price * Decimal('0.955')
+        return (
+            entry_price * Decimal("1.045")
+            if direction == "LONG"
+            else entry_price * Decimal("0.955")
+        )
 
-    def calculate_confidence(
-        self,
-        candles: pd.DataFrame,
-        **kwargs
-    ) -> float:
+    def calculate_confidence(self, candles: pd.DataFrame, **kwargs) -> float:
         """Calculate confidence for hybrid strategy"""
         # Placeholder - implement in Task 8.3
         return 75.0

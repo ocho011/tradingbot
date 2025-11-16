@@ -4,9 +4,10 @@ Unit tests for TradeDAO specialized operations.
 Tests trade-specific queries, P&L calculations, and strategy analysis.
 """
 
-import pytest
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
+
+import pytest
 
 from src.core.constants import TimeFrame
 
@@ -71,11 +72,7 @@ class TestTradeDAO:
             status="CLOSED",
         )
 
-        trades = await trade_dao.get_trades_by_strategy(
-            "MACD",
-            status="OPEN",
-            symbol="BTCUSDT"
-        )
+        trades = await trade_dao.get_trades_by_strategy("MACD", status="OPEN", symbol="BTCUSDT")
         assert len(trades) >= 1
         assert all(t.status == "OPEN" and t.symbol == "BTCUSDT" for t in trades)
 
@@ -164,20 +161,20 @@ class TestTradeDAO:
 
         stats = await trade_dao.calculate_strategy_pnl("MACD")
 
-        assert stats['total_trades'] == 5
-        assert stats['winning_trades'] == 3
-        assert stats['losing_trades'] == 2
-        assert stats['win_rate'] == 60.0
-        assert stats['total_pnl'] == Decimal("1100.00")  # 3*500 + 2*(-200)
-        assert stats['total_fees'] == Decimal("50.00")  # 5*10
+        assert stats["total_trades"] == 5
+        assert stats["winning_trades"] == 3
+        assert stats["losing_trades"] == 2
+        assert stats["win_rate"] == 60.0
+        assert stats["total_pnl"] == Decimal("1100.00")  # 3*500 + 2*(-200)
+        assert stats["total_fees"] == Decimal("50.00")  # 5*10
 
     async def test_calculate_strategy_pnl_empty(self, session, trade_dao):
         """Test calculating P&L for strategy with no trades."""
         stats = await trade_dao.calculate_strategy_pnl("NONEXISTENT")
 
-        assert stats['total_trades'] == 0
-        assert stats['total_pnl'] == Decimal('0')
-        assert stats['win_rate'] == 0.0
+        assert stats["total_trades"] == 0
+        assert stats["total_pnl"] == Decimal("0")
+        assert stats["win_rate"] == 0.0
 
     async def test_get_best_trades(self, session, trade_dao):
         """Test getting best performing trades."""
@@ -248,11 +245,7 @@ class TestTradeDAO:
         exit_price = Decimal("55000.00")
 
         closed = await trade_dao.close_trade(
-            trade.id,
-            exit_price,
-            exit_time,
-            "TP",
-            fees=Decimal("25.00")
+            trade.id, exit_price, exit_time, "TP", fees=Decimal("25.00")
         )
 
         assert closed.status == "CLOSED"
@@ -281,11 +274,7 @@ class TestTradeDAO:
         exit_price = Decimal("48000.00")
 
         closed = await trade_dao.close_trade(
-            trade.id,
-            exit_price,
-            exit_time,
-            "TP",
-            fees=Decimal("10.00")
+            trade.id, exit_price, exit_time, "TP", fees=Decimal("10.00")
         )
 
         assert closed.status == "CLOSED"
@@ -294,21 +283,13 @@ class TestTradeDAO:
 
     async def test_close_trade_not_found(self, session, trade_dao):
         """Test closing non-existent trade returns None."""
-        result = await trade_dao.close_trade(
-            99999,
-            Decimal("55000.00"),
-            datetime.utcnow(),
-            "TP"
-        )
+        result = await trade_dao.close_trade(99999, Decimal("55000.00"), datetime.utcnow(), "TP")
         assert result is None
 
     async def test_close_trade_already_closed(self, session, trade_dao, sample_closed_trade):
         """Test closing already closed trade doesn't modify it."""
         result = await trade_dao.close_trade(
-            sample_closed_trade.id,
-            Decimal("60000.00"),
-            datetime.utcnow(),
-            "MANUAL"
+            sample_closed_trade.id, Decimal("60000.00"), datetime.utcnow(), "MANUAL"
         )
 
         assert result.status == "CLOSED"

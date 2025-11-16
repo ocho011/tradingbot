@@ -2,7 +2,6 @@
 
 from .binance_manager import BinanceManager
 from .historical_loader import HistoricalDataLoader
-from .realtime_processor import RealtimeCandleProcessor
 from .order_executor import (
     OrderExecutor,
     OrderRequest,
@@ -14,6 +13,7 @@ from .order_tracker import (
     OrderTrackingStatus,
     TrackedOrder,
 )
+from .realtime_processor import RealtimeCandleProcessor
 
 __all__ = [
     "BinanceManager",

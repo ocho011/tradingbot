@@ -10,26 +10,26 @@ This module implements:
 """
 
 import logging
-from typing import Dict, Any, Optional
-from decimal import Decimal
-from datetime import datetime
-from threading import Lock
 from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
+from threading import Lock
+from typing import Any, Dict, Optional
 
 from src.core.constants import EventType, PositionSide
 from src.core.events import Event
+from src.monitoring.metrics import record_risk_violation
+from src.services.risk.daily_loss_monitor import DailyLossMonitor
 from src.services.risk.position_sizer import PositionSizer
 from src.services.risk.stop_loss_calculator import StopLossCalculator
 from src.services.risk.take_profit_calculator import TakeProfitCalculator
-from src.services.risk.daily_loss_monitor import DailyLossMonitor
-from src.monitoring.metrics import record_risk_violation
 
 logger = logging.getLogger(__name__)
 
 
 class RiskValidationError(Exception):
     """Raised when risk validation operations fail."""
-    pass
+
 
 
 @dataclass
@@ -43,6 +43,7 @@ class ValidationResult:
         violations: List of specific validation violations
         metadata: Additional validation metadata
     """
+
     approved: bool
     reason: str
     violations: list[str]
@@ -76,7 +77,7 @@ class RiskValidator:
         stop_loss_calculator: StopLossCalculator,
         take_profit_calculator: TakeProfitCalculator,
         daily_loss_monitor: DailyLossMonitor,
-        event_bus: Optional[Any] = None
+        event_bus: Optional[Any] = None,
     ):
         """
         Initialize risk validator.
@@ -91,7 +92,9 @@ class RiskValidator:
         Raises:
             RiskValidationError: If required components are not provided
         """
-        if not all([position_sizer, stop_loss_calculator, take_profit_calculator, daily_loss_monitor]):
+        if not all(
+            [position_sizer, stop_loss_calculator, take_profit_calculator, daily_loss_monitor]
+        ):
             raise RiskValidationError("All risk management components must be provided")
 
         self.position_sizer = position_sizer
@@ -127,7 +130,7 @@ class RiskValidator:
                 self.entry_blocked = True
                 logger.warning(
                     "Daily loss limit reached - blocking new entries",
-                    extra={"event_data": event.data}
+                    extra={"event_data": event.data},
                 )
 
     def check_entry_allowed(self) -> tuple[bool, str]:
@@ -165,7 +168,7 @@ class RiskValidator:
         entry_price: Decimal,
         stop_loss: Decimal,
         side: PositionSide,
-        custom_balance: Optional[float] = None
+        custom_balance: Optional[float] = None,
     ) -> tuple[bool, str]:
         """
         Validate position size against calculated limits.
@@ -188,9 +191,9 @@ class RiskValidator:
             )
 
             # Allow some tolerance (±5%)
-            tolerance = Decimal('0.05')
-            min_size = calculated_size['position_size'] * (Decimal('1') - tolerance)
-            max_size = calculated_size['position_size'] * (Decimal('1') + tolerance)
+            tolerance = Decimal("0.05")
+            min_size = calculated_size["position_size"] * (Decimal("1") - tolerance)
+            max_size = calculated_size["position_size"] * (Decimal("1") + tolerance)
 
             if position_size < min_size:
                 return False, f"Position size {position_size} below minimum {min_size:.8f}"
@@ -208,10 +211,7 @@ class RiskValidator:
             return False, f"Position size validation error: {str(e)}"
 
     def validate_stop_loss(
-        self,
-        entry_price: Decimal,
-        stop_loss: Decimal,
-        side: PositionSide
+        self, entry_price: Decimal, stop_loss: Decimal, side: PositionSide
     ) -> tuple[bool, str]:
         """
         Validate stop loss level is reasonable and properly placed.
@@ -229,16 +229,16 @@ class RiskValidator:
             if side == PositionSide.LONG:
                 if stop_loss >= entry_price:
                     return False, "Stop loss must be below entry price for LONG"
-                distance_pct = ((entry_price - stop_loss) / entry_price) * Decimal('100')
+                distance_pct = ((entry_price - stop_loss) / entry_price) * Decimal("100")
             else:  # SHORT
                 if stop_loss <= entry_price:
                     return False, "Stop loss must be above entry price for SHORT"
-                distance_pct = ((stop_loss - entry_price) / entry_price) * Decimal('100')
+                distance_pct = ((stop_loss - entry_price) / entry_price) * Decimal("100")
 
             # Get stop loss calculator parameters
             params = self.stop_loss_calculator.get_parameters()
-            min_distance = params['min_stop_distance_pct']
-            max_distance = params['max_stop_distance_pct']
+            min_distance = params["min_stop_distance_pct"]
+            max_distance = params["max_stop_distance_pct"]
 
             if distance_pct < min_distance:
                 return False, f"Stop loss too tight: {distance_pct:.2f}% (min: {min_distance}%)"
@@ -253,11 +253,7 @@ class RiskValidator:
             return False, f"Stop loss validation error: {str(e)}"
 
     def validate_take_profit(
-        self,
-        entry_price: Decimal,
-        take_profit: Decimal,
-        stop_loss: Decimal,
-        side: PositionSide
+        self, entry_price: Decimal, take_profit: Decimal, stop_loss: Decimal, side: PositionSide
     ) -> tuple[bool, str]:
         """
         Validate take profit level meets minimum risk-reward requirements.
@@ -292,7 +288,7 @@ class RiskValidator:
 
             # Get take profit calculator parameters
             params = self.take_profit_calculator.get_parameters()
-            min_rr_ratio = params['min_risk_reward_ratio']
+            min_rr_ratio = params["min_risk_reward_ratio"]
 
             if rr_ratio < min_rr_ratio:
                 return False, f"Risk-reward ratio too low: {rr_ratio:.2f} (min: {min_rr_ratio})"
@@ -313,7 +309,7 @@ class RiskValidator:
         take_profit: Decimal,
         position_size: Decimal,
         metadata: Optional[Dict[str, Any]] = None,
-        custom_balance: Optional[float] = None
+        custom_balance: Optional[float] = None,
     ) -> ValidationResult:
         """
         Comprehensive order validation including all risk checks.
@@ -340,15 +336,13 @@ class RiskValidator:
             if not entry_allowed:
                 logger.warning(f"Order rejected: {entry_reason}")
                 record_risk_violation(
-                    violation_type="entry_blocked",
-                    symbol=symbol,
-                    severity="critical"
+                    violation_type="entry_blocked", symbol=symbol, severity="critical"
                 )
                 return ValidationResult(
                     approved=False,
                     reason=entry_reason,
                     violations=["entry_blocked"],
-                    metadata=validation_metadata
+                    metadata=validation_metadata,
                 )
 
             # 2. Validate position size
@@ -358,9 +352,7 @@ class RiskValidator:
             if not size_valid:
                 violations.append(f"position_size: {size_reason}")
                 record_risk_violation(
-                    violation_type="position_size_exceeded",
-                    symbol=symbol,
-                    severity="high"
+                    violation_type="position_size_exceeded", symbol=symbol, severity="high"
                 )
 
             # 3. Validate stop loss
@@ -368,9 +360,7 @@ class RiskValidator:
             if not sl_valid:
                 violations.append(f"stop_loss: {sl_reason}")
                 record_risk_violation(
-                    violation_type="invalid_stop_loss",
-                    symbol=symbol,
-                    severity="medium"
+                    violation_type="invalid_stop_loss", symbol=symbol, severity="medium"
                 )
 
             # 4. Validate take profit
@@ -380,9 +370,7 @@ class RiskValidator:
             if not tp_valid:
                 violations.append(f"take_profit: {tp_reason}")
                 record_risk_violation(
-                    violation_type="invalid_take_profit",
-                    symbol=symbol,
-                    severity="low"
+                    violation_type="invalid_take_profit", symbol=symbol, severity="low"
                 )
 
             # Determine final approval
@@ -399,21 +387,23 @@ class RiskValidator:
                 logger.warning(f"Order rejected: {reason}")
 
             # Add validation details to metadata
-            validation_metadata.update({
-                'symbol': symbol,
-                'side': side.value,
-                'entry_price': str(entry_price),
-                'stop_loss': str(stop_loss),
-                'take_profit': str(take_profit),
-                'position_size': str(position_size),
-                'timestamp': datetime.now().isoformat()
-            })
+            validation_metadata.update(
+                {
+                    "symbol": symbol,
+                    "side": side.value,
+                    "entry_price": str(entry_price),
+                    "stop_loss": str(stop_loss),
+                    "take_profit": str(take_profit),
+                    "position_size": str(position_size),
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
             result = ValidationResult(
                 approved=approved,
                 reason=reason,
                 violations=violations,
-                metadata=validation_metadata
+                metadata=validation_metadata,
             )
 
             # Publish validation event
@@ -427,7 +417,7 @@ class RiskValidator:
                 approved=False,
                 reason=f"Validation error: {str(e)}",
                 violations=["system_error"],
-                metadata=validation_metadata
+                metadata=validation_metadata,
             )
 
     def _publish_validation_result(self, result: ValidationResult) -> None:
@@ -441,21 +431,23 @@ class RiskValidator:
             return
 
         try:
-            event_type = EventType.RISK_CHECK_PASSED if result.approved else EventType.RISK_CHECK_FAILED
+            event_type = (
+                EventType.RISK_CHECK_PASSED if result.approved else EventType.RISK_CHECK_FAILED
+            )
 
             # Create event for publishing
             # Note: Actual event bus publishing will be implemented when event bus is available
             event_data = {
-                'approved': result.approved,
-                'reason': result.reason,
-                'violations': result.violations,
-                **result.metadata
+                "approved": result.approved,
+                "reason": result.reason,
+                "violations": result.violations,
+                **result.metadata,
             }
 
             # Log event for now (will publish to event bus when integrated)
             logger.debug(
                 f"Publishing risk validation event: {event_type.value}",
-                extra={'event_data': event_data}
+                extra={"event_data": event_data},
             )
 
         except Exception as e:
@@ -471,13 +463,13 @@ class RiskValidator:
         daily_status = self.daily_loss_monitor.get_current_status()
 
         return {
-            'entry_blocked': self.entry_blocked,
-            'daily_loss_limit_reached': self.daily_loss_monitor.is_loss_limit_reached(),
-            'daily_status': {
-                'date': daily_status['date'],
-                'loss_percentage': float(daily_status['loss_percentage']),
-                'loss_limit_pct': float(daily_status['loss_limit']),
-                'remaining_capacity': float(daily_status['distance_to_limit'])
+            "entry_blocked": self.entry_blocked,
+            "daily_loss_limit_reached": self.daily_loss_monitor.is_loss_limit_reached(),
+            "daily_status": {
+                "date": daily_status["date"],
+                "loss_percentage": float(daily_status["loss_percentage"]),
+                "loss_limit_pct": float(daily_status["loss_limit"]),
+                "remaining_capacity": float(daily_status["distance_to_limit"]),
             },
-            'timestamp': datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }

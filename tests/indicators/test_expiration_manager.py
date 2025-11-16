@@ -4,31 +4,20 @@ Tests for Indicator Expiration Manager.
 Tests time-based and price-based expiration logic for all indicator types.
 """
 
-import pytest
-from datetime import datetime, timedelta
 
+import pytest
+
+from src.core.constants import TimeFrame
+from src.indicators.breaker_block import BreakerBlock, BreakerBlockType
 from src.indicators.expiration_manager import (
-    IndicatorExpirationManager,
     ExpirationConfig,
     ExpirationRules,
-    ExpirationType
+    ExpirationType,
+    IndicatorExpirationManager,
 )
-from src.indicators.order_block import (
-    OrderBlock,
-    OrderBlockType,
-    OrderBlockState
-)
-from src.indicators.fair_value_gap import (
-    FairValueGap,
-    FVGType,
-    FVGState
-)
-from src.indicators.breaker_block import (
-    BreakerBlock,
-    BreakerBlockType
-)
+from src.indicators.fair_value_gap import FairValueGap, FVGState, FVGType
+from src.indicators.order_block import OrderBlock, OrderBlockState, OrderBlockType
 from src.models.candle import Candle
-from src.core.constants import TimeFrame
 
 
 class TestExpirationConfig:
@@ -37,25 +26,17 @@ class TestExpirationConfig:
     def test_time_based_requires_age_setting(self):
         """TIME_BASED expiration requires max_age_candles or max_age_ms."""
         with pytest.raises(ValueError, match="requires max_age_candles or max_age_ms"):
-            ExpirationConfig(
-                expiration_type=ExpirationType.TIME_BASED
-            )
+            ExpirationConfig(expiration_type=ExpirationType.TIME_BASED)
 
     def test_valid_time_based_config(self):
         """Valid TIME_BASED configuration with max_age_candles."""
-        config = ExpirationConfig(
-            max_age_candles=100,
-            expiration_type=ExpirationType.TIME_BASED
-        )
+        config = ExpirationConfig(max_age_candles=100, expiration_type=ExpirationType.TIME_BASED)
         assert config.max_age_candles == 100
 
     def test_price_breach_percentage_validation(self):
         """price_breach_percentage must be 0-200%."""
         with pytest.raises(ValueError, match="must be 0-200%"):
-            ExpirationConfig(
-                max_age_candles=100,
-                price_breach_percentage=250.0
-            )
+            ExpirationConfig(max_age_candles=100, price_breach_percentage=250.0)
 
 
 class TestOrderBlockExpiration:
@@ -67,7 +48,7 @@ class TestOrderBlockExpiration:
         high: float,
         low: float,
         timestamp: int,
-        candle_index: int = 0
+        candle_index: int = 0,
     ) -> OrderBlock:
         """Helper to create Order Block."""
         return OrderBlock(
@@ -80,7 +61,7 @@ class TestOrderBlockExpiration:
             timeframe=TimeFrame.M1,
             strength=75.0,
             volume=1000000.0,
-            state=OrderBlockState.ACTIVE
+            state=OrderBlockState.ACTIVE,
         )
 
     def test_time_based_expiration_candles(self):
@@ -88,18 +69,13 @@ class TestOrderBlockExpiration:
         manager = IndicatorExpirationManager(
             expiration_rules=ExpirationRules(
                 order_block=ExpirationConfig(
-                    max_age_candles=50,
-                    expiration_type=ExpirationType.TIME_BASED
+                    max_age_candles=50, expiration_type=ExpirationType.TIME_BASED
                 )
             )
         )
 
         ob = self.create_order_block(
-            OrderBlockType.BULLISH,
-            50000.0,
-            49500.0,
-            1000000,
-            candle_index=0
+            OrderBlockType.BULLISH, 50000.0, 49500.0, 1000000, candle_index=0
         )
 
         current_candle = Candle(
@@ -110,7 +86,7 @@ class TestOrderBlockExpiration:
             close=51000.0,
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # 30 candles since origin - should not expire
@@ -124,18 +100,12 @@ class TestOrderBlockExpiration:
         manager = IndicatorExpirationManager(
             expiration_rules=ExpirationRules(
                 order_block=ExpirationConfig(
-                    max_age_ms=3600000,  # 1 hour
-                    expiration_type=ExpirationType.TIME_BASED
+                    max_age_ms=3600000, expiration_type=ExpirationType.TIME_BASED  # 1 hour
                 )
             )
         )
 
-        ob = self.create_order_block(
-            OrderBlockType.BULLISH,
-            50000.0,
-            49500.0,
-            1000000
-        )
+        ob = self.create_order_block(OrderBlockType.BULLISH, 50000.0, 49500.0, 1000000)
 
         # 30 minutes later - should not expire
         current_candle = Candle(
@@ -146,7 +116,7 @@ class TestOrderBlockExpiration:
             close=51000.0,
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
         assert not manager.check_order_block_expiration(ob, current_candle, 30)
 
@@ -161,16 +131,13 @@ class TestOrderBlockExpiration:
                 order_block=ExpirationConfig(
                     price_breach_percentage=100.0,  # Need 100% breach (1x range)
                     require_close_beyond=True,
-                    expiration_type=ExpirationType.PRICE_BASED
+                    expiration_type=ExpirationType.PRICE_BASED,
                 )
             )
         )
 
         ob = self.create_order_block(
-            OrderBlockType.BULLISH,
-            50000.0,
-            49500.0,  # Range = 500
-            1000000
+            OrderBlockType.BULLISH, 50000.0, 49500.0, 1000000  # Range = 500
         )
 
         # Price touches low but doesn't close below - no expiration
@@ -182,7 +149,7 @@ class TestOrderBlockExpiration:
             close=49600.0,  # Closes above
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
         assert not manager.check_order_block_expiration(ob, candle_touch, 1)
 
@@ -195,7 +162,7 @@ class TestOrderBlockExpiration:
             close=49550.0,  # Closes above low
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
         assert not manager.check_order_block_expiration(ob, candle_break_no_close, 2)
 
@@ -208,7 +175,7 @@ class TestOrderBlockExpiration:
             close=49100.0,  # Closes below low
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
         assert manager.check_order_block_expiration(ob, candle_expire, 3)
 
@@ -219,16 +186,13 @@ class TestOrderBlockExpiration:
                 order_block=ExpirationConfig(
                     price_breach_percentage=150.0,  # Need 150% breach
                     require_close_beyond=True,
-                    expiration_type=ExpirationType.PRICE_BASED
+                    expiration_type=ExpirationType.PRICE_BASED,
                 )
             )
         )
 
         ob = self.create_order_block(
-            OrderBlockType.BEARISH,
-            50000.0,
-            49500.0,  # Range = 500
-            1000000
+            OrderBlockType.BEARISH, 50000.0, 49500.0, 1000000  # Range = 500
         )
 
         # Price breaks above by 100% - should not expire (need 150%)
@@ -240,7 +204,7 @@ class TestOrderBlockExpiration:
             close=50400.0,  # Closes above
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
         assert not manager.check_order_block_expiration(ob, candle_100pct, 1)
 
@@ -253,7 +217,7 @@ class TestOrderBlockExpiration:
             close=50600.0,  # Closes above
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
         assert manager.check_order_block_expiration(ob, candle_150pct, 2)
 
@@ -265,17 +229,13 @@ class TestOrderBlockExpiration:
                     max_age_candles=50,
                     price_breach_percentage=100.0,
                     require_close_beyond=True,
-                    expiration_type=ExpirationType.BOTH
+                    expiration_type=ExpirationType.BOTH,
                 )
             )
         )
 
         ob = self.create_order_block(
-            OrderBlockType.BULLISH,
-            50000.0,
-            49500.0,
-            1000000,
-            candle_index=0
+            OrderBlockType.BULLISH, 50000.0, 49500.0, 1000000, candle_index=0
         )
 
         # Young OB, no price breach - no expiration
@@ -287,7 +247,7 @@ class TestOrderBlockExpiration:
             close=50100.0,
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
         assert not manager.check_order_block_expiration(ob, candle_young, 10)
 
@@ -300,17 +260,13 @@ class TestOrderBlockExpiration:
             close=49100.0,  # Closes beyond
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
         assert manager.check_order_block_expiration(ob, candle_price_breach, 15)
 
         # Reset to test time condition
         ob2 = self.create_order_block(
-            OrderBlockType.BULLISH,
-            50000.0,
-            49500.0,
-            1000000,
-            candle_index=0
+            OrderBlockType.BULLISH, 50000.0, 49500.0, 1000000, candle_index=0
         )
 
         # Old OB, no price breach - should expire (time condition)
@@ -321,11 +277,10 @@ class TestOrderBlockExpiration:
         manager = IndicatorExpirationManager(
             expiration_rules=ExpirationRules(
                 order_block=ExpirationConfig(
-                    max_age_candles=50,
-                    expiration_type=ExpirationType.TIME_BASED
+                    max_age_candles=50, expiration_type=ExpirationType.TIME_BASED
                 )
             ),
-            auto_remove_expired=True
+            auto_remove_expired=True,
         )
 
         obs = [
@@ -342,7 +297,7 @@ class TestOrderBlockExpiration:
             close=51000.0,
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # 60 candles total - first OB should expire (60 candles old ≥ 50)
@@ -353,19 +308,14 @@ class TestOrderBlockExpiration:
         assert len(result) == 2  # First OB removed
         assert result[0].origin_candle_index == 15
         assert result[1].origin_candle_index == 25
-        assert manager.expiration_stats['order_blocks_expired'] == 1
+        assert manager.expiration_stats["order_blocks_expired"] == 1
 
 
 class TestFairValueGapExpiration:
     """Test Fair Value Gap expiration logic."""
 
     def create_fvg(
-        self,
-        fvg_type: FVGType,
-        high: float,
-        low: float,
-        timestamp: int,
-        candle_index: int = 0
+        self, fvg_type: FVGType, high: float, low: float, timestamp: int, candle_index: int = 0
     ) -> FairValueGap:
         """Helper to create FVG."""
         return FairValueGap(
@@ -379,7 +329,7 @@ class TestFairValueGapExpiration:
             size_pips=10.0,
             size_percentage=0.1,
             volume=1000000.0,
-            state=FVGState.ACTIVE
+            state=FVGState.ACTIVE,
         )
 
     def test_fvg_time_expiration(self):
@@ -387,19 +337,12 @@ class TestFairValueGapExpiration:
         manager = IndicatorExpirationManager(
             expiration_rules=ExpirationRules(
                 fair_value_gap=ExpirationConfig(
-                    max_age_candles=30,
-                    expiration_type=ExpirationType.TIME_BASED
+                    max_age_candles=30, expiration_type=ExpirationType.TIME_BASED
                 )
             )
         )
 
-        fvg = self.create_fvg(
-            FVGType.BULLISH,
-            50100.0,
-            50000.0,
-            1000000,
-            candle_index=0
-        )
+        fvg = self.create_fvg(FVGType.BULLISH, 50100.0, 50000.0, 1000000, candle_index=0)
 
         current_candle = Candle(
             timestamp=1002000,
@@ -409,7 +352,7 @@ class TestFairValueGapExpiration:
             close=51000.0,
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # 20 candles - should not expire
@@ -425,17 +368,12 @@ class TestFairValueGapExpiration:
                 fair_value_gap=ExpirationConfig(
                     price_breach_percentage=100.0,
                     require_close_beyond=False,  # Expires on touch
-                    expiration_type=ExpirationType.PRICE_BASED
+                    expiration_type=ExpirationType.PRICE_BASED,
                 )
             )
         )
 
-        fvg = self.create_fvg(
-            FVGType.BULLISH,
-            50100.0,
-            50000.0,  # Range = 100
-            1000000
-        )
+        fvg = self.create_fvg(FVGType.BULLISH, 50100.0, 50000.0, 1000000)  # Range = 100
 
         # Price breaks below by 100% - should expire even without close
         candle = Candle(
@@ -446,7 +384,7 @@ class TestFairValueGapExpiration:
             close=50050.0,  # Closes inside gap
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
         assert manager.check_fvg_expiration(fvg, candle, 1)
 
@@ -460,12 +398,16 @@ class TestBreakerBlockExpiration:
         high: float,
         low: float,
         transition_timestamp: int,
-        candle_index: int = 0
+        candle_index: int = 0,
     ) -> BreakerBlock:
         """Helper to create Breaker Block."""
         return BreakerBlock(
             type=bb_type,
-            original_type=OrderBlockType.BULLISH if bb_type == BreakerBlockType.BEARISH else OrderBlockType.BEARISH,
+            original_type=(
+                OrderBlockType.BULLISH
+                if bb_type == BreakerBlockType.BEARISH
+                else OrderBlockType.BEARISH
+            ),
             high=high,
             low=low,
             origin_timestamp=transition_timestamp - 1000,
@@ -476,7 +418,7 @@ class TestBreakerBlockExpiration:
             strength=75.0,
             volume=1000000.0,
             original_ob_volume=900000.0,
-            state="ACTIVE"
+            state="ACTIVE",
         )
 
     def test_breaker_block_expiration(self):
@@ -484,18 +426,13 @@ class TestBreakerBlockExpiration:
         manager = IndicatorExpirationManager(
             expiration_rules=ExpirationRules(
                 breaker_block=ExpirationConfig(
-                    max_age_candles=100,
-                    expiration_type=ExpirationType.TIME_BASED
+                    max_age_candles=100, expiration_type=ExpirationType.TIME_BASED
                 )
             )
         )
 
         bb = self.create_breaker_block(
-            BreakerBlockType.BULLISH,
-            50000.0,
-            49500.0,
-            1000000,
-            candle_index=0
+            BreakerBlockType.BULLISH, 50000.0, 49500.0, 1000000, candle_index=0
         )
 
         current_candle = Candle(
@@ -506,7 +443,7 @@ class TestBreakerBlockExpiration:
             close=51000.0,
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # 80 candles since transition - should not expire
@@ -524,24 +461,25 @@ class TestExpirationStatistics:
         manager = IndicatorExpirationManager(
             expiration_rules=ExpirationRules(
                 order_block=ExpirationConfig(
-                    max_age_candles=10,
-                    expiration_type=ExpirationType.TIME_BASED
+                    max_age_candles=10, expiration_type=ExpirationType.TIME_BASED
                 )
             )
         )
 
-        obs = [OrderBlock(
-            type=OrderBlockType.BULLISH,
-            high=50000.0,
-            low=49500.0,
-            origin_timestamp=1000000,
-            origin_candle_index=0,
-            symbol="BTCUSDT",
-            timeframe=TimeFrame.M1,
-            strength=75.0,
-            volume=1000000.0,
-            state=OrderBlockState.ACTIVE
-        )]
+        obs = [
+            OrderBlock(
+                type=OrderBlockType.BULLISH,
+                high=50000.0,
+                low=49500.0,
+                origin_timestamp=1000000,
+                origin_candle_index=0,
+                symbol="BTCUSDT",
+                timeframe=TimeFrame.M1,
+                strength=75.0,
+                volume=1000000.0,
+                state=OrderBlockState.ACTIVE,
+            )
+        ]
 
         current_candle = Candle(
             timestamp=1001000,
@@ -551,18 +489,18 @@ class TestExpirationStatistics:
             close=51000.0,
             volume=500000.0,
             symbol="BTCUSDT",
-            timeframe=TimeFrame.M1
+            timeframe=TimeFrame.M1,
         )
 
         # Trigger expiration via expire_order_blocks (which updates stats)
-        result = manager.expire_order_blocks(obs, current_candle, 15)
+        manager.expire_order_blocks(obs, current_candle, 15)
 
         stats = manager.get_statistics()
-        assert stats['order_blocks_expired'] == 1
-        assert stats['time_based_expirations'] == 1
-        assert stats['total_expired'] == 2  # Both time_based and order_blocks counters
+        assert stats["order_blocks_expired"] == 1
+        assert stats["time_based_expirations"] == 1
+        assert stats["total_expired"] == 2  # Both time_based and order_blocks counters
 
         # Reset statistics
         manager.reset_statistics()
         stats = manager.get_statistics()
-        assert stats['total_expired'] == 0
+        assert stats["total_expired"] == 0
