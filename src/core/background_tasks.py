@@ -600,15 +600,17 @@ class BackgroundTaskManager:
         # Build task list with details
         tasks_list = []
         for name, task in self._tasks.items():
-            tasks_list.append({
-                "name": name,
-                "state": task.state.value,
-                "healthy": task.is_healthy(),
-                "priority": task.config.priority.value,
-                "restart_attempts": task.restart_attempts,
-                "run_count": task.metrics.run_count,
-                "error_count": task.metrics.error_count,
-            })
+            tasks_list.append(
+                {
+                    "name": name,
+                    "state": task.state.value,
+                    "healthy": task.is_healthy(),
+                    "priority": task.config.priority.value,
+                    "restart_attempts": task.restart_attempts,
+                    "run_count": task.metrics.run_count,
+                    "error_count": task.metrics.error_count,
+                }
+            )
 
         return {
             "tasks": tasks_list,
@@ -621,5 +623,5 @@ class BackgroundTaskManager:
                 "recovering_tasks": recovering_tasks,
                 "health_monitoring_enabled": self._enable_health_monitoring,
                 "auto_recovery_enabled": self._enable_auto_recovery,
-            }
+            },
         }
