@@ -149,6 +149,7 @@ class TestOrchestratorInitialization:
             assert orchestrator.get_system_state() == SystemState.ERROR
 
 
+@pytest.mark.timeout(120)  # Integration tests that start full system need more time
 class TestServiceLifecycle:
     """Test service lifecycle management."""
 
@@ -268,6 +269,7 @@ class TestServiceLifecycle:
         assert orchestrator.get_system_state() == SystemState.ERROR
 
 
+@pytest.mark.timeout(120)  # Integration tests that start full system need more time
 class TestStateManagement:
     """Test system state management."""
 
@@ -330,6 +332,7 @@ class TestStateManagement:
         assert service_info.state == ServiceState.RUNNING
 
 
+@pytest.mark.timeout(120)  # Integration tests that start full system need more time
 class TestSystemMonitoring:
     """Test system monitoring and statistics."""
 
@@ -404,6 +407,7 @@ class TestSystemMonitoring:
         assert stats["shutdown_time"] is not None
 
 
+@pytest.mark.timeout(120)  # Integration tests that start full system need more time
 class TestErrorHandling:
     """Test error handling and recovery."""
 
@@ -503,6 +507,7 @@ class TestDependencyResolution:
             orchestrator._calculate_initialization_order()
 
 
+@pytest.mark.timeout(180)  # Multiple start/stop cycles need extra time
 class TestConcurrency:
     """Test concurrent operations and thread safety."""
 
