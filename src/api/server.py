@@ -289,6 +289,16 @@ app.add_middleware(
 # Add security headers to all responses (independent of security_manager)
 app.add_middleware(SecurityHeadersMiddleware)
 
+# ============================================================================
+# Logging Middleware
+# ============================================================================
+from src.api.logging_middleware import LoggingMiddleware
+
+app.add_middleware(
+    LoggingMiddleware,
+    excluded_paths=["/health", "/metrics"],  # Don't log health checks
+)
+
 
 # ============================================================================
 # Additional Security Middleware
@@ -348,6 +358,89 @@ async def health_check() -> HealthResponse:
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return HealthResponse(status="unhealthy", uptime_seconds=0.0, components={"error": str(e)})
+
+
+@app.get(
+    "/ready",
+    response_model=HealthResponse,
+    summary="Readiness Check",
+    description="Kubernetes-style readiness probe checking all dependencies",
+    tags=["System"],
+)
+async def readiness_check() -> HealthResponse:
+    """
+    Readiness check endpoint.
+
+    Verifies that the application and all its dependencies are ready to serve traffic.
+    Checks database connectivity, Redis, and other critical services.
+
+    Returns:
+        HealthResponse with detailed dependency status
+    """
+    try:
+        components = {}
+        overall_status = "healthy"
+
+        # Check database connectivity
+        try:
+            from src.database.engine import get_session
+
+            async with get_session() as session:
+                await session.execute("SELECT 1")
+            components["database"] = "healthy"
+        except Exception as db_error:
+            logger.error(f"Database readiness check failed: {db_error}")
+            components["database"] = "unhealthy"
+            overall_status = "unhealthy"
+
+        # Check orchestrator
+        if orchestrator:
+            status = orchestrator.get_status()
+            state = status.get("state", "offline")
+            if state in ["initializing", "offline", "error"]:
+                components["orchestrator"] = "degraded"
+                if overall_status == "healthy":
+                    overall_status = "degraded"
+            else:
+                components["orchestrator"] = "healthy"
+        else:
+            components["orchestrator"] = "unhealthy"
+            overall_status = "unhealthy"
+
+        # Check monitoring system
+        if monitoring_system:
+            health_checks = monitoring_system.health_checks.perform_all_checks()
+            for component, check in health_checks.items():
+                components[f"monitor_{component}"] = check.status.value
+                if check.status.value == "unhealthy" and overall_status != "unhealthy":
+                    overall_status = "unhealthy"
+                elif check.status.value == "degraded" and overall_status == "healthy":
+                    overall_status = "degraded"
+        else:
+            components["monitoring"] = "degraded"
+            if overall_status == "healthy":
+                overall_status = "degraded"
+
+        # Calculate uptime
+        uptime = 0.0
+        if monitoring_system:
+            uptime = (
+                datetime.now() - monitoring_system._metrics_collector._start_time
+            ).total_seconds()
+
+        return HealthResponse(
+            status=overall_status,
+            uptime_seconds=uptime,
+            components=components,
+        )
+
+    except Exception as e:
+        logger.error(f"Readiness check failed: {e}", exc_info=True)
+        return HealthResponse(
+            status="unhealthy",
+            uptime_seconds=0.0,
+            components={"error": str(e)},
+        )
 
 
 @app.get(
@@ -426,6 +519,132 @@ async def get_system_status(_user: Dict[str, Any] = Depends(verify_token)) -> Sy
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve system status: {str(e)}",
+        )
+
+
+# ============================================================================
+# Logging Configuration Endpoints
+# ============================================================================
+
+
+class LogLevelRequest(BaseModel):
+    """Log level configuration request."""
+
+    level: str = Field(..., description="Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL")
+    logger_name: Optional[str] = Field(None, description="Specific logger name or None for root")
+
+
+class LogLevelResponse(BaseModel):
+    """Log level configuration response."""
+
+    success: bool
+    message: str
+    current_level: str
+    logger_name: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+@app.get(
+    "/api/log-level",
+    response_model=LogLevelResponse,
+    summary="Get Current Log Level",
+    description="Get the current log level configuration",
+    tags=["Configuration"],
+)
+async def get_log_level(
+    logger_name: Optional[str] = None,
+    _user: Dict[str, Any] = Depends(verify_token),
+) -> LogLevelResponse:
+    """
+    Get current log level.
+
+    Requires authentication.
+
+    Args:
+        logger_name: Optional logger name (None for root logger)
+
+    Returns:
+        Current log level configuration
+    """
+    try:
+        from src.core.logging_config import get_current_log_level
+
+        current_level = get_current_log_level(logger_name)
+
+        return LogLevelResponse(
+            success=True,
+            message=f"Current log level retrieved",
+            current_level=current_level,
+            logger_name=logger_name,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get log level: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get log level: {str(e)}",
+        )
+
+
+@app.put(
+    "/api/log-level",
+    response_model=LogLevelResponse,
+    summary="Set Log Level",
+    description="Dynamically change the log level at runtime",
+    tags=["Configuration"],
+)
+async def set_log_level_endpoint(
+    request: LogLevelRequest,
+    _user: Dict[str, Any] = Depends(verify_token),
+) -> LogLevelResponse:
+    """
+    Set log level dynamically.
+
+    Requires authentication. Allows runtime adjustment of logging verbosity
+    without restarting the application.
+
+    Args:
+        request: Log level configuration
+
+    Returns:
+        Updated log level configuration
+    """
+    try:
+        from src.core.logging_config import get_current_log_level, set_log_level
+
+        # Validate log level
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if request.level.upper() not in valid_levels:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid log level. Must be one of: {', '.join(valid_levels)}",
+            )
+
+        # Set log level
+        set_log_level(request.level.upper(), request.logger_name)
+
+        # Get updated level
+        current_level = get_current_log_level(request.logger_name)
+
+        logger.info(
+            f"Log level changed to {current_level}",
+            extra={"logger_name": request.logger_name or "root"},
+        )
+
+        return LogLevelResponse(
+            success=True,
+            message=f"Log level set to {current_level}",
+            current_level=current_level,
+            logger_name=request.logger_name,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to set log level: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to set log level: {str(e)}",
         )
 
 

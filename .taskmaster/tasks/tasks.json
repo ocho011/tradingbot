@@ -685,7 +685,7 @@
         "dependencies": [
           "8"
         ],
-        "status": "done",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -1070,7 +1070,7 @@
             "description": "시스템 상태 모니터링을 위한 헬스체크 API와 구조화된 로깅 시스템 구현",
             "dependencies": [],
             "details": "FastAPI 기반 /health, /ready, /metrics 엔드포인트 구현, JSON 형태 구조화 로그 설정, ELK Stack 연동 준비, 애플리케이션 메트릭 수집, 로그 레벨 동적 변경 기능",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "헬스체크 엔드포인트 응답 테스트, 로그 포맷 검증, 메트릭 수집 정확성 확인",
             "parentId": "undefined"
           },
@@ -1186,7 +1186,7 @@
       ],
       "created": "2025-11-12T10:44:05.723Z",
       "description": "Tasks for master context",
-      "updated": "2025-11-16T00:25:44.193Z"
+      "updated": "2025-11-16T11:02:45.344Z"
     }
   }
 }
