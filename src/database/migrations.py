@@ -30,15 +30,12 @@ class MigrationError(Exception):
     """Base exception for migration-related errors."""
 
 
-
 class BackupError(Exception):
     """Exception raised when backup operations fail."""
 
 
-
 class ValidationError(Exception):
     """Exception raised when schema validation fails."""
-
 
 
 # ============================================================================

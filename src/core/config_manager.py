@@ -31,7 +31,6 @@ class ConfigurationError(Exception):
     """Configuration-related errors"""
 
 
-
 class ConfigFileWatcher(FileSystemEventHandler):
     """
     Watches configuration files for changes and triggers hot-reload.

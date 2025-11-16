@@ -24,7 +24,6 @@ class TakeProfitCalculationError(Exception):
     """Raised when take profit calculation fails."""
 
 
-
 class TakeProfitStrategy(str, Enum):
     """Strategy for determining take profit placement."""
 

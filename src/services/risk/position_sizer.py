@@ -20,7 +20,6 @@ class PositionSizingError(Exception):
     """Raised when position sizing calculation fails."""
 
 
-
 class PositionSizer:
     """
     Calculate position sizes based on account balance and risk parameters.

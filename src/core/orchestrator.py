@@ -98,7 +98,6 @@ class OrchestratorError(Exception):
     """Raised when orchestrator operations fail."""
 
 
-
 # Pipeline Event Handlers
 
 

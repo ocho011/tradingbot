@@ -27,7 +27,6 @@ class ConfigurationError(Exception):
     """Configuration-related errors"""
 
 
-
 class StrategyConfigManager:
     """
     Manages strategy configuration with thread-safe runtime updates.

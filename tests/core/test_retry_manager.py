@@ -18,15 +18,12 @@ class RetryableError(Exception):
     """재시도 가능한 테스트 에러."""
 
 
-
 class NonRetryableError(Exception):
     """재시도 불가능한 테스트 에러."""
 
 
-
 class SpecialError(Exception):
     """특수 처리가 필요한 테스트 에러."""
-
 
 
 class TestRetryConfig:

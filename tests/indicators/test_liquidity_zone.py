@@ -2,7 +2,6 @@
 Unit tests for Liquidity Zone detection and analysis.
 """
 
-
 import pytest
 
 from src.core.constants import TimeFrame

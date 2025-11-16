@@ -2,7 +2,6 @@
 Unit tests for Market Structure Break (BMS) detection.
 """
 
-
 import pytest
 
 from src.core.constants import TimeFrame

@@ -8,7 +8,6 @@ This module defines the database schema for:
 - Backtest results and configurations
 """
 
-
 from sqlalchemy import (
     Boolean,
     CheckConstraint,

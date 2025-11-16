@@ -26,7 +26,6 @@ class DailyLossLimitError(Exception):
     """Raised when daily loss limit operations fail."""
 
 
-
 @dataclass
 class DailySession:
     """

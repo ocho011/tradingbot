@@ -25,7 +25,6 @@ class BinanceConnectionError(Exception):
     """Raised when Binance connection fails."""
 
 
-
 class BinanceManager:
     """
     Manages Binance exchange connection with ccxt library.

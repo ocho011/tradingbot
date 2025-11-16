@@ -67,7 +67,9 @@
       "Bash(docker-compose rm:*)",
       "Bash(task-master:*)",
       "mcp__task-master-ai__update_task",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

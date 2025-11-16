@@ -10,7 +10,6 @@ Tests verify:
 - Integration with trading components
 """
 
-
 import pytest
 from prometheus_client import CollectorRegistry
 

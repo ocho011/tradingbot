@@ -10,7 +10,6 @@ from decimal import Decimal
 import pytest
 
 
-
 @pytest.mark.asyncio
 class TestStatisticsDAO:
     """Test suite for StatisticsDAO operations."""

@@ -47,7 +47,6 @@ class EnvironmentValidationError(Exception):
     """Raised when environment validation fails."""
 
 
-
 def validate_environment() -> None:
     """
     Validate required environment variables and system requirements.

@@ -26,7 +26,6 @@ class StopLossCalculationError(Exception):
     """Raised when stop loss calculation fails."""
 
 
-
 class StopLossStrategy(str, Enum):
     """Strategy for determining stop loss placement."""
 

@@ -31,7 +31,6 @@ class RiskValidationError(Exception):
     """Raised when risk validation operations fail."""
 
 
-
 @dataclass
 class ValidationResult:
     """
