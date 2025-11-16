@@ -26,6 +26,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
+from src.api.logging_middleware import LoggingMiddleware
 from src.api.middleware import SecurityHeadersMiddleware, configure_security_middleware
 from src.api.websocket import WebSocketManager
 from src.core.config_manager import ConfigurationManager
@@ -292,8 +293,6 @@ app.add_middleware(SecurityHeadersMiddleware)
 # ============================================================================
 # Logging Middleware
 # ============================================================================
-from src.api.logging_middleware import LoggingMiddleware
-
 app.add_middleware(
     LoggingMiddleware,
     excluded_paths=["/health", "/metrics"],  # Don't log health checks
@@ -573,7 +572,7 @@ async def get_log_level(
 
         return LogLevelResponse(
             success=True,
-            message=f"Current log level retrieved",
+            message="Current log level retrieved",
             current_level=current_level,
             logger_name=logger_name,
         )

@@ -14,12 +14,10 @@ from src.core.logging_config import (
     CustomJsonFormatter,
     clear_request_context,
     configure_logging,
-    correlation_id_var,
     get_current_log_level,
     request_id_var,
     set_log_level,
     set_request_context,
-    user_id_var,
 )
 
 
