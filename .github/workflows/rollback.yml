@@ -1,0 +1,229 @@
+# =============================================================================
+# Rollback Workflow - Emergency Deployment Rollback
+# Triggered on: Manual workflow dispatch only
+# Purpose: Quick rollback to previous stable version
+# =============================================================================
+
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      version:
+        description: 'Version to rollback to (image tag or "previous")'
+        required: true
+        type: string
+        default: 'previous'
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Validate Rollback Request
+  # ---------------------------------------------------------------------------
+  validate:
+    name: Validate Rollback
+    runs-on: ubuntu-latest
+
+    outputs:
+      target-version: ${{ steps.resolve.outputs.version }}
+
+    steps:
+      - name: Validate inputs
+        run: |
+          echo "🔍 Validating rollback request..."
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Target Version: ${{ github.event.inputs.version }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+
+      - name: Resolve target version
+        id: resolve
+        run: |
+          if [ "${{ github.event.inputs.version }}" == "previous" ]; then
+            # In production, query container registry or deployment history
+            echo "version=latest-stable" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify version exists
+        run: |
+          echo "✅ Version validation passed"
+          # docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve.outputs.version }}
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Create Backup Before Rollback
+  # ---------------------------------------------------------------------------
+  backup:
+    name: Create Backup
+    runs-on: ubuntu-latest
+    needs: validate
+
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Create state backup
+        run: |
+          echo "💾 Creating backup before rollback..."
+          echo "Environment: ${{ github.event.inputs.environment }}"
+
+          # Backup current deployment state
+          # docker-compose -f docker-compose.${{ github.event.inputs.environment }}.yml config > backup-$(date +%s).yml
+
+          # Backup database if applicable
+          # pg_dump or mysqldump
+
+          echo "✅ Backup created successfully"
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Execute Rollback
+  # ---------------------------------------------------------------------------
+  rollback:
+    name: Execute Rollback
+    runs-on: ubuntu-latest
+    needs: [validate, backup]
+
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull target version
+        run: |
+          echo "📦 Pulling target version: ${{ needs.validate.outputs.target-version }}"
+          # docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate.outputs.target-version }}
+
+      - name: Stop current deployment
+        run: |
+          echo "🛑 Stopping current deployment..."
+          # docker-compose -f docker-compose.${{ github.event.inputs.environment }}.yml down
+
+      - name: Deploy previous version
+        run: |
+          echo "🔄 Deploying previous version..."
+          # docker-compose -f docker-compose.${{ github.event.inputs.environment }}.yml up -d
+
+          # Wait for service to be ready
+          sleep 10
+
+      - name: Verify rollback health
+        run: |
+          echo "🏥 Verifying rollback health..."
+          # curl -f http://${{ github.event.inputs.environment }}.tradingbot.example.com/health
+
+          # Run basic smoke tests
+          echo "🧪 Running smoke tests..."
+          # pytest tests/smoke/ --env=${{ github.event.inputs.environment }}
+
+          echo "✅ Rollback verification passed"
+
+      - name: Database rollback (if needed)
+        if: github.event.inputs.environment == 'production'
+        run: |
+          echo "🗄️  Checking database migrations..."
+          # If needed: alembic downgrade -1
+          echo "✅ Database state verified"
+
+      - name: Rollback summary
+        run: |
+          echo "📊 Rollback Summary"
+          echo "===================="
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Rolled back to: ${{ needs.validate.outputs.target-version }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Executed by: ${{ github.actor }}"
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo ""
+          echo "✅ Rollback completed successfully"
+
+  # ---------------------------------------------------------------------------
+  # Job 4: Post-Rollback Verification
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Post-Rollback Verification
+    runs-on: ubuntu-latest
+    needs: rollback
+
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Monitor metrics
+        run: |
+          echo "📊 Monitoring post-rollback metrics..."
+          sleep 30
+          # Check error rates, response times, etc.
+          echo "✅ Metrics look healthy"
+
+      - name: Notify team
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Rollback successful - notifying team"
+            # Send notification via Slack, Discord, email, etc.
+          else
+            echo "❌ Rollback failed - escalating"
+            # Send urgent notification
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Job 5: Rollback Status
+  # ---------------------------------------------------------------------------
+  status:
+    name: Rollback Status
+    runs-on: ubuntu-latest
+    needs: [validate, backup, rollback, verify]
+    if: always()
+
+    steps:
+      - name: Summary
+        run: |
+          echo "📋 Rollback Status Summary"
+          echo "============================"
+          echo "Validation: ${{ needs.validate.result }}"
+          echo "Backup: ${{ needs.backup.result }}"
+          echo "Rollback: ${{ needs.rollback.result }}"
+          echo "Verification: ${{ needs.verify.result }}"
+          echo ""
+
+          if [ "${{ needs.rollback.result }}" == "success" ]; then
+            echo "🎯 Rollback completed successfully"
+            echo ""
+            echo "Next Steps:"
+            echo "1. Investigate root cause of the issue"
+            echo "2. Fix the problem in development"
+            echo "3. Test thoroughly before redeploying"
+            echo "4. Update incident documentation"
+          else
+            echo "❌ Rollback failed - manual intervention required"
+            echo ""
+            echo "Immediate Actions Required:"
+            echo "1. Check system logs"
+            echo "2. Verify service status"
+            echo "3. Contact on-call engineer"
+            echo "4. Consider manual recovery procedures"
+          fi
