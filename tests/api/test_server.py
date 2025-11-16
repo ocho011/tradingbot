@@ -391,7 +391,7 @@ class TestMetricsEndpoints:
 
     def test_get_metrics_success(self, client, mock_monitoring_system):
         """Test successful metrics retrieval."""
-        response = client.get("/metrics")
+        response = client.get("/api/metrics")
 
         assert response.status_code == 200
         data = response.json()

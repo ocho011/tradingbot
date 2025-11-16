@@ -198,6 +198,11 @@ class BackgroundTaskManager:
             f"auto_recovery={enable_auto_recovery})"
         )
 
+    @property
+    def is_running(self) -> bool:
+        """Check if task manager is running."""
+        return self._running
+
     async def add_task(
         self, config: TaskConfig, group: Optional[str] = None, start_immediately: bool = False
     ) -> None:
@@ -299,8 +304,7 @@ class BackgroundTaskManager:
 
         await self.start_task(task_name)
 
-        # Reset restart counters on successful restart
-        managed_task.reset_restart_delay()
+        # Note: restart counters are reset on successful task completion, not on restart
 
     async def start_all(self, group: Optional[str] = None) -> None:
         """
@@ -373,11 +377,15 @@ class BackgroundTaskManager:
                 )
                 iteration_duration = (datetime.now() - iteration_start).total_seconds()
                 managed_task.metrics.record_run(iteration_duration)
+                # Reset restart counters on successful completion
+                managed_task.reset_restart_delay()
             else:
                 iteration_start = datetime.now()
                 await managed_task.config.coroutine_func()
                 iteration_duration = (datetime.now() - iteration_start).total_seconds()
                 managed_task.metrics.record_run(iteration_duration)
+                # Reset restart counters on successful completion
+                managed_task.reset_restart_delay()
 
             logger.debug(
                 f"Task '{task_name}' completed iteration " f"(duration={iteration_duration:.2f}s)"
@@ -577,7 +585,7 @@ class BackgroundTaskManager:
         Get overall health status.
 
         Returns:
-            Health status dictionary with boolean 'healthy' field
+            Health status dictionary with 'tasks' and 'summary' fields
         """
         all_healthy = all(task.is_healthy() for task in self._tasks.values())
 
@@ -589,13 +597,29 @@ class BackgroundTaskManager:
             name for name, task in self._tasks.items() if task.state == TaskState.RECOVERING
         ]
 
+        # Build task list with details
+        tasks_list = []
+        for name, task in self._tasks.items():
+            tasks_list.append({
+                "name": name,
+                "state": task.state.value,
+                "healthy": task.is_healthy(),
+                "priority": task.config.priority.value,
+                "restart_attempts": task.restart_attempts,
+                "run_count": task.metrics.run_count,
+                "error_count": task.metrics.error_count,
+            })
+
         return {
-            "healthy": all_healthy and self._running,
-            "manager_running": self._running,
-            "total_tasks": len(self._tasks),
-            "healthy_tasks": sum(1 for t in self._tasks.values() if t.is_healthy()),
-            "failed_tasks": failed_tasks,
-            "recovering_tasks": recovering_tasks,
-            "health_monitoring_enabled": self._enable_health_monitoring,
-            "auto_recovery_enabled": self._enable_auto_recovery,
+            "tasks": tasks_list,
+            "summary": {
+                "healthy": all_healthy and self._running,
+                "manager_running": self._running,
+                "total_tasks": len(self._tasks),
+                "healthy_tasks": sum(1 for t in self._tasks.values() if t.is_healthy()),
+                "failed_tasks": failed_tasks,
+                "recovering_tasks": recovering_tasks,
+                "health_monitoring_enabled": self._enable_health_monitoring,
+                "auto_recovery_enabled": self._enable_auto_recovery,
+            }
         }

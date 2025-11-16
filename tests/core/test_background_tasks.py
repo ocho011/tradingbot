@@ -192,7 +192,7 @@ class TestBackgroundTaskManager:
         await asyncio.sleep(0.15)  # Let it complete
 
         await started_task_manager.restart_task("simple_test_task")
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.2)  # Increased wait time for task to run again
 
         task = started_task_manager._tasks["simple_test_task"]
         assert task.metrics.run_count >= 2
@@ -261,8 +261,8 @@ class TestTaskRecovery:
 
         await started_task_manager.add_task(config, start_immediately=True)
 
-        # Wait for max attempts + some buffer
-        await asyncio.sleep(0.5)
+        # Wait for max attempts + some buffer (0.05 + 0.1 + buffer for exponential backoff)
+        await asyncio.sleep(1.0)
 
         task = started_task_manager._tasks["max_attempts_test"]
         assert task.restart_attempts >= 2

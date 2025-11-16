@@ -26,7 +26,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from src.api.middleware import configure_security_middleware
+from src.api.middleware import SecurityHeadersMiddleware, configure_security_middleware
 from src.api.websocket import WebSocketManager
 from src.core.config_manager import ConfigurationManager
 from src.core.events import EventBus
@@ -283,12 +283,17 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+# ============================================================================
+# Security Headers Middleware
+# ============================================================================
+# Add security headers to all responses (independent of security_manager)
+app.add_middleware(SecurityHeadersMiddleware)
+
 
 # ============================================================================
-# Custom Middleware for Security Headers
+# Additional Security Middleware
 # ============================================================================
-# Security headers are now handled by SecurityHeadersMiddleware in middleware.py
-# This section is kept for backward compatibility but middleware is configured in lifespan
+# Rate limiting and IP whitelisting are configured in lifespan if security_manager exists
 
 
 # ============================================================================
