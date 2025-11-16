@@ -4,7 +4,6 @@ Unit tests for Strategy A (Conservative Trading Strategy).
 
 from datetime import datetime
 
-
 from src.core.constants import PositionSide, TimeFrame
 from src.strategies.base_strategy import TradingSignal
 from src.strategies.strategy_a import StrategyA

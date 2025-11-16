@@ -5,7 +5,6 @@ Tests for Signal Event Publishing System
 from decimal import Decimal
 from time import sleep
 
-
 from src.services.strategy.events import (
     SignalEvent,
     SignalEventPublisher,

@@ -4,7 +4,6 @@ Unit tests for Strategy B (Aggressive Trading Strategy).
 
 from datetime import datetime
 
-
 from src.core.constants import PositionSide, TimeFrame
 from src.strategies.base_strategy import TradingSignal
 from src.strategies.strategy_b import StrategyB

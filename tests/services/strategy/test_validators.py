@@ -4,7 +4,6 @@ Tests for Signal Validation
 
 from decimal import Decimal
 
-
 from src.services.strategy.signal import Signal, SignalDirection
 from src.services.strategy.validators import SignalValidator, ValidationResult
 

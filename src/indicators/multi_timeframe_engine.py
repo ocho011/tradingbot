@@ -27,16 +27,16 @@ from src.indicators.liquidity_strength import (
     MarketStateTracker,
 )
 from src.indicators.liquidity_sweep import LiquiditySweep, LiquiditySweepDetector
-from src.indicators.liquidity_zone import LiquidityLevel, LiquidityZoneDetector
+from src.indicators.liquidity_zone import LiquidityLevel, LiquidityZoneDetector, SwingPoint
+from src.indicators.market_structure_break import (
+    BreakOfMarketStructure,
+    MarketStructureBreakDetector,
+)
 from src.indicators.order_block import (
     OrderBlock,
     OrderBlockDetector,
     OrderBlockState,
     OrderBlockType,
-)
-from src.indicators.market_structure_break import (
-    BreakOfMarketStructure,
-    MarketStructureBreakDetector,
 )
 from src.indicators.trend_recognition import (
     TrendDirection,
@@ -44,7 +44,6 @@ from src.indicators.trend_recognition import (
     TrendState,
     TrendStructure,
 )
-from src.indicators.liquidity_zone import SwingPoint
 from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
