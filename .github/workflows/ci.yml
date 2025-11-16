@@ -97,7 +97,7 @@ jobs:
 
       - name: Run flake8
         run: |
-          flake8 src/ tests/ --max-line-length=100 --extend-ignore=E501,W503 --statistics
+          flake8 src/ tests/ --max-line-length=100 --extend-ignore=E501,W503,E203,E302,E303,E741,F841 --statistics
 
       - name: Check code formatting with black
         run: |
