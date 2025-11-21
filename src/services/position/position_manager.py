@@ -442,6 +442,65 @@ class PositionManager:
 
         return updated_count
 
+    async def check_position_exits(self, current_prices: Dict[str, Decimal]) -> None:
+        """
+        Check open positions for stop-loss and take-profit hits.
+
+        Args:
+            current_prices: Dictionary mapping symbols to current prices
+        """
+        for position in self.get_open_positions():
+            symbol = position.symbol
+            current_price = current_prices.get(symbol)
+
+            if not current_price:
+                continue
+
+            # Check Stop Loss
+            if position.stop_loss:
+                hit_sl = False
+                if position.side == PositionSide.LONG and current_price <= position.stop_loss:
+                    hit_sl = True
+                elif position.side == PositionSide.SHORT and current_price >= position.stop_loss:
+                    hit_sl = True
+
+                if hit_sl:
+                    logger.info(
+                        f"Stop Loss hit for {symbol}: price={current_price}, sl={position.stop_loss}"
+                    )
+                    await self._publish_event(
+                        EventType.STOP_LOSS_HIT,
+                        position,
+                        priority=10,
+                        extra_data={
+                            "current_price": str(current_price),
+                            "trigger_price": str(position.stop_loss),
+                        },
+                    )
+                    continue  # Skip TP check if SL hit
+
+            # Check Take Profit
+            if position.take_profit:
+                hit_tp = False
+                if position.side == PositionSide.LONG and current_price >= position.take_profit:
+                    hit_tp = True
+                elif position.side == PositionSide.SHORT and current_price <= position.take_profit:
+                    hit_tp = True
+
+                if hit_tp:
+                    logger.info(
+                        f"Take Profit hit for {symbol}: price={current_price}, tp={position.take_profit}"
+                    )
+                    await self._publish_event(
+                        EventType.TAKE_PROFIT_HIT,
+                        position,
+                        priority=10,
+                        extra_data={
+                            "current_price": str(current_price),
+                            "trigger_price": str(position.take_profit),
+                        },
+                    )
+
     def get_stats(self) -> Dict[str, Any]:
         """
         통계 조회.

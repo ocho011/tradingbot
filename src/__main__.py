@@ -23,12 +23,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from src.api.server import app as fastapi_app
-from src.core.config import settings
-from src.core.config_manager import ConfigurationManager
-from src.core.events import EventBus
-from src.core.metrics import MetricsCollector, MonitoringSystem
-from src.core.orchestrator import TradingSystemOrchestrator
+# Load environment variables from .env file BEFORE importing settings
+from dotenv import load_dotenv
+load_dotenv()
+
+# These imports must come after load_dotenv() to ensure env vars are available
+from src.api.server import app as fastapi_app  # noqa: E402
+from src.core.config import settings  # noqa: E402
+from src.core.config_manager import ConfigurationManager  # noqa: E402
+from src.core.events import EventBus  # noqa: E402
+from src.core.metrics import MetricsCollector, MonitoringSystem  # noqa: E402
+from src.core.orchestrator import TradingSystemOrchestrator  # noqa: E402
 
 # Global instances for signal handling
 orchestrator: Optional[TradingSystemOrchestrator] = None
@@ -207,7 +212,7 @@ async def initialize_system() -> tuple[
 
     # Initialize configuration manager
     logger.info("📝 Initializing configuration manager...")
-    cfg_manager = ConfigurationManager(config_file=None)  # Uses default config
+    cfg_manager = ConfigurationManager()  # Uses default config
 
     # Initialize orchestrator
     logger.info("🎛️  Initializing trading system orchestrator...")
@@ -229,7 +234,6 @@ async def initialize_system() -> tuple[
     metrics = MetricsCollector()
     monitoring = MonitoringSystem(
         event_bus=evt_bus,
-        metrics_collector=metrics,
     )
 
     logger.info("✅ System initialization complete")

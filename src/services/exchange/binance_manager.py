@@ -8,7 +8,6 @@ WebSocket stream subscriptions, and basic API key validation for Binance cryptoc
 import asyncio
 import logging
 import time
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
 import ccxt.pro as ccxt
@@ -734,9 +733,9 @@ class BinanceManager:
                     # Parse candle data: [timestamp, open, high, low, close, volume]
                     candle_data = {
                         "symbol": symbol,
-                        "timeframe": timeframe.value,
+                        "timeframe": timeframe,  # Pass TimeFrame enum, not string
                         "timestamp": latest_candle[0],
-                        "datetime": datetime.fromtimestamp(latest_candle[0] / 1000).isoformat(),
+                        # Note: 'datetime' field removed - Candle model generates it automatically
                         "open": latest_candle[1],
                         "high": latest_candle[2],
                         "low": latest_candle[3],
@@ -752,14 +751,14 @@ class BinanceManager:
                                 Event(
                                     event_type=EventType.CANDLE_RECEIVED,
                                     priority=6,
-                                    data=candle_data,
+                                    data={"candle": candle_data},  # Wrap in "candle" key for handler
                                     source="BinanceManager",
                                 )
                             )
 
                             logger.debug(
                                 f"Published candle: {symbol} {timeframe.value} "
-                                f"@ {candle_data['datetime']} close={candle_data['close']}"
+                                f"@ {candle_data['timestamp']} close={candle_data['close']}"
                             )
 
                 except asyncio.CancelledError:

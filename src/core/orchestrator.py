@@ -13,10 +13,10 @@ from enum import Enum
 from threading import Lock
 from typing import Any, Callable, Dict, List, Optional
 
-from src.core.background_tasks import BackgroundTaskManager
+from src.core.background_tasks import BackgroundTaskManager, TaskConfig, TaskPriority
 from src.core.config import BinanceConfig
 from src.core.config_manager import ConfigurationManager
-from src.core.constants import EventType
+from src.core.constants import EventType, TimeFrame
 from src.core.events import Event, EventBus, EventHandler
 from src.core.parallel_processor import DataPipelineParallelProcessor
 from src.database import engine as db_engine
@@ -30,7 +30,10 @@ from src.services.risk.position_sizer import PositionSizer
 from src.services.risk.risk_validator import RiskValidator
 from src.services.risk.stop_loss_calculator import StopLossCalculator
 from src.services.risk.take_profit_calculator import TakeProfitCalculator
+from src.services.risk.take_profit_calculator import TakeProfitCalculator
 from src.services.strategy.integration_layer import StrategyIntegrationLayer
+from src.services.position.position_monitor import PositionMonitor
+from src.services.execution.exit_handler import ExitSignalHandler
 
 logger = logging.getLogger(__name__)
 
@@ -590,7 +593,9 @@ class TradingSystemOrchestrator:
         self.strategy_layer: Optional[StrategyIntegrationLayer] = None
         self.risk_validator: Optional[RiskValidator] = None
         self.order_executor: Optional[OrderExecutor] = None
+        self.order_executor: Optional[OrderExecutor] = None
         self.position_manager: Optional[PositionManager] = None
+        self.position_monitor: Optional[PositionMonitor] = None
 
         # Pipeline components (initialized in _setup_pipeline_handlers)
         self._pipeline_metrics: Optional[PipelineMetrics] = None
@@ -649,7 +654,9 @@ class TradingSystemOrchestrator:
             await self._initialize_strategy_layer()
             await self._initialize_risk_components()
             await self._initialize_order_executor()
+            await self._initialize_order_executor()
             await self._initialize_position_manager()
+            await self._initialize_position_monitor()
 
             # Set up data pipeline handlers
             await self._setup_pipeline_handlers()
@@ -733,7 +740,10 @@ class TradingSystemOrchestrator:
     async def _initialize_multi_timeframe_engine(self) -> None:
         """Initialize multi-timeframe engine (depends on CandleStorage, EventBus)."""
         logger.info("Initializing MultiTimeframeIndicatorEngine...")
-        self.multi_timeframe_engine = MultiTimeframeIndicatorEngine(event_bus=self.event_bus)
+        self.multi_timeframe_engine = MultiTimeframeIndicatorEngine(
+            timeframes=[TimeFrame.M1, TimeFrame.M5, TimeFrame.M15, TimeFrame.H1],
+            event_bus=self.event_bus,
+        )
 
         self._services["multi_timeframe_engine"] = ServiceInfo(
             name="multi_timeframe_engine",
@@ -821,6 +831,24 @@ class TradingSystemOrchestrator:
         )
         logger.info("PositionManager initialized")
 
+    async def _initialize_position_monitor(self) -> None:
+        """Initialize position monitor (depends on PositionManager, BinanceManager)."""
+        logger.info("Initializing PositionMonitor...")
+        self.position_monitor = PositionMonitor(
+            position_manager=self.position_manager,
+            binance_manager=self.binance_manager,
+            event_bus=self.event_bus,
+            sync_interval=60
+        )
+
+        self._services["position_monitor"] = ServiceInfo(
+            name="position_monitor",
+            instance=self.position_monitor,
+            state=ServiceState.INITIALIZED,
+            dependencies=["position_manager", "binance_manager", "event_bus"],
+        )
+        logger.info("PositionMonitor initialized")
+
     async def _setup_pipeline_handlers(self) -> None:
         """
         Set up data pipeline event handlers.
@@ -862,13 +890,18 @@ class TradingSystemOrchestrator:
             position_manager=self.position_manager, metrics=self._pipeline_metrics
         )
 
+        exit_handler = ExitSignalHandler(order_executor=self.order_executor)
+
         # Register handlers with event bus
         self.event_bus.subscribe(EventType.CANDLE_RECEIVED, candle_handler)
         self.event_bus.subscribe(EventType.INDICATORS_UPDATED, indicator_handler)
         self.event_bus.subscribe(EventType.SIGNAL_GENERATED, signal_handler)
         self.event_bus.subscribe(EventType.RISK_CHECK_PASSED, risk_handler)
         self.event_bus.subscribe(EventType.ORDER_FILLED, order_handler)
+        self.event_bus.subscribe(EventType.ORDER_FILLED, order_handler)
         self.event_bus.subscribe(EventType.ORDER_PLACED, order_handler)
+        self.event_bus.subscribe(EventType.STOP_LOSS_HIT, exit_handler)
+        self.event_bus.subscribe(EventType.TAKE_PROFIT_HIT, exit_handler)
 
         # Store handlers for cleanup
         self._pipeline_handlers = [
@@ -876,7 +909,9 @@ class TradingSystemOrchestrator:
             indicator_handler,
             signal_handler,
             risk_handler,
+            risk_handler,
             order_handler,
+            exit_handler,
         ]
 
         logger.info(f"Data pipeline configured with {len(self._pipeline_handlers)} handlers")
@@ -904,6 +939,111 @@ class TradingSystemOrchestrator:
             dependencies=[],
         )
         logger.info("BackgroundTaskManager initialized")
+
+        # Register trading tasks after manager is initialized
+        await self._register_background_tasks()
+
+    async def _register_background_tasks(self) -> None:
+        """
+        Register all trading background tasks.
+
+        This method registers essential trading tasks with the BackgroundTaskManager:
+        - Market data collection (WebSocket subscriptions)
+        - Position monitoring (future enhancement)
+        - Signal generation (future enhancement)
+
+        Tasks are registered but not started until BackgroundTaskManager.start_all() is called.
+        """
+        logger.info("Registering background tasks...")
+
+        # Task 1: Market Data Collection - CRITICAL
+        # Subscribe to Binance WebSocket streams for configured symbols and timeframes
+        if self.binance_manager:
+            # TODO: Make symbols and timeframes configurable via config.yaml or .env
+            # For now, using default symbols for mainnet testing
+            default_symbols = ["BTCUSDT"]  # Start with BTC only for testing
+            default_timeframes = [TimeFrame.M1, TimeFrame.M5, TimeFrame.M15]
+
+            async def initialize_market_data_subscriptions():
+                """Initialize WebSocket subscriptions for market data collection."""
+                try:
+                    for symbol in default_symbols:
+                        logger.info(f"Subscribing to {symbol} candles...")
+                        await self.binance_manager.subscribe_candles(symbol, default_timeframes)
+                        logger.info(f"✓ Subscribed to {symbol} for timeframes: {[tf.value for tf in default_timeframes]}")
+                except Exception as e:
+                    logger.error(f"Failed to initialize market data subscriptions: {e}", exc_info=True)
+                    raise
+
+            await self.background_task_manager.add_task(
+                TaskConfig(
+                    name="market_data_collection",
+                    coroutine_func=initialize_market_data_subscriptions,
+                    priority=TaskPriority.CRITICAL,
+                    auto_restart=False,  # One-time initialization, WebSockets handle streaming
+                    timeout_seconds=60.0,
+                    metadata={
+                        "description": "Initialize Binance WebSocket subscriptions for real-time market data",
+                        "symbols": default_symbols,
+                        "timeframes": [tf.value for tf in default_timeframes],
+                    },
+                ),
+                group="trading",
+                start_immediately=False,  # Will be started by start_all()
+            )
+            logger.info("✓ Registered market_data_collection task")
+
+        # Task 2: Position Monitoring - HIGH PRIORITY
+        if self.position_manager and self.position_monitor:
+            async def monitor_positions():
+                """Monitor open positions and manage exits."""
+                while True:
+                    try:
+                        # 1. Sync with exchange
+                        await self.position_monitor.sync_positions()
+                        
+                        # 2. Check for SL/TP hits
+                        # Need current prices for all open positions
+                        open_positions = self.position_manager.get_open_positions()
+                        if open_positions:
+                            current_prices = {}
+                            for pos in open_positions:
+                                # Use latest candle close as current price approximation
+                                # Ideally should use real-time ticker, but candle close is okay for now
+                                # or fetch ticker from binance_manager if available
+                                ticker = await self.binance_manager.get_ticker(pos.symbol)
+                                if ticker:
+                                    current_prices[pos.symbol] = Decimal(str(ticker.get("last", 0)))
+                            
+                            if current_prices:
+                                await self.position_manager.check_position_exits(current_prices)
+                                
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as e:
+                        logger.error(f"Error in position monitoring task: {e}")
+                    
+                    # Check every 10 seconds
+                    await asyncio.sleep(10)
+
+            await self.background_task_manager.add_task(
+                TaskConfig(
+                    name="position_monitoring",
+                    coroutine_func=monitor_positions,
+                    priority=TaskPriority.HIGH,
+                    auto_restart=True,
+                    timeout_seconds=None,  # Long running task
+                    metadata={
+                        "description": "Sync positions and check SL/TP",
+                    }
+                ),
+                group="trading",
+                start_immediately=False,
+            )
+            logger.info("✓ Registered position_monitoring task")
+
+        task_count = len(self.background_task_manager._tasks)
+        logger.info(f"✓ Registered {task_count} background task(s)")
 
     async def _initialize_parallel_processor(self) -> None:
         """

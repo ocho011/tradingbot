@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from src.core.constants import TimeFrame
 from src.core.events import Event, EventBus, EventType
 from src.services.candle_storage import CandleStorage
 from src.services.strategy.events import (
@@ -213,14 +214,17 @@ class StrategyIntegrationLayer:
 
         try:
             # Retrieve candles for this symbol/timeframe from storage
-            from src.models.timeframe import TimeFrame
-
             tf = TimeFrame(timeframe)
-            candles_df = self.candle_storage.get_candles(symbol, tf, limit=100)
+            # Retrieve candles for this symbol/timeframe from storage
+            tf = TimeFrame(timeframe)
+            candles_list = self.candle_storage.get_candles(symbol, tf, limit=100)
 
-            if candles_df.empty:
+            if not candles_list:
                 logger.warning(f"No candles available for {symbol} {timeframe}")
                 return []
+
+            # Convert to DataFrame
+            candles_df = pd.DataFrame([vars(c) for c in candles_list])
 
             # Get current price from latest candle
             current_price = Decimal(str(candles_df.iloc[-1]["close"]))

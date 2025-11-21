@@ -329,13 +329,13 @@ async def health_check() -> HealthResponse:
         uptime = 0.0
         if monitoring_system:
             uptime = (
-                datetime.now() - monitoring_system._metrics_collector._start_time
+                datetime.now() - monitoring_system.metrics._start_time
             ).total_seconds()
 
         # Get component health if available
         components = {}
         if monitoring_system:
-            health_checks = monitoring_system.get_health_status()
+            health_checks = monitoring_system.health_checks.get_all_statuses()
             components = {check.component: check.status.value for check in health_checks}
 
         # Determine overall health
@@ -424,7 +424,7 @@ async def readiness_check() -> HealthResponse:
         uptime = 0.0
         if monitoring_system:
             uptime = (
-                datetime.now() - monitoring_system._metrics_collector._start_time
+                datetime.now() - monitoring_system.metrics._start_time
             ).total_seconds()
 
         return HealthResponse(
@@ -485,9 +485,8 @@ async def get_system_status(_user: Dict[str, Any] = Depends(verify_token)) -> Sy
         services = {}
 
         if orchestrator:
-            status = orchestrator.get_status()
-            system_state = status.get("state", "offline")
-            services = status.get("services", {})
+            system_state = orchestrator.get_system_state().value
+            services = orchestrator.get_service_states()
 
         # Get configuration
         environment = "unknown"
@@ -502,7 +501,7 @@ async def get_system_status(_user: Dict[str, Any] = Depends(verify_token)) -> Sy
         uptime = 0.0
         if monitoring_system:
             uptime = (
-                datetime.now() - monitoring_system._metrics_collector._start_time
+                datetime.now() - monitoring_system.metrics._start_time
             ).total_seconds()
 
         return SystemStatusResponse(
@@ -908,7 +907,7 @@ async def get_system_metrics(
                 "memory_percent": sys_metrics.get_memory_usage(),
                 "disk_percent": sys_metrics.get_disk_usage(),
                 "uptime_seconds": (
-                    datetime.now() - monitoring_system._metrics_collector._start_time
+                    datetime.now() - monitoring_system.metrics._start_time
                 ).total_seconds(),
             }
 
@@ -957,7 +956,7 @@ async def get_component_metrics(
 
     try:
         # Get component health
-        health_checks = monitoring_system.get_health_status()
+        health_checks = monitoring_system.health_checks.get_all_statuses()
         component_health = next(
             (check for check in health_checks if check.component == component_name), None
         )
