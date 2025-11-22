@@ -3,7 +3,7 @@ Configuration management using Pydantic Settings.
 Loads environment variables and provides typed configuration access.
 """
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -69,7 +69,7 @@ class DiscordConfig(BaseSettings):
 class TradingConfig(BaseSettings):
     """Trading configuration."""
 
-    mode: str = Field("paper", description="Trading mode: paper or live")
+    mode: str = Field("live", description="Trading mode: paper or live")
     default_leverage: int = Field(10, description="Default leverage for positions")
     max_position_size_usdt: float = Field(1000.0, description="Maximum position size in USDT")
     risk_per_trade_percent: float = Field(
@@ -130,6 +130,26 @@ class StrategyConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
 
 
+class MarketConfig(BaseSettings):
+    """Market and trading pair configuration."""
+
+    active_symbols: List[str] = Field(
+        default=["BTCUSDT", "ETHUSDT", "BNBUSDT"],
+        description="Active trading pairs to monitor and trade",
+    )
+    primary_timeframe: str = Field(
+        default="15m", description="Primary analysis timeframe (e.g., '5m', '15m', '1h')"
+    )
+    higher_timeframe: str = Field(
+        default="1h", description="Higher timeframe for trend confirmation"
+    )
+    lower_timeframe: str = Field(
+        default="5m", description="Lower timeframe for precise entry timing"
+    )
+
+    model_config = SettingsConfigDict(env_prefix="MARKET_", env_file=".env", extra="ignore")
+
+
 class Settings:
     """Main settings class that aggregates all configuration sections."""
 
@@ -142,6 +162,7 @@ class Settings:
         self.api = APIConfig()
         self.ict = ICTConfig()
         self.strategy = StrategyConfig()
+        self.market = MarketConfig()
 
     def __repr__(self) -> str:
         return (

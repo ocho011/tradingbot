@@ -7,6 +7,7 @@ across all services (Binance, Trading, Database, Logging, API, ICT, Strategies).
 """
 
 import asyncio
+import copy
 import json
 import logging
 from datetime import datetime
@@ -84,7 +85,7 @@ class ConfigurationHistory:
             snapshot = {
                 "timestamp": datetime.utcnow().isoformat(),
                 "reason": reason,
-                "config": config.copy(),
+                "config": copy.deepcopy(config),
             }
             self.history.append(snapshot)
 
@@ -103,16 +104,14 @@ class ConfigurationHistory:
             if len(self.history) <= steps:
                 return None
 
-            # Get the config to restore (going back 'steps' operations)
-            # Snapshots are saved BEFORE operations, so history[-1] is the state before the last operation
-            # For rollback(1), we want to restore history[-1] (state before last operation)
-            config_to_restore = self.history[-steps]["config"]
+            # Get the snapshot to restore
+            snapshot_to_restore = self.history[-steps]
 
             # Remove 'steps' most recent snapshots
             for _ in range(min(steps, len(self.history))):
                 self.history.pop()
 
-            return config_to_restore
+            return snapshot_to_restore
 
     def get_history(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get recent configuration history"""
@@ -258,6 +257,12 @@ class ConfigurationManager:
                 "enable_strategy_2": self.settings.strategy.enable_strategy_2,
                 "enable_strategy_3": self.settings.strategy.enable_strategy_3,
             },
+            "market": {
+                "active_symbols": self.settings.market.active_symbols,
+                "primary_timeframe": self.settings.market.primary_timeframe,
+                "higher_timeframe": self.settings.market.higher_timeframe,
+                "lower_timeframe": self.settings.market.lower_timeframe,
+            },
         }
 
     def reload_from_file(self, filepath: Path) -> bool:
@@ -337,6 +342,8 @@ class ConfigurationManager:
                 self._apply_ict_config(data)
             elif section == "strategy" and hasattr(self.settings, "strategy"):
                 self._apply_strategy_config(data)
+            elif section == "market" and hasattr(self.settings, "market"):
+                self._apply_market_config(data)  
             else:
                 logger.warning(f"Unknown configuration section: {section}")
 
@@ -381,6 +388,12 @@ class ConfigurationManager:
         for key, value in data.items():
             if hasattr(self.settings.strategy, key):
                 setattr(self.settings.strategy, key, value)
+
+    def _apply_market_config(self, data: Dict[str, Any]) -> None:
+        """Apply market configuration"""
+        for key, value in data.items():
+            if hasattr(self.settings.market, key):
+                setattr(self.settings.market, key, value)
 
     def switch_environment(self, to_testnet: bool) -> bool:
         """
@@ -474,6 +487,8 @@ class ConfigurationManager:
                     self._apply_ict_config(updates)
                 elif section == "strategy":
                     self._apply_strategy_config(updates)
+                elif section == "market":
+                    self._apply_market_config(updates)
                 else:
                     raise ConfigurationError(f"Unknown configuration section: {section}")
 
@@ -493,6 +508,65 @@ class ConfigurationManager:
                 self.rollback()
                 raise ConfigurationError(f"Configuration update failed: {e}")
 
+    def update_config_batch(
+        self,
+        updates_by_section: Dict[str, Dict[str, Any]],
+        validate: bool = True,
+    ) -> bool:
+        """
+        Update multiple configuration sections atomically.
+
+        Args:
+            updates_by_section: Dictionary of {section: updates}
+            validate: Validate before applying
+
+        Returns:
+            True if successful
+        """
+        with self._lock:
+            try:
+                # Save current config ONCE
+                self.history.save_snapshot(self._get_current_config(), reason="update:batch")
+
+                # Apply all updates
+                for section, updates in updates_by_section.items():
+                    if section == "binance":
+                        self._apply_binance_config(updates)
+                        if validate:
+                            self.settings.binance.validate_credentials()
+                    elif section == "trading":
+                        self._apply_trading_config(updates)
+                    elif section == "database":
+                        self._apply_database_config(updates)
+                    elif section == "logging":
+                        self._apply_logging_config(updates)
+                    elif section == "api":
+                        self._apply_api_config(updates)
+                    elif section == "ict":
+                        self._apply_ict_config(updates)
+                    elif section == "strategy":
+                        self._apply_strategy_config(updates)
+                    elif section == "market":
+                        self._apply_market_config(updates)
+                    else:
+                        logger.warning(f"Unknown configuration section: {section}")
+
+                # Emit event
+                self._emit_config_changed("config_update_batch", "all", updates_by_section)
+
+                # Auto-save
+                if self.auto_save:
+                    self.save_config()
+
+                self.metrics["config_updates"] += 1
+                logger.info(f"Batch configuration updated: {list(updates_by_section.keys())}")
+                return True
+
+            except Exception as e:
+                logger.error(f"Batch configuration update failed: {e}")
+                self.rollback()
+                raise ConfigurationError(f"Batch configuration update failed: {e}")
+
     def rollback(self, steps: int = 1) -> bool:
         """
         Rollback to previous configuration.
@@ -505,13 +579,22 @@ class ConfigurationManager:
         """
         with self._lock:
             try:
+                logger.info(f"Attempting rollback. Current history size: {len(self.history.history)}")
+                
                 previous_config = self.history.rollback(steps)
                 if not previous_config:
                     logger.warning("No configuration history available for rollback")
                     return False
 
+                logger.info(f"Restoring configuration from snapshot. Timestamp: {previous_config.get('timestamp')}, Reason: {previous_config.get('reason')}")
+                # logger.debug(f"Restored config data: {previous_config.get('config')}")
+
                 # Apply previous config
-                self._apply_config(previous_config)
+                self._apply_config(previous_config["config"])
+
+                # Save rolled back config to file
+                if self.auto_save:
+                    self.save_config()
 
                 # Emit event
                 self._emit_config_changed("rollback", "all", {"steps": steps})

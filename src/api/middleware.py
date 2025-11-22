@@ -218,7 +218,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self.hsts_max_age = hsts_max_age
         self.csp_policy = (
             csp_policy
-            or "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+            or "default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;"
         )
 
         logger.info("Security headers middleware initialized")

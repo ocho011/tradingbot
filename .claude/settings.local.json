@@ -70,7 +70,13 @@
       "Bash(git push:*)",
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
-      "Bash(timeout 60 python3 -m pytest:*)"
+      "Bash(timeout 60 python3 -m pytest:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "mcp__serena__list_memories",
+      "mcp__serena__read_memory",
+      "mcp__serena__edit_memory",
+      "mcp__serena__write_memory"
     ]
   },
   "enableAllProjectMcpServers": true,

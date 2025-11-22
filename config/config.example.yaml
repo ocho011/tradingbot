@@ -22,7 +22,7 @@ binance:
 # Trading Configuration
 # ================================
 trading:
-  mode: paper  # Trading mode: paper (simulation) or live (real trading)
+  mode: "live"  # live or paper (simulation) or live (real trading)
   default_leverage: 10  # Default leverage for futures positions (1-125)
   max_position_size_usdt: 1000.0  # Maximum position size in USDT
   risk_per_trade_percent: 1.0  # Risk per trade as percentage of capital (0.1-5.0)
@@ -65,6 +65,18 @@ strategy:
   enable_strategy_1: true  # Enable/disable Strategy 1 (Conservative)
   enable_strategy_2: true  # Enable/disable Strategy 2 (Aggressive)
   enable_strategy_3: true  # Enable/disable Strategy 3 (Hybrid)
+
+# ================================
+# Market Configuration
+# ================================
+market:
+  active_symbols:  # Trading pairs to monitor and trade
+    - BTCUSDT
+    - ETHUSDT
+    - BNBUSDT
+  primary_timeframe: 15m  # Primary analysis timeframe (1m, 5m, 15m, 30m, 1h, 4h, 1d)
+  higher_timeframe: 1h    # Higher timeframe for trend confirmation
+  lower_timeframe: 5m     # Lower timeframe for precise entry timing
 
 # ================================
 # Hot-Reload Feature

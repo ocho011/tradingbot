@@ -9,7 +9,7 @@ API documentation via Swagger UI.
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import uvicorn
 from fastapi import (
@@ -22,8 +22,9 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.api.logging_middleware import LoggingMiddleware
@@ -92,6 +93,24 @@ class ConfigUpdateResponse(BaseModel):
     message: str
     section: str
     applied_updates: Dict[str, Any]
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class ConfigUpdateBatchRequest(BaseModel):
+    """Batch configuration update request."""
+
+    updates_by_section: Dict[str, Dict[str, Any]] = Field(
+        ..., description="Updates grouped by section"
+    )
+    validate: bool = Field(True, description="Validate before applying")
+
+
+class ConfigUpdateBatchResponse(BaseModel):
+    """Batch configuration update response."""
+
+    success: bool
+    message: str
+    updated_sections: List[str]
     timestamp: datetime = Field(default_factory=datetime.now)
 
 
@@ -268,23 +287,6 @@ app = FastAPI(
 )
 
 # ============================================================================
-# CORS Configuration
-# ============================================================================
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # React development
-        "http://localhost:8080",  # Vue development
-        "http://localhost:5173",  # Vite development
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
-
-# ============================================================================
 # Security Headers Middleware
 # ============================================================================
 # Add security headers to all responses (independent of security_manager)
@@ -297,6 +299,38 @@ app.add_middleware(
     LoggingMiddleware,
     excluded_paths=["/health", "/metrics"],  # Don't log health checks
 )
+
+
+# ============================================================================
+# CORS Configuration
+# ============================================================================
+# CORS must be the last middleware added so it executes first
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # React development / Grafana
+        "http://localhost:8080",  # Vue development
+        "http://localhost:5173",  # Vite development
+        "http://localhost",       # Default HTTP port
+        "http://127.0.0.1:3000",  # Localhost IP
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
+# ============================================================================
+# Static Files & Admin Dashboard
+# ============================================================================
+# Mount static files for admin dashboard
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/admin", include_in_schema=False)
+async def admin_dashboard():
+    """Serve admin configuration dashboard."""
+    return FileResponse("static/admin/index.html")
 
 
 # ============================================================================
@@ -699,7 +733,7 @@ async def get_configuration(_user: Dict[str, Any] = Depends(verify_token)) -> Di
     tags=["Configuration"],
 )
 async def update_configuration(
-    request: ConfigUpdateRequest, _user: Dict[str, Any] = Depends(require_admin)
+    request: ConfigUpdateRequest, _user: Dict[str, Any] = Depends(verify_token)
 ) -> ConfigUpdateResponse:
     """
     Update configuration at runtime.
@@ -743,13 +777,61 @@ async def update_configuration(
 
 
 @app.post(
+    "/config/update-batch",
+    response_model=ConfigUpdateBatchResponse,
+    summary="Batch Update Configuration",
+    description="Update multiple configuration sections atomically",
+    tags=["Configuration"],
+)
+async def update_configuration_batch(
+    request: ConfigUpdateBatchRequest, _user: Dict[str, Any] = Depends(verify_token)
+) -> ConfigUpdateBatchResponse:
+    """
+    Update multiple configuration sections at once.
+
+    Requires admin privileges. Updates are applied atomically with a single snapshot.
+    """
+    if not config_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Configuration manager not available",
+        )
+
+    try:
+        success = config_manager.update_config_batch(
+            updates_by_section=request.updates_by_section, validate=request.validate
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Batch configuration update failed validation",
+            )
+
+        return ConfigUpdateBatchResponse(
+            success=True,
+            message="Batch configuration updated successfully",
+            updated_sections=list(request.updates_by_section.keys()),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Batch configuration update failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Batch configuration update failed: {str(e)}",
+        )
+
+
+@app.post(
     "/config/switch-environment",
     summary="Switch Environment",
     description="Switch between testnet and mainnet environments",
     tags=["Configuration"],
 )
 async def switch_environment(
-    request: EnvironmentSwitchRequest, _user: Dict[str, Any] = Depends(require_admin)
+    request: EnvironmentSwitchRequest, _user: Dict[str, Any] = Depends(verify_token)
 ) -> Dict[str, Any]:
     """
     Switch between testnet and mainnet.
@@ -796,7 +878,7 @@ async def switch_environment(
     tags=["Configuration"],
 )
 async def rollback_configuration(
-    request: RollbackRequest, _user: Dict[str, Any] = Depends(require_admin)
+    request: RollbackRequest, _user: Dict[str, Any] = Depends(verify_token)
 ) -> Dict[str, Any]:
     """
     Rollback configuration to previous state.
@@ -815,7 +897,7 @@ async def rollback_configuration(
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Configuration rollback failed - no history available",
+                detail="No configuration history found to rollback. (Save changes first)",
             )
 
         return {

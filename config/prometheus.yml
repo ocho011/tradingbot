@@ -55,11 +55,11 @@ scrape_configs:
           component: 'api-server'
 
     # Metric relabeling (optional - for metric filtering/renaming)
-    metric_relabel_configs:
-      # Keep only trading-specific metrics
-      - source_labels: [__name__]
-        regex: 'trading_.*|http_.*|system_.*'
-        action: keep
+    # metric_relabel_configs:
+    #   # Keep only trading-specific metrics
+    #   - source_labels: [__name__]
+    #     regex: 'trading_.*|http_.*|system_.*'
+    #     action: keep
 
   # ---------------------------------------------------------------------------
   # Redis Exporter (if we add redis_exporter later)

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Configuration Dashboard</title>
+    <link rel="stylesheet" href="/static/admin/css/admin.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <h1>🎛️ Trading Bot Configuration Dashboard</h1>
+            <p class="subtitle">Manage your trading bot settings in real-time</p>
+        </header>
+
+        <!-- System Status Cards -->
+        <div class="status-cards">
+            <div class="card status-card">
+                <div class="card-label">Environment</div>
+                <div class="card-value" id="envDisplay">Testnet</div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="envToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+                <div class="toggle-label">
+                    <span class="label-left">Testnet</span>
+                    <span class="label-right">Mainnet</span>
+                </div>
+            </div>
+
+
+
+            <div class="card status-card">
+                <div class="card-label">System Status</div>
+                <div class="status-indicator" id="systemStatus">
+                    <span class="status-dot offline"></span>
+                    <span class="status-text">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Selection -->
+        <div class="card config-section">
+            <h2 class="section-title">📊 Market Selection</h2>
+
+            <div class="subsection">
+                <h3>Active Trading Pairs</h3>
+                <div class="symbol-grid" id="symbolGrid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3>Timeframes</h3>
+                <div class="timeframe-controls">
+                    <div class="input-group">
+                        <label for="primaryTf">Primary</label>
+                        <select id="primaryTf" class="timeframe-select">
+                            <option value="1m">1 minute</option>
+                            <option value="5m">5 minutes</option>
+                            <option value="15m" selected>15 minutes</option>
+                            <option value="30m">30 minutes</option>
+                            <option value="1h">1 hour</option>
+                            <option value="4h">4 hours</option>
+                            <option value="1d">1 day</option>
+                        </select>
+                        <small>Main analysis timeframe</small>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="higherTf">Higher</label>
+                        <select id="higherTf" class="timeframe-select">
+                            <option value="15m">15 minutes</option>
+                            <option value="30m">30 minutes</option>
+                            <option value="1h" selected>1 hour</option>
+                            <option value="4h">4 hours</option>
+                            <option value="1d">1 day</option>
+                        </select>
+                        <small>Trend confirmation</small>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="lowerTf">Lower</label>
+                        <select id="lowerTf" class="timeframe-select">
+                            <option value="1m">1 minute</option>
+                            <option value="5m" selected>5 minutes</option>
+                            <option value="15m">15 minutes</option>
+                            <option value="30m">30 minutes</option>
+                            <option value="1h">1 hour</option>
+                        </select>
+                        <small>Entry timing</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trading Settings -->
+        <div class="card config-section">
+            <h2 class="section-title">💰 Trading Settings</h2>
+
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="leverage">Leverage</label>
+                    <input type="number" id="leverage" min="1" max="125" value="10">
+                    <small>Range: 1-125</small>
+                </div>
+
+                <div class="input-group">
+                    <label for="maxPosition">Max Position Size (USDT)</label>
+                    <input type="number" id="maxPosition" min="1" step="100" value="1000">
+                    <small>Maximum position size</small>
+                </div>
+
+                <div class="input-group">
+                    <label for="riskPercent">Risk Per Trade (%)</label>
+                    <input type="number" id="riskPercent" min="0.1" max="5" step="0.1" value="1.0">
+                    <small>Percentage of capital</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategy Control -->
+        <div class="card config-section">
+            <h2 class="section-title">🎯 Strategy Control</h2>
+
+            <div class="strategy-list">
+                <div class="strategy-item">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="strategy1" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="strategy-info">
+                        <div class="strategy-name">Strategy 1</div>
+                        <div class="strategy-desc">Conservative</div>
+                    </div>
+                </div>
+
+                <div class="strategy-item">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="strategy2" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="strategy-info">
+                        <div class="strategy-name">Strategy 2</div>
+                        <div class="strategy-desc">Aggressive</div>
+                    </div>
+                </div>
+
+                <div class="strategy-item">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="strategy3" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="strategy-info">
+                        <div class="strategy-name">Strategy 3</div>
+                        <div class="strategy-desc">Hybrid</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ICT Indicators -->
+        <div class="card config-section">
+            <h2 class="section-title">📐 ICT Indicators</h2>
+
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="fvgSize">FVG Min Size (%)</label>
+                    <input type="number" id="fvgSize" min="0.05" max="1.0" step="0.05" value="0.1">
+                    <small>Minimum Fair Value Gap size</small>
+                </div>
+
+                <div class="input-group">
+                    <label for="obLookback">OB Lookback (periods)</label>
+                    <input type="number" id="obLookback" min="20" max="200" step="10" value="100">
+                    <small>Order Block detection range</small>
+                </div>
+
+                <div class="input-group">
+                    <label for="liqSweep">Liquidity Sweep Threshold</label>
+                    <input type="number" id="liqSweep" min="0.1" max="1.0" step="0.1" value="0.5">
+                    <small>Sensitivity</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-bar">
+            <button class="btn btn-primary" id="saveBtn">
+                💾 Save Changes
+            </button>
+            <button class="btn btn-secondary" id="rollbackBtn">
+                ↩️ Rollback
+            </button>
+            <button class="btn btn-secondary" id="historyBtn">
+                📜 History
+            </button>
+        </div>
+
+        <!-- Configuration History -->
+        <div class="card config-section" id="historySection" style="display: none;">
+            <h2 class="section-title">📜 Recent Changes</h2>
+            <div id="historyList" class="history-list">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Confirm Action</h3>
+            <p id="modalMessage">Are you sure?</p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="modalConfirm">Confirm</button>
+                <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/admin/js/admin.js"></script>
+</body>
+
+</html>

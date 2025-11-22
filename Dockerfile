@@ -18,13 +18,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     make \
     wget \
+    curl \
     tar \
+    automake \
+    libtool \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # Install TA-Lib from source (required for technical analysis)
-RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
+# Fix for ARM64 (Apple Silicon) build: update config.guess and config.sub using system files
+RUN curl -L -o ta-lib-0.4.0-src.tar.gz https://sourceforge.net/projects/ta-lib/files/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz/download && \
     tar -xzf ta-lib-0.4.0-src.tar.gz && \
     cd ta-lib/ && \
+    cp /usr/share/misc/config.guess . && \
+    cp /usr/share/misc/config.sub . && \
     ./configure --prefix=/usr && \
     make && \
     make install && \
@@ -33,13 +40,14 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
 
 # Copy dependency files
 COPY pyproject.toml .
+COPY src/ src/
 
 # Upgrade pip and install build tools
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Install Python dependencies
 # Using --no-cache-dir to reduce layer size
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir .
 
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime - Minimal production image
@@ -61,6 +69,7 @@ ENV PYTHONUNBUFFERED=1 \
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy TA-Lib library from builder
@@ -88,6 +97,7 @@ COPY --chown=tradingbot:tradingbot alembic/ /app/alembic/
 COPY --chown=tradingbot:tradingbot alembic.ini /app/
 COPY --chown=tradingbot:tradingbot pyproject.toml /app/
 COPY --chown=tradingbot:tradingbot README.md /app/
+COPY --chown=tradingbot:tradingbot static/ /app/static/
 
 # Copy entrypoint script
 COPY --chown=tradingbot:tradingbot scripts/docker-entrypoint.sh /usr/local/bin/

@@ -51,6 +51,8 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.42b0",
     "opentelemetry-instrumentation-sqlalchemy>=0.42b0",
     "opentelemetry-instrumentation-aiohttp-client>=0.42b0",
+    "psutil>=5.9.0",
+    "deprecated>=1.2.14",
 ]
 
 [project.optional-dependencies]
@@ -64,8 +66,7 @@ dev = [
     "mypy>=1.7.0",
     "isort>=5.12.0",
     "httpx>=0.25.0",
-    "psutil>=5.9.0",
-    "deprecated>=1.2.14",
+    "httpx>=0.25.0",
 ]
 
 [project.urls]
