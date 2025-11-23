@@ -213,7 +213,36 @@ function updateSystemStatus(status) {
     `;
 }
 
-// initializeSymbolGrid removed - now using refreshSymbolGrid() for dynamic management
+function initializeSymbolGrid() {
+    const grid = document.getElementById('symbolGrid');
+    grid.innerHTML = '';
+
+    const activeSymbols = currentConfig.market?.active_symbols || [];
+
+    AVAILABLE_SYMBOLS.forEach(symbol => {
+        const isActive = activeSymbols.includes(symbol);
+        const checkbox = document.createElement('div');
+        checkbox.className = `symbol-checkbox ${isActive ? 'active' : ''}`;
+        checkbox.innerHTML = `
+            <input type="checkbox" id="symbol-${symbol}" ${isActive ? 'checked' : ''}>
+            <label for="symbol-${symbol}">${symbol}</label>
+        `;
+
+        const input = checkbox.querySelector('input');
+        input.addEventListener('change', () => {
+            checkbox.classList.toggle('active', input.checked);
+        });
+
+        grid.appendChild(checkbox);
+    });
+}
+
+function getSelectedSymbols() {
+    const checkboxes = document.querySelectorAll('.symbol-checkbox input[type="checkbox"]');
+    return Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.id.replace('symbol-', ''));
+}
 
 function populateForm() {
     // Environment
@@ -244,10 +273,16 @@ function populateForm() {
     document.getElementById('higherTf').value = currentConfig.market?.higher_timeframe || '1h';
     document.getElementById('lowerTf').value = currentConfig.market?.lower_timeframe || '5m';
 
-    // Symbol grid is now managed by refreshSymbolGrid()
+    // Initialize symbol grid
+    initializeSymbolGrid();
 }
 
-// getSelectedSymbols removed - symbols are now managed via API
+function getSelectedSymbols() {
+    const checkboxes = document.querySelectorAll('.symbol-checkbox input[type="checkbox"]');
+    return Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.id.replace('symbol-', ''));
+}
 
 // =====================================
 // Event Handlers
@@ -264,10 +299,18 @@ async function handleSaveChanges() {
     btn.innerHTML = '⏳ Saving...';
 
     try {
+        // Get current and new symbol selections
+        const currentSymbols = currentConfig.market?.active_symbols || [];
+        const selectedSymbols = getSelectedSymbols();
+
+        // Detect changes
+        const symbolsToAdd = selectedSymbols.filter(s => !currentSymbols.includes(s));
+        const symbolsToRemove = currentSymbols.filter(s => !selectedSymbols.includes(s));
+
         // Collect all changes
         const updates = {
             market: {
-                // active_symbols now managed via /api/symbols/add and /api/symbols/remove
+                active_symbols: selectedSymbols,
                 primary_timeframe: document.getElementById('primaryTf').value,
                 higher_timeframe: document.getElementById('higherTf').value,
                 lower_timeframe: document.getElementById('lowerTf').value
@@ -290,7 +333,30 @@ async function handleSaveChanges() {
             }
         };
 
-        // Use batch update
+        // Handle symbol additions (dynamic subscription)
+        for (const symbol of symbolsToAdd) {
+            try {
+                showToast('info', `Adding ${symbol}...`);
+                await addSymbol(symbol);
+                showToast('success', `${symbol} added! Historical data loaded.`);
+            } catch (error) {
+                showToast('error', `Failed to add ${symbol}: ${error.message}`);
+                // Continue with other symbols
+            }
+        }
+
+        // Handle symbol removals
+        for (const symbol of symbolsToRemove) {
+            try {
+                await removeSymbol(symbol);
+                showToast('success', `${symbol} removed`);
+            } catch (error) {
+                showToast('error', `Failed to remove ${symbol}: ${error.message}`);
+                // Continue with other symbols
+            }
+        }
+
+        // Use batch update for other settings
         await updateConfigBatch(updates);
 
         showToast('success', 'Configuration saved successfully!');
@@ -448,7 +514,6 @@ async function init() {
     // Load initial data
     await loadConfig();
     await loadStatus();
-    await refreshSymbolGrid(); // Load active symbols
 
     // Set up event listeners
     document.getElementById('saveBtn').addEventListener('click', handleSaveChanges);
@@ -456,19 +521,8 @@ async function init() {
     document.getElementById('historyBtn').addEventListener('click', handleShowHistory);
     document.getElementById('envToggle').addEventListener('change', handleEnvironmentToggle);
 
-    // Symbol management listeners
-    document.getElementById('addSymbolBtn').addEventListener('click', handleAddSymbol);
-    document.getElementById('newSymbol').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleAddSymbol();
-        }
-    });
-
     // Auto-refresh status every 10 seconds
     setInterval(loadStatus, 10000);
-
-    // Auto-refresh symbols every 30 seconds
-    setInterval(refreshSymbolGrid, 30000);
 
     console.log('Admin dashboard initialized');
 }
