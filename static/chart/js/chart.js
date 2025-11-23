@@ -56,7 +56,7 @@ class TradingChart {
                 width: container.clientWidth,
                 height: 600,
                 layout: {
-                    background: { color: '#1e2139' },
+                    background: { type: 'solid', color: '#1e2139' },
                     textColor: '#9ca3af',
                 },
                 grid: {
@@ -79,18 +79,18 @@ class TradingChart {
             this.candleSeries = this.chart.addCandlestickSeries({
                 upColor: '#10b981',
                 downColor: '#ef4444',
-                borderUpColor: '#10b981',
-                borderDownColor: '#ef4444',
+                borderVisible: false,
                 wickUpColor: '#10b981',
                 wickDownColor: '#ef4444',
             });
 
             // Add some sample data to make chart visible
+            const now = Math.floor(Date.now() / 1000);
             const sampleData = [
-                { time: Math.floor(Date.now() / 1000) - 3600, open: 50000, high: 51000, low: 49500, close: 50500 },
-                { time: Math.floor(Date.now() / 1000) - 2400, open: 50500, high: 51500, low: 50000, close: 51000 },
-                { time: Math.floor(Date.now() / 1000) - 1200, open: 51000, high: 52000, low: 50500, close: 51500 },
-                { time: Math.floor(Date.now() / 1000), open: 51500, high: 52500, low: 51000, close: 52000 },
+                { time: now - 3600, open: 50000, high: 51000, low: 49500, close: 50500 },
+                { time: now - 2400, open: 50500, high: 51500, low: 50000, close: 51000 },
+                { time: now - 1200, open: 51000, high: 52000, low: 50500, close: 51500 },
+                { time: now, open: 51500, high: 52500, low: 51000, close: 52000 },
             ];
             this.candleSeries.setData(sampleData);
 
