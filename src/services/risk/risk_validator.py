@@ -472,3 +472,33 @@ class RiskValidator:
             },
             "timestamp": datetime.now().isoformat(),
         }
+
+    def update_config(self, updates: Dict[str, Any]) -> None:
+        """
+        Update risk validator configuration at runtime.
+
+        Args:
+            updates: Dictionary of configuration updates
+        """
+        try:
+            with self._lock:
+                # Update position sizer if leverage or max position size changed
+                if "default_leverage" in updates or "max_position_size_usdt" in updates:
+                    if hasattr(self.position_sizer, "update_config"):
+                        self.position_sizer.update_config(updates)
+                        logger.info(f"Position sizer config updated: {updates}")
+
+                # Update stop loss calculator if risk parameters changed
+                if "risk_per_trade_percent" in updates:
+                    if hasattr(self.stop_loss_calculator, "update_config"):
+                        self.stop_loss_calculator.update_config(updates)
+                        logger.info(f"Stop loss calculator config updated")
+
+                # Update take profit calculator if needed
+                if hasattr(self.take_profit_calculator, "update_config"):
+                    self.take_profit_calculator.update_config(updates)
+
+                logger.info(f"RiskValidator configuration updated: {list(updates.keys())}")
+
+        except Exception as e:
+            logger.error(f"Failed to update RiskValidator config: {e}", exc_info=True)

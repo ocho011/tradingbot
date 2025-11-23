@@ -462,6 +462,147 @@ class OrderToPositionHandler(EventHandler):
             self.metrics.record_error()
 
 
+class ConfigUpdateHandler(EventHandler):
+    """
+    Handler for dynamic configuration updates.
+    
+    Receives CONFIG_UPDATED events and applies changes to running components
+    without requiring system restart.
+    """
+
+    def __init__(
+        self,
+        risk_manager,
+        strategy_layer,
+        indicator_engine,
+        metrics: PipelineMetrics,
+    ):
+        """
+        Initialize config update handler.
+
+        Args:
+            risk_manager: Risk management service
+            strategy_layer: Strategy evaluation service
+            indicator_engine: Indicator calculation engine
+            metrics: Pipeline metrics tracker
+        """
+        super().__init__(name="ConfigUpdateHandler")
+        self.risk_manager = risk_manager
+        self.strategy_layer = strategy_layer
+        self.indicator_engine = indicator_engine
+        self.metrics = metrics
+
+    async def handle(self, event: Event) -> None:
+        """Process configuration update event."""
+        if event.event_type != EventType.CONFIG_UPDATED:
+            return
+
+        start_time = datetime.now()
+
+        try:
+            subject = event.data.get("subject")
+            details = event.data.get("details")
+            change_type = event.data.get("change_type")
+
+            self.logger.info(
+                f"Processing config update: {change_type} for {subject}"
+            )
+
+            # Apply updates based on subject
+            if subject == "trading" or "trading" in str(details):
+                await self._update_trading_config(details)
+
+            if subject == "strategy" or "strategy" in str(details):
+                await self._update_strategy_config(details)
+
+            if subject == "ict" or "ict" in str(details):
+                await self._update_ict_config(details)
+
+            if subject == "market" or "market" in str(details):
+                await self._update_market_config(details)
+
+            # Handle batch updates
+            if change_type == "config_update_batch":
+                if isinstance(details, dict):
+                    if "trading" in details:
+                        await self._update_trading_config(details["trading"])
+                    if "strategy" in details:
+                        await self._update_strategy_config(details["strategy"])
+                    if "ict" in details:
+                        await self._update_ict_config(details["ict"])
+                    if "market" in details:
+                        await self._update_market_config(details["market"])
+
+            duration = (datetime.now() - start_time).total_seconds()
+            self.metrics.record_processing_time("config_update", duration)
+
+            self.logger.info(
+                f"Configuration updated successfully: {subject} in {duration:.3f}s"
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error applying config update: {e}", exc_info=True)
+            self.metrics.record_error()
+
+    async def _update_trading_config(self, updates: dict) -> None:
+        """Update trading configuration."""
+        if not updates:
+            return
+
+        try:
+            # Update risk manager settings
+            if hasattr(self.risk_manager, "update_config"):
+                self.risk_manager.update_config(updates)
+                self.logger.info(f"Risk manager config updated: {updates}")
+        except Exception as e:
+            self.logger.error(f"Failed to update trading config: {e}")
+
+    async def _update_strategy_config(self, updates: dict) -> None:
+        """Update strategy configuration."""
+        if not updates:
+            return
+
+        try:
+            # Update strategy layer settings
+            if hasattr(self.strategy_layer, "update_config"):
+                self.strategy_layer.update_config(updates)
+                self.logger.info(f"Strategy layer config updated: {updates}")
+        except Exception as e:
+            self.logger.error(f"Failed to update strategy config: {e}")
+
+    async def _update_ict_config(self, updates: dict) -> None:
+        """Update ICT indicator configuration."""
+        if not updates:
+            return
+
+        try:
+            # Update indicator engine settings
+            if hasattr(self.indicator_engine, "update_config"):
+                self.indicator_engine.update_config(updates)
+                self.logger.info(f"Indicator engine config updated: {updates}")
+        except Exception as e:
+            self.logger.error(f"Failed to update ICT config: {e}")
+
+    async def _update_market_config(self, updates: dict) -> None:
+        """Update market configuration."""
+        if not updates:
+            return
+
+        try:
+            # Market config (timeframes) - strategy layer handles this
+            if hasattr(self.strategy_layer, "update_timeframes"):
+                timeframes = {
+                    k: v
+                    for k, v in updates.items()
+                    if "timeframe" in k.lower()
+                }
+                if timeframes:
+                    self.strategy_layer.update_timeframes(timeframes)
+                    self.logger.info(f"Timeframes updated: {timeframes}")
+        except Exception as e:
+            self.logger.error(f"Failed to update market config: {e}")
+
+
 class BackpressureMonitor:
     """
     Monitor and control pipeline backpressure.
@@ -894,8 +1035,15 @@ class TradingSystemOrchestrator:
 
         exit_handler = ExitSignalHandler(order_executor=self.order_executor)
 
+        config_handler = ConfigUpdateHandler(
+            risk_manager=self.risk_validator,
+            strategy_layer=self.strategy_layer,
+            indicator_engine=self.multi_timeframe_engine,
+            metrics=self._pipeline_metrics,
+        )
+
         # Register handlers with event bus
-        logger.info(f"🔧 About to register {7} handlers with EventBus...")
+        logger.info(f"🔧 About to register {8} handlers with EventBus...")
         self.event_bus.subscribe(EventType.CANDLE_RECEIVED, candle_handler)
         logger.info(f"✅ Registered CANDLE_RECEIVED handler")
         self.event_bus.subscribe(EventType.INDICATORS_UPDATED, indicator_handler)
@@ -911,6 +1059,8 @@ class TradingSystemOrchestrator:
         self.event_bus.subscribe(EventType.STOP_LOSS_HIT, exit_handler)
         self.event_bus.subscribe(EventType.TAKE_PROFIT_HIT, exit_handler)
         logger.info(f"✅ Registered EXIT handlers")
+        self.event_bus.subscribe(EventType.CONFIG_UPDATED, config_handler)
+        logger.info(f"✅ Registered CONFIG_UPDATED handler")
 
         # Store handlers for cleanup
         self._pipeline_handlers = [
@@ -921,6 +1071,7 @@ class TradingSystemOrchestrator:
             risk_handler,
             order_handler,
             exit_handler,
+            config_handler,
         ]
 
         logger.info(f"Data pipeline configured with {len(self._pipeline_handlers)} handlers")

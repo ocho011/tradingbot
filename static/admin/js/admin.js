@@ -17,7 +17,7 @@ let isLoading = false;
 // =====================================
 // Utility Functions
 // =====================================
-function showToast(type, message) {
+function showToast(type, message, duration = 3000) {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -30,7 +30,7 @@ function showToast(type, message) {
     setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    }, duration);
 }
 
 function getToastIcon(type) {
@@ -359,7 +359,8 @@ async function handleSaveChanges() {
         // Use batch update for other settings
         await updateConfigBatch(updates);
 
-        showToast('success', 'Configuration saved successfully!');
+        // Show dynamic update notification
+        showToast('success', '✨ Configuration updated dynamically! No restart required.');
         await loadConfig(); // Reload config to confirm
 
         // Success state
@@ -388,13 +389,13 @@ function handleEnvironmentToggle() {
     const targetEnv = toTestnet ? 'Testnet' : 'Mainnet';
 
     showModal(
-        '⚠️ Environment Switch',
-        `Are you sure you want to switch to ${targetEnv}? This will affect all trading operations.`,
+        '⚠️ Environment Switch - Restart Required',
+        `Switching to ${targetEnv} requires a system restart to apply new API endpoints and credentials.\n\nThe system will need to be manually restarted after this change.\n\nContinue?`,
         async () => {
             try {
                 await switchEnvironment(toTestnet);
                 document.getElementById('envDisplay').textContent = targetEnv;
-                showToast('success', `Switched to ${targetEnv}`);
+                showToast('warning', `⚠️ Switched to ${targetEnv}. Please restart the system to apply changes.`, 8000);
                 await loadConfig();
             } catch (error) {
                 toggle.checked = !toggle.checked;
@@ -417,7 +418,7 @@ async function handleRollback() {
                 btn.innerHTML = '⏳ Rolling back...';
 
                 await rollbackConfig(1);
-                showToast('success', 'Configuration rolled back');
+                showToast('success', '✨ Configuration rolled back dynamically! No restart required.');
                 await loadConfig();
 
                 // Success state
