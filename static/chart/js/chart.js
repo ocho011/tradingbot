@@ -20,70 +20,91 @@ class TradingChart {
     }
 
     init() {
+        console.log('TradingChart init called');
         this.setupChart();
         this.setupEventListeners();
         this.connectWebSocket();
     }
 
     setupChart() {
+        console.log('setupChart called');
+
+        // Check if LightweightCharts is loaded
+        if (typeof LightweightCharts === 'undefined') {
+            console.error('LightweightCharts library not loaded!');
+            return;
+        }
+
         const container = document.getElementById('chartContainer');
+        if (!container) {
+            console.error('Chart container element not found!');
+            return;
+        }
+
+        console.log('Container dimensions:', container.offsetWidth, 'x', container.offsetHeight);
 
         // Ensure container has dimensions
         if (!container.offsetWidth || !container.offsetHeight) {
             console.error('Chart container has no dimensions');
+            // Try again after a short delay
+            setTimeout(() => this.setupChart(), 100);
             return;
         }
 
-        this.chart = LightweightCharts.createChart(container, {
-            width: container.clientWidth,
-            height: 600,
-            layout: {
-                background: { color: '#1e2139' },
-                textColor: '#9ca3af',
-            },
-            grid: {
-                vertLines: { color: '#2d3748' },
-                horzLines: { color: '#2d3748' },
-            },
-            crosshair: {
-                mode: LightweightCharts.CrosshairMode.Normal,
-            },
-            rightPriceScale: {
-                borderColor: '#2d3748',
-            },
-            timeScale: {
-                borderColor: '#2d3748',
-                timeVisible: true,
-                secondsVisible: false,
-            },
-        });
+        try {
+            this.chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: 600,
+                layout: {
+                    background: { color: '#1e2139' },
+                    textColor: '#9ca3af',
+                },
+                grid: {
+                    vertLines: { color: '#2d3748' },
+                    horzLines: { color: '#2d3748' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: '#2d3748',
+                },
+                timeScale: {
+                    borderColor: '#2d3748',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+            });
 
-        this.candleSeries = this.chart.addCandlestickSeries({
-            upColor: '#10b981',
-            downColor: '#ef4444',
-            borderUpColor: '#10b981',
-            borderDownColor: '#ef4444',
-            wickUpColor: '#10b981',
-            wickDownColor: '#ef4444',
-        });
+            this.candleSeries = this.chart.addCandlestickSeries({
+                upColor: '#10b981',
+                downColor: '#ef4444',
+                borderUpColor: '#10b981',
+                borderDownColor: '#ef4444',
+                wickUpColor: '#10b981',
+                wickDownColor: '#ef4444',
+            });
 
-        // Add some sample data to make chart visible
-        const sampleData = [
-            { time: Math.floor(Date.now() / 1000) - 3600, open: 50000, high: 51000, low: 49500, close: 50500 },
-            { time: Math.floor(Date.now() / 1000) - 2400, open: 50500, high: 51500, low: 50000, close: 51000 },
-            { time: Math.floor(Date.now() / 1000) - 1200, open: 51000, high: 52000, low: 50500, close: 51500 },
-            { time: Math.floor(Date.now() / 1000), open: 51500, high: 52500, low: 51000, close: 52000 },
-        ];
-        this.candleSeries.setData(sampleData);
+            // Add some sample data to make chart visible
+            const sampleData = [
+                { time: Math.floor(Date.now() / 1000) - 3600, open: 50000, high: 51000, low: 49500, close: 50500 },
+                { time: Math.floor(Date.now() / 1000) - 2400, open: 50500, high: 51500, low: 50000, close: 51000 },
+                { time: Math.floor(Date.now() / 1000) - 1200, open: 51000, high: 52000, low: 50500, close: 51500 },
+                { time: Math.floor(Date.now() / 1000), open: 51500, high: 52500, low: 51000, close: 52000 },
+            ];
+            this.candleSeries.setData(sampleData);
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            if (this.chart && container.clientWidth > 0) {
-                this.chart.applyOptions({ width: container.clientWidth });
-            }
-        });
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                if (this.chart && container.clientWidth > 0) {
+                    this.chart.applyOptions({ width: container.clientWidth });
+                }
+            });
 
-        console.log('Chart initialized successfully');
+            console.log('Chart initialized successfully');
+        } catch (error) {
+            console.error('Error initializing chart:', error);
+        }
     }
 
     setupEventListeners() {
@@ -469,5 +490,7 @@ class TradingChart {
 
 // Initialize chart when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, creating TradingChart...');
     window.tradingChart = new TradingChart();
+    console.log('TradingChart created');
 });
