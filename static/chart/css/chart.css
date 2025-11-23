@@ -203,6 +203,7 @@ body {
     margin-bottom: 1.5rem;
     box-shadow: var(--shadow-lg);
     border: 1px solid var(--border-color);
+    min-height: 700px;
 }
 
 .chart-container {
