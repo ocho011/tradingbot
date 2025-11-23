@@ -28,6 +28,12 @@ class TradingChart {
     setupChart() {
         const container = document.getElementById('chartContainer');
 
+        // Ensure container has dimensions
+        if (!container.offsetWidth || !container.offsetHeight) {
+            console.error('Chart container has no dimensions');
+            return;
+        }
+
         this.chart = LightweightCharts.createChart(container, {
             width: container.clientWidth,
             height: 600,
@@ -61,10 +67,23 @@ class TradingChart {
             wickDownColor: '#ef4444',
         });
 
+        // Add some sample data to make chart visible
+        const sampleData = [
+            { time: Math.floor(Date.now() / 1000) - 3600, open: 50000, high: 51000, low: 49500, close: 50500 },
+            { time: Math.floor(Date.now() / 1000) - 2400, open: 50500, high: 51500, low: 50000, close: 51000 },
+            { time: Math.floor(Date.now() / 1000) - 1200, open: 51000, high: 52000, low: 50500, close: 51500 },
+            { time: Math.floor(Date.now() / 1000), open: 51500, high: 52500, low: 51000, close: 52000 },
+        ];
+        this.candleSeries.setData(sampleData);
+
         // Handle window resize
         window.addEventListener('resize', () => {
-            this.chart.applyOptions({ width: container.clientWidth });
+            if (this.chart && container.clientWidth > 0) {
+                this.chart.applyOptions({ width: container.clientWidth });
+            }
         });
+
+        console.log('Chart initialized successfully');
     }
 
     setupEventListeners() {
