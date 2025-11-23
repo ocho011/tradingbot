@@ -229,6 +229,10 @@ async def initialize_system() -> tuple[
     # Get references to core components
     evt_bus = orch.event_bus
 
+    # Inject event bus into configuration manager to enable event emission
+    cfg_manager.event_bus = evt_bus
+    logger.info("✅ Event bus injected into configuration manager")
+
     # Initialize monitoring
     logger.info("📊 Initializing metrics and monitoring...")
     metrics = MetricsCollector()

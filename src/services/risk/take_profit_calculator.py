@@ -658,3 +658,14 @@ class TakeProfitCalculator:
                 raise ValueError("max_distance_pct must be positive")
             self.max_distance_pct = Decimal(str(max_distance_pct))
             logger.info(f"Maximum distance updated to {max_distance_pct}%")
+
+    def update_config(self, updates: Dict[str, Any]) -> None:
+        """
+        Update configuration from dictionary.
+
+        Args:
+            updates: Dictionary of configuration updates
+        """
+        # Currently no direct mapping from UI config to TakeProfitCalculator params
+        # But we implement this for interface consistency
+        pass

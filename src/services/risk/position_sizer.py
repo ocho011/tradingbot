@@ -401,3 +401,27 @@ class PositionSizer:
             "max_position_size": float(self.max_position_size) if self.max_position_size else None,
             "precision": self.precision,
         }
+
+    def update_config(self, updates: Dict[str, Any]) -> None:
+        """
+        Update configuration from dictionary.
+
+        Args:
+            updates: Dictionary of configuration updates
+        """
+        try:
+            params = {}
+            if "risk_per_trade_percent" in updates:
+                params["risk_percentage"] = float(updates["risk_per_trade_percent"])
+            
+            if "default_leverage" in updates:
+                params["leverage"] = int(updates["default_leverage"])
+            
+            if "max_position_size_usdt" in updates:
+                params["max_position_size"] = float(updates["max_position_size_usdt"])
+
+            if params:
+                self.update_parameters(**params)
+                
+        except Exception as e:
+            logger.error(f"Failed to update PositionSizer config: {e}")

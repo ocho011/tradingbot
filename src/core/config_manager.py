@@ -694,14 +694,15 @@ class ConfigurationManager:
                         "details": details,
                         "timestamp": datetime.utcnow().isoformat(),
                     },
-                    priority=5,  # Medium priority
+                    priority=100, # High priority (Critical)
                 )
                 # Try to emit event asynchronously if event loop is running
                 try:
                     asyncio.get_running_loop()
-                    asyncio.create_task(self.event_bus.emit(event))
-                except RuntimeError:
+                    asyncio.create_task(self.event_bus.publish(event))
+                except RuntimeError as e:
                     # No running event loop - skip async emission in sync context
+                    logger.error(f"Failed to get running loop for event emission: {e}")
                     pass
             except Exception as e:
                 logger.error(f"Failed to emit CONFIG_UPDATED event: {e}")

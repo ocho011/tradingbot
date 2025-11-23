@@ -679,3 +679,14 @@ class StopLossCalculator:
                 raise ValueError("max_stop_distance_pct must be positive")
             self.max_stop_distance_pct = Decimal(str(max_stop_distance_pct))
             logger.info(f"Maximum stop distance updated to {max_stop_distance_pct}%")
+
+    def update_config(self, updates: Dict[str, Any]) -> None:
+        """
+        Update configuration from dictionary.
+
+        Args:
+            updates: Dictionary of configuration updates
+        """
+        # Currently no direct mapping from UI config to StopLossCalculator params
+        # But we implement this for interface consistency
+        pass

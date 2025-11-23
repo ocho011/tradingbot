@@ -36,8 +36,8 @@ class Event:
         """Validate event after initialization."""
         if not isinstance(self.event_type, EventType):
             raise TypeError(f"event_type must be EventType, got {type(self.event_type)}")
-        if self.priority < 0 or self.priority > 10:
-            raise ValueError(f"priority must be between 0 and 10, got {self.priority}")
+        if self.priority < 0 or self.priority > 100:
+            raise ValueError(f"priority must be between 0 and 100, got {self.priority}")
 
 
 class EventHandler(ABC):
@@ -262,9 +262,12 @@ class EventBus:
         Returns:
             True if the event was queued, False if dropped due to full queue
         """
-        if self._queue.size() >= self._max_queue_size:
+        # Check queue size limit, but allow critical events (priority >= 10) to bypass
+        is_critical = event.priority >= 10
+        
+        if not is_critical and self._queue.size() >= self._max_queue_size:
             self.logger.warning(
-                f"Event queue full ({self._max_queue_size}), dropping event {event.event_type}"
+                f"Event queue full ({self._max_queue_size}), dropping low-priority event {event.event_type}"
             )
             self._stats["dropped"] += 1
             return False
