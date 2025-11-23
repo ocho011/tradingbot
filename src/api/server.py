@@ -333,6 +333,18 @@ async def admin_dashboard():
     return FileResponse("static/admin/index.html")
 
 
+@app.get("/chart", include_in_schema=False)
+async def chart_dashboard():
+    """Serve trading chart dashboard."""
+    return FileResponse("static/chart/index.html")
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    """Redirect root to chart dashboard."""
+    return FileResponse("static/chart/index.html")
+
+
 # ============================================================================
 # Additional Security Middleware
 # ============================================================================

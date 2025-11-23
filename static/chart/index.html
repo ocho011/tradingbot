@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Chart - ICT Dashboard</title>
+    <link rel="stylesheet" href="css/chart.css?v=1.0">
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1 class="title">📊 ICT Trading Dashboard</h1>
+                <div class="symbol-info">
+                    <span class="symbol" id="currentSymbol">BTCUSDT</span>
+                    <span class="price" id="currentPrice">--</span>
+                    <span class="change" id="priceChange">--</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Connecting...</span>
+                </div>
+                <button class="btn-admin" onclick="window.location.href='/admin'">⚙️ Admin</button>
+            </div>
+        </header>
+
+        <!-- Timeframe Tabs -->
+        <div class="timeframe-tabs">
+            <button class="tab-btn" data-timeframe="1m">1m</button>
+            <button class="tab-btn active" data-timeframe="15m">15m</button>
+            <button class="tab-btn" data-timeframe="1h">1h</button>
+        </div>
+
+        <!-- Chart Container -->
+        <div class="chart-wrapper">
+            <div class="chart-container" id="chartContainer"></div>
+
+            <!-- Chart Controls -->
+            <div class="chart-controls">
+                <div class="control-group">
+                    <label class="control-label">
+                        <input type="checkbox" id="showOrderBlocks" checked>
+                        <span>Order Blocks</span>
+                    </label>
+                    <label class="control-label">
+                        <input type="checkbox" id="showFVG" checked>
+                        <span>Fair Value Gaps</span>
+                    </label>
+                    <label class="control-label">
+                        <input type="checkbox" id="showLiquidity" checked>
+                        <span>Liquidity Levels</span>
+                    </label>
+                    <label class="control-label">
+                        <input type="checkbox" id="showSignals" checked>
+                        <span>Trading Signals</span>
+                    </label>
+                </div>
+                <div class="control-group">
+                    <button class="btn-control" id="btnZoomIn">🔍+</button>
+                    <button class="btn-control" id="btnZoomOut">🔍-</button>
+                    <button class="btn-control" id="btnFitContent">⬌ Fit</button>
+                    <button class="btn-control" id="btnResetChart">🔄 Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Panels -->
+        <div class="info-panels">
+            <!-- Indicators Panel -->
+            <div class="panel">
+                <h3 class="panel-title">📍 Active Indicators</h3>
+                <div class="panel-content" id="indicatorsPanel">
+                    <div class="loading">Loading indicators...</div>
+                </div>
+            </div>
+
+            <!-- Signals Panel -->
+            <div class="panel">
+                <h3 class="panel-title">🎯 Recent Signals</h3>
+                <div class="panel-content" id="signalsPanel">
+                    <div class="loading">Waiting for signals...</div>
+                </div>
+            </div>
+
+            <!-- Positions Panel -->
+            <div class="panel">
+                <h3 class="panel-title">💼 Active Positions</h3>
+                <div class="panel-content" id="positionsPanel">
+                    <div class="loading">No active positions</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/chart.js?v=1.0"></script>
+</body>
+
+</html>
