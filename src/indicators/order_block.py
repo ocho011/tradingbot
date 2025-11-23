@@ -509,3 +509,26 @@ class OrderBlockDetector:
         )
 
         return all_obs
+
+    def update_config(self, config: Dict[str, Any]) -> None:
+        """
+        Update detector configuration dynamically.
+
+        Args:
+            config: New configuration dictionary
+        """
+        # Handle direct parameter updates
+        if "min_swing_strength" in config:
+            self.min_swing_strength = int(config["min_swing_strength"])
+        if "min_candles_for_ob" in config:
+            self.min_candles_for_ob = int(config["min_candles_for_ob"])
+        if "max_candles_for_ob" in config:
+            self.max_candles_for_ob = int(config["max_candles_for_ob"])
+        if "volume_multiplier_threshold" in config:
+            self.volume_multiplier_threshold = float(config["volume_multiplier_threshold"])
+
+        # Handle ICT specific config keys from UI
+        if "ob_lookback_periods" in config:
+            # Map ob_lookback_periods to max_candles_for_ob
+            self.max_candles_for_ob = int(config["ob_lookback_periods"])
+            self.logger.info(f"Updated max_candles_for_ob to {self.max_candles_for_ob}")

@@ -584,3 +584,28 @@ class LiquiditySweepDetector:
         self._completed_sweeps.clear()
         self._candidates.clear()
         self.logger.debug("Cleared sweep detection history")
+
+    def update_config(self, config: Dict[str, Any]) -> None:
+        """
+        Update detector configuration dynamically.
+
+        Args:
+            config: New configuration dictionary
+        """
+        # Handle direct parameter updates
+        if "min_breach_distance_pips" in config:
+            self.min_breach_distance_pips = float(config["min_breach_distance_pips"])
+        if "max_breach_distance_pips" in config:
+            self.max_breach_distance_pips = float(config["max_breach_distance_pips"])
+        if "reversal_confirmation_pips" in config:
+            self.reversal_confirmation_pips = float(config["reversal_confirmation_pips"])
+        if "max_candles_for_reversal" in config:
+            self.max_candles_for_reversal = int(config["max_candles_for_reversal"])
+        if "min_reversal_strength" in config:
+            self.min_reversal_strength = float(config["min_reversal_strength"])
+
+        # Handle ICT specific config keys from UI
+        if "liquidity_sweep_threshold" in config:
+            # Map liquidity_sweep_threshold to min_breach_distance_pips
+            self.min_breach_distance_pips = float(config["liquidity_sweep_threshold"])
+            self.logger.info(f"Updated min_breach_distance_pips to {self.min_breach_distance_pips}")

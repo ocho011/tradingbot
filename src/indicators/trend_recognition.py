@@ -804,3 +804,22 @@ class TrendRecognitionEngine:
         self._swing_highs.clear()
         self._swing_lows.clear()
         self.logger.debug("Cleared trend recognition history")
+
+    def update_config(self, config: Dict[str, Any]) -> None:
+        """
+        Update engine configuration dynamically.
+
+        Args:
+            config: New configuration dictionary
+        """
+        # Handle direct parameter updates
+        if "min_swing_strength" in config:
+            self.min_swing_strength = int(config["min_swing_strength"])
+        if "min_patterns_for_confirmation" in config:
+            self.min_patterns_for_confirmation = int(config["min_patterns_for_confirmation"])
+        if "min_price_change_atr_multiple" in config:
+            self.min_price_change_atr_multiple = float(config["min_price_change_atr_multiple"])
+        if "atr_period" in config:
+            self.atr_period = int(config["atr_period"])
+        if "transition_threshold" in config:
+            self.transition_threshold = float(config["transition_threshold"])

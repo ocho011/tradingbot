@@ -437,3 +437,18 @@ class BreakerBlockDetector:
                         f"Breaker Block tested at index {i}: "
                         f"{bb.type.value} BB, price range=[{candle.low:.2f}-{candle.high:.2f}]"
                     )
+
+    def update_config(self, config: Dict[str, Any]) -> None:
+        """
+        Update detector configuration dynamically.
+
+        Args:
+            config: New configuration dictionary
+        """
+        # Handle direct parameter updates
+        if "breach_threshold_percentage" in config:
+            self.breach_threshold_percentage = float(config["breach_threshold_percentage"])
+        if "min_breach_candle_body_ratio" in config:
+            self.min_breach_candle_body_ratio = float(config["min_breach_candle_body_ratio"])
+        if "require_close_beyond" in config:
+            self.require_close_beyond = bool(config["require_close_beyond"])

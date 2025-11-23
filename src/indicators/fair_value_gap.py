@@ -457,3 +457,27 @@ class FVGDetector:
                 elif fvg.type == FVGType.BEARISH and candle.high > fvg.high:
                     fvg.state = FVGState.FILLED
                     fvg.filled_percentage = 100.0
+
+    def update_config(self, config: Dict[str, Any]) -> None:
+        """
+        Update detector configuration dynamically.
+
+        Args:
+            config: New configuration dictionary
+        """
+        # Handle direct parameter updates
+        if "min_gap_size_pips" in config:
+            self.min_gap_size_pips = float(config["min_gap_size_pips"])
+        if "min_gap_size_percentage" in config:
+            self.min_gap_size_percentage = float(config["min_gap_size_percentage"])
+        if "use_pip_threshold" in config:
+            self.use_pip_threshold = bool(config["use_pip_threshold"])
+        if "pip_size" in config:
+            self.pip_size = float(config["pip_size"])
+
+        # Handle ICT specific config keys from UI
+        if "fvg_min_size_percent" in config:
+            # Map fvg_min_size_percent to min_gap_size_percentage
+            self.min_gap_size_percentage = float(config["fvg_min_size_percent"])
+            self.use_pip_threshold = False # Switch to percentage based if this is set
+            self.logger.info(f"Updated min_gap_size_percentage to {self.min_gap_size_percentage}%")

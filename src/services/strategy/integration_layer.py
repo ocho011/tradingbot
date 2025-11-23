@@ -365,6 +365,31 @@ class StrategyIntegrationLayer:
         self.signal_filter.reset_statistics()
         logger.info("Integration layer metrics reset")
 
+    def update_config(self, config: Dict[str, Any]) -> None:
+        """
+        Update strategy configuration dynamically.
+
+        Args:
+            config: New configuration dictionary
+        """
+        logger.info(f"Updating StrategyIntegrationLayer config: {config}")
+
+        # Update strategy enablement
+        if "enable_strategy_1" in config:
+            self.strategy_enabled["Strategy_A"] = config["enable_strategy_1"]
+            logger.info(f"Strategy A enabled: {config['enable_strategy_1']}")
+        if "enable_strategy_2" in config:
+            self.strategy_enabled["Strategy_B"] = config["enable_strategy_2"]
+            logger.info(f"Strategy B enabled: {config['enable_strategy_2']}")
+        if "enable_strategy_3" in config:
+            self.strategy_enabled["Strategy_C"] = config["enable_strategy_3"]
+            logger.info(f"Strategy C enabled: {config['enable_strategy_3']}")
+
+        # Update individual strategy parameters
+        for name, strategy in self.strategies.items():
+            if hasattr(strategy, "update_config"):
+                strategy.update_config(config)
+
     def __repr__(self) -> str:
         active_strategies = sum(1 for enabled in self.strategy_enabled.values() if enabled)
         return (

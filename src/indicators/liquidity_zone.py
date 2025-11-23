@@ -628,3 +628,22 @@ class LiquidityZoneDetector:
                             )
                         else:
                             level.mark_touched(candle.timestamp)
+
+    def update_config(self, config: Dict[str, Any]) -> None:
+        """
+        Update detector configuration dynamically.
+
+        Args:
+            config: New configuration dictionary
+        """
+        # Handle direct parameter updates
+        if "min_swing_strength" in config:
+            self.min_swing_strength = int(config["min_swing_strength"])
+        if "proximity_tolerance_pips" in config:
+            self.proximity_tolerance_pips = float(config["proximity_tolerance_pips"])
+        if "min_touches_for_strong" in config:
+            self.min_touches_for_strong = int(config["min_touches_for_strong"])
+        if "pip_size" in config:
+            self.pip_size = float(config["pip_size"])
+        if "volume_lookback" in config:
+            self.volume_lookback = int(config["volume_lookback"])

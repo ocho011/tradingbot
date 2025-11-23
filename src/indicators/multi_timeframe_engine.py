@@ -1928,3 +1928,36 @@ class MultiTimeframeMarketStructureAnalyzer:
             )
 
         return recommendations
+
+    def update_config(self, config: Dict[str, Any]) -> None:
+        """
+        Update indicator configuration dynamically.
+
+        Args:
+            config: New configuration dictionary
+        """
+        logger.info(f"Updating MultiTimeframeIndicatorEngine config: {config}")
+
+        # Update Order Block Detector
+        if hasattr(self.ob_detector, "update_config"):
+            self.ob_detector.update_config(config)
+
+        # Update FVG Detector
+        if hasattr(self.fvg_detector, "update_config"):
+            self.fvg_detector.update_config(config)
+
+        # Update Breaker Block Detector
+        if hasattr(self.bb_detector, "update_config"):
+            self.bb_detector.update_config(config)
+
+        # Update Liquidity Zone Detector
+        if hasattr(self.liquidity_zone_detector, "update_config"):
+            self.liquidity_zone_detector.update_config(config)
+
+        # Update Liquidity Sweep Detector
+        if hasattr(self.liquidity_sweep_detector, "update_config"):
+            self.liquidity_sweep_detector.update_config(config)
+
+        # Update Trend Recognition Engine
+        if hasattr(self.trend_recognition_engine, "update_config"):
+            self.trend_recognition_engine.update_config(config)
