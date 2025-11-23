@@ -228,6 +228,8 @@ class CandleProcessingHandler(EventHandler):
 
     async def handle(self, event: Event) -> None:
         """Process candle received event."""
+        self.logger.info(f"🔔 CandleProcessingHandler received event: {event.event_type}")
+        
         if event.event_type != EventType.CANDLE_RECEIVED:
             return
 
@@ -893,15 +895,22 @@ class TradingSystemOrchestrator:
         exit_handler = ExitSignalHandler(order_executor=self.order_executor)
 
         # Register handlers with event bus
+        logger.info(f"🔧 About to register {7} handlers with EventBus...")
         self.event_bus.subscribe(EventType.CANDLE_RECEIVED, candle_handler)
+        logger.info(f"✅ Registered CANDLE_RECEIVED handler")
         self.event_bus.subscribe(EventType.INDICATORS_UPDATED, indicator_handler)
+        logger.info(f"✅ Registered INDICATORS_UPDATED handler")
         self.event_bus.subscribe(EventType.SIGNAL_GENERATED, signal_handler)
+        logger.info(f"✅ Registered SIGNAL_GENERATED handler")
         self.event_bus.subscribe(EventType.RISK_CHECK_PASSED, risk_handler)
+        logger.info(f"✅ Registered RISK_CHECK_PASSED handler")
         self.event_bus.subscribe(EventType.ORDER_FILLED, order_handler)
         self.event_bus.subscribe(EventType.ORDER_FILLED, order_handler)
         self.event_bus.subscribe(EventType.ORDER_PLACED, order_handler)
+        logger.info(f"✅ Registered ORDER handlers")
         self.event_bus.subscribe(EventType.STOP_LOSS_HIT, exit_handler)
         self.event_bus.subscribe(EventType.TAKE_PROFIT_HIT, exit_handler)
+        logger.info(f"✅ Registered EXIT handlers")
 
         # Store handlers for cleanup
         self._pipeline_handlers = [
@@ -962,7 +971,7 @@ class TradingSystemOrchestrator:
             # TODO: Make symbols and timeframes configurable via config.yaml or .env
             # For now, using default symbols for mainnet testing
             default_symbols = ["BTCUSDT"]  # Start with BTC only for testing
-            default_timeframes = [TimeFrame.M1, TimeFrame.M5, TimeFrame.M15]
+            default_timeframes = [TimeFrame.M1, TimeFrame.M5, TimeFrame.M15, TimeFrame.H1]
 
             async def initialize_market_data_subscriptions():
                 """Initialize WebSocket subscriptions for market data collection."""

@@ -215,7 +215,7 @@ class EventBus:
         if event_type not in self._subscribers:
             self._subscribers[event_type] = set()
         self._subscribers[event_type].add(handler)
-        self.logger.debug(f"Handler {handler.name} subscribed to {event_type}")
+        self.logger.info(f"✅ Handler {handler.name} subscribed to {event_type}")
 
     def subscribe_all(self, handler: EventHandler) -> None:
         """
@@ -346,9 +346,11 @@ class EventBus:
         handlers = {h for h in handlers if h.can_handle(event.event_type)}
 
         if not handlers:
-            self.logger.debug(f"No handlers for event {event.event_type}")
+            self.logger.info(f"⚠️  No handlers for event {event.event_type}")
             return
 
+        self.logger.info(f"📤 Dispatching {event.event_type} to {len(handlers)} handler(s)")
+        
         # Dispatch to all handlers concurrently with error isolation
         tasks = [self._safe_handle(handler, event) for handler in handlers]
 

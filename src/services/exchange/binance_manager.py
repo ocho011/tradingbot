@@ -691,6 +691,9 @@ class BinanceManager:
             self._ws_subscriptions[symbol].add(timeframe)
             subscription_key = f"{symbol}:{timeframe.value}"
 
+            # Load initial candle history via REST API
+            await self._load_initial_candle_history(symbol, timeframe)
+
             # Create listener task for this symbol-timeframe combination
             task = asyncio.create_task(
                 self._watch_candles(symbol, timeframe), name=subscription_key
@@ -704,6 +707,63 @@ class BinanceManager:
         # Start heartbeat monitor if not already running
         if not self._heartbeat_running:
             await self.start_heartbeat_monitor()
+
+    async def _load_initial_candle_history(
+        self, symbol: str, timeframe: TimeFrame, limit: int = 1000
+    ) -> None:
+        """
+        Load initial candle history via REST API.
+
+        This ensures we have sufficient historical data for indicator calculation
+        before starting the WebSocket stream.
+
+        Args:
+            symbol: Trading pair symbol
+            timeframe: Timeframe to load
+            limit: Number of candles to load (default: 1000, max: 1000)
+        """
+        try:
+            logger.info(f"📥 Loading initial {limit} candles for {symbol} {timeframe.value}...")
+
+            # Fetch historical OHLCV data
+            ohlcv = await self.exchange.fetch_ohlcv(
+                symbol=symbol, timeframe=timeframe.value, limit=limit
+            )
+
+            logger.info(f"📊 Received {len(ohlcv)} historical candles for {symbol} {timeframe.value}")
+
+            # Publish each candle to the event bus
+            for candle_data in ohlcv:
+                candle = {
+                    "symbol": symbol,
+                    "timeframe": timeframe,
+                    "timestamp": candle_data[0],
+                    "open": candle_data[1],
+                    "high": candle_data[2],
+                    "low": candle_data[3],
+                    "close": candle_data[4],
+                    "volume": candle_data[5],
+                }
+
+                if self._validate_candle(candle) and self.event_bus:
+                    await self.event_bus.publish(
+                        Event(
+                            event_type=EventType.CANDLE_RECEIVED,
+                            priority=6,
+                            data={"candle": candle},
+                            source="BinanceManager.InitialLoad",
+                        )
+                    )
+
+            logger.info(
+                f"✅ Loaded {len(ohlcv)} historical candles for {symbol} {timeframe.value}"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"❌ Failed to load initial candle history for {symbol} {timeframe.value}: {e}",
+                exc_info=True,
+            )
 
     async def _watch_candles(self, symbol: str, timeframe: TimeFrame) -> None:
         """
@@ -722,13 +782,21 @@ class BinanceManager:
             while self._ws_running:
                 try:
                     # Watch for new candles (ccxt handles WebSocket internally)
+                    logger.debug(f"🔍 Calling watch_ohlcv for {subscription_key}...")
                     ohlcv = await self.exchange.watch_ohlcv(symbol, timeframe.value)
+                    logger.debug(f"📊 Received {len(ohlcv) if ohlcv else 0} candles for {subscription_key}")
 
                     if not ohlcv or len(ohlcv) == 0:
+                        logger.warning(f"⚠️  No candles received for {subscription_key}, continuing...")
                         continue
 
                     # Get the latest candle
                     latest_candle = ohlcv[-1]
+                    logger.debug(
+                        f"📈 Latest candle for {subscription_key}: "
+                        f"ts={latest_candle[0]}, o={latest_candle[1]}, h={latest_candle[2]}, "
+                        f"l={latest_candle[3]}, c={latest_candle[4]}, v={latest_candle[5]}"
+                    )
 
                     # Parse candle data: [timestamp, open, high, low, close, volume]
                     candle_data = {
@@ -756,10 +824,14 @@ class BinanceManager:
                                 )
                             )
 
-                            logger.debug(
-                                f"Published candle: {symbol} {timeframe.value} "
+                            logger.info(
+                                f"✅ Published candle: {symbol} {timeframe.value} "
                                 f"@ {candle_data['timestamp']} close={candle_data['close']}"
                             )
+                        else:
+                            logger.error(f"❌ EventBus not available for {subscription_key}")
+                    else:
+                        logger.warning(f"⚠️  Invalid candle data for {subscription_key}: {candle_data}")
 
                 except asyncio.CancelledError:
                     logger.info(f"Candle watcher cancelled for {subscription_key}")
@@ -767,7 +839,7 @@ class BinanceManager:
 
                 except Exception as e:
                     logger.error(
-                        f"Error watching candles for {subscription_key}: {e}", exc_info=True
+                        f"❌ Error watching candles for {subscription_key}: {e}", exc_info=True
                     )
                     # Continue watching despite errors
                     await asyncio.sleep(1)

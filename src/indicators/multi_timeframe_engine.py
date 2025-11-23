@@ -120,6 +120,23 @@ class TimeframeIndicators:
         self.last_update_timestamp = None
         self.candle_count = 0
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert indicators to dictionary."""
+        return {
+            "timeframe": self.timeframe.value,
+            "order_blocks": [ob.to_dict() for ob in self.order_blocks],
+            "fair_value_gaps": [fvg.to_dict() for fvg in self.fair_value_gaps],
+            "breaker_blocks": [bb.to_dict() for bb in self.breaker_blocks],
+            "liquidity_levels": [lvl.to_dict() for lvl in self.liquidity_levels],
+            "liquidity_sweeps": [sweep.to_dict() for sweep in self.liquidity_sweeps],
+            "trend_structures": [ts.to_dict() for ts in self.trend_structures],
+            "trend_state": self.trend_state.to_dict() if self.trend_state else None,
+            "liquidity_strength_metrics": [m.to_dict() for m in self.liquidity_strength_metrics],
+            "market_state": self.market_state.to_dict() if self.market_state else None,
+            "last_update_timestamp": self.last_update_timestamp,
+            "candle_count": self.candle_count,
+        }
+
 
 @dataclass
 class TimeframeData:
@@ -657,14 +674,12 @@ class MultiTimeframeIndicatorEngine:
 
                     # Detect trend change (will publish event if changed)
                     if previous_trend:
-                        self.trend_recognition_engine.detect_trend_change(
-                            previous_trend, tf_data.indicators.trend_state, trend_structures
-                        )
+                        self.trend_recognition_engine.detect_trend_change(tf_data.candles)
 
             # Calculate Liquidity Strength for all detected levels
             if all_liquidity_levels:
                 strength_metrics = self.liquidity_strength_calculator.calculate_all_strengths(
-                    all_liquidity_levels, tf_data.candles, tf_data.indicators.trend_state
+                    all_liquidity_levels, tf_data.candles, len(tf_data.candles) - 1
                 )
 
                 # Store strength metrics
@@ -672,7 +687,7 @@ class MultiTimeframeIndicatorEngine:
 
                 # Publish event for liquidity strength calculation
                 if strength_metrics:
-                    avg_strength = sum(m.overall_strength for m in strength_metrics) / len(
+                    avg_strength = sum(m.total_strength for m in strength_metrics) / len(
                         strength_metrics
                     )
                     self._publish_event_sync(
@@ -682,7 +697,7 @@ class MultiTimeframeIndicatorEngine:
                             "total_levels": len(strength_metrics),
                             "average_strength": round(avg_strength, 2),
                             "strong_levels": len(
-                                [m for m in strength_metrics if m.overall_strength >= 7.0]
+                                [m for m in strength_metrics if m.total_strength >= 7.0]
                             ),
                             "metrics": [m.to_dict() for m in strength_metrics],
                         },
@@ -696,8 +711,9 @@ class MultiTimeframeIndicatorEngine:
 
             # Update Market State (Bullish/Bearish/Ranging)
             # Separate buy-side and sell-side levels for state tracker
-            buy_side_levels = [lvl for lvl in all_liquidity_levels if lvl.side == "BUY"]
-            sell_side_levels = [lvl for lvl in all_liquidity_levels if lvl.side == "SELL"]
+            from src.indicators.liquidity_zone import LiquidityType
+            buy_side_levels = [lvl for lvl in all_liquidity_levels if lvl.type == LiquidityType.BUY_SIDE]
+            sell_side_levels = [lvl for lvl in all_liquidity_levels if lvl.type == LiquidityType.SELL_SIDE]
 
             # Get recent BMS events (last 10)
             recent_bms = []
@@ -810,6 +826,10 @@ class MultiTimeframeIndicatorEngine:
                     timeframe,
                     {
                         "symbol": tf_data.candles[0].symbol if tf_data.candles else "UNKNOWN",
+                        "indicators": {
+                            tf.value: self.timeframe_data[tf].indicators.to_dict()
+                            for tf in self.timeframes
+                        },
                         "order_blocks_count": len(tf_data.indicators.order_blocks),
                         "fair_value_gaps_count": len(tf_data.indicators.fair_value_gaps),
                         "breaker_blocks_count": len(tf_data.indicators.breaker_blocks),
@@ -849,7 +869,7 @@ class MultiTimeframeIndicatorEngine:
                         ),
                         "timestamp": latest.timestamp,
                     },
-                    priority=5,
+                    priority=9,
                 )
 
             logger.info(
@@ -876,12 +896,6 @@ class MultiTimeframeIndicatorEngine:
 
         This method creates a task in the event loop if one is running.
         If no event loop is running, the event is logged but not published.
-
-        Args:
-            event_type: Type of event to publish
-            timeframe: Timeframe the event relates to
-            data: Event payload data
-            priority: Event priority (0-10, higher = more important)
         """
         if self.event_bus:
             try:
@@ -894,17 +908,34 @@ class MultiTimeframeIndicatorEngine:
 
                 # Try to get the running event loop
                 try:
-                    asyncio.get_running_loop()
+                    loop = asyncio.get_running_loop()
                     # Schedule event publishing in the loop
                     asyncio.create_task(self.event_bus.publish(event))
-                    logger.debug(f"Scheduled {event_type.value} event for {timeframe.value}")
                 except RuntimeError:
-                    # No event loop running, log instead
-                    logger.warning(
-                        f"No event loop running, cannot publish {event_type.value} event"
-                    )
+                    # No event loop running in current thread
+                    # Try to get the main event loop and schedule from there
+                    try:
+                        import threading
+                        # Get the main loop (assuming it's running in the main thread)
+                        main_loop = asyncio.get_event_loop()
+                        if main_loop.is_running():
+                            # Use call_soon_threadsafe to schedule the coroutine
+                            asyncio.run_coroutine_threadsafe(
+                                self.event_bus.publish(event),
+                                main_loop
+                            )
+                        else:
+                            logger.warning(
+                                f"⚠️ Event loop not running, cannot publish {event_type.value} event"
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            f"⚠️ Could not publish {event_type.value} event: {e}"
+                        )
             except Exception as e:
-                logger.error(f"Error publishing {event_type.value} event: {e}", exc_info=True)
+                logger.error(f"❌ Error publishing {event_type.value} event: {e}", exc_info=True)
+        else:
+            logger.warning(f"⚠️ EventBus not available, cannot publish {event_type.value}")
 
     def get_indicators(self, timeframe: TimeFrame) -> Optional[TimeframeIndicators]:
         """

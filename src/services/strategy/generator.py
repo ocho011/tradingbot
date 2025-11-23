@@ -4,15 +4,21 @@ Signal Generator Base Interface
 Defines the abstract base class for all trading signal generators.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import Optional
 
 import pandas as pd
 
+from src.core.constants import PositionSide
 from src.monitoring.metrics import ExecutionTimer, record_signal_generated
 from src.monitoring.tracing import get_tracer
-from src.services.strategy.signal import Signal
+from src.services.strategy.signal import Signal, SignalDirection
+from src.strategies.strategy_a import StrategyA
+from src.strategies.strategy_a import StrategyA
+
+logger = logging.getLogger(__name__)
 
 
 class SignalGenerator(ABC):
@@ -214,19 +220,49 @@ class StrategyAGenerator(SignalGenerator):
 
     def __init__(self):
         super().__init__("Strategy_A_Conservative")
+        self.strategy = StrategyA()
 
     def _generate_signal_impl(
         self, symbol: str, current_price: Decimal, candles: pd.DataFrame, **kwargs
     ) -> Optional[Signal]:
         """
         Generate signal for Strategy A (Conservative).
-
-        This is a placeholder that should be implemented based on
-        Task 8.1 specifications.
         """
-        # This will be implemented in Task 8.1
-        # For now, return None (no signal)
-        return None
+        # Extract indicators from kwargs
+        indicators = kwargs.get("indicators")
+        if not indicators:
+            return None
+
+        # Prepare market data for StrategyA
+        market_data = {
+            "indicators": indicators,
+            "current_price": float(current_price),
+            "symbol": symbol,
+        }
+
+        # Analyze using StrategyA
+        trading_signal = self.strategy.analyze(market_data)
+
+        if not trading_signal:
+            return None
+
+        # Convert TradingSignal to Signal
+        direction = (
+            SignalDirection.LONG
+            if trading_signal.direction == PositionSide.LONG
+            else SignalDirection.SHORT
+        )
+
+        return Signal(
+            entry_price=Decimal(str(trading_signal.entry_price)),
+            direction=direction,
+            confidence=trading_signal.confidence * 100,  # Convert 0-1 to 0-100
+            stop_loss=Decimal(str(trading_signal.stop_loss)),
+            take_profit=Decimal(str(trading_signal.take_profit)),
+            symbol=symbol,
+            strategy_name=self.strategy_name,
+            metadata=trading_signal.metadata or {},
+        )
 
     def calculate_stop_loss(
         self, entry_price: Decimal, direction: str, candles: pd.DataFrame, **kwargs
