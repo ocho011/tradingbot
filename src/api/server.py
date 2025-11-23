@@ -1151,6 +1151,276 @@ async def get_websocket_stats(_user: Dict[str, Any] = Depends(verify_token)) -> 
 
 
 # ============================================================================
+# Dynamic Symbol Management Endpoints
+# ============================================================================
+
+
+class AddSymbolRequest(BaseModel):
+    """Request to add a new trading symbol."""
+
+    symbol: str = Field(..., description="Trading pair symbol (e.g., 'ETHUSDT')")
+    timeframes: Optional[List[str]] = Field(
+        None, description="Timeframes to subscribe (default: ['1m', '5m', '15m', '1h'])"
+    )
+
+
+class RemoveSymbolRequest(BaseModel):
+    """Request to remove a trading symbol."""
+
+    symbol: str = Field(..., description="Trading pair symbol to remove")
+
+
+class SymbolManagementResponse(BaseModel):
+    """Response for symbol management operations."""
+
+    success: bool
+    message: str
+    symbol: str
+    active_symbols: List[str]
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+@app.get(
+    "/api/symbols/active",
+    summary="Get Active Symbols",
+    description="Get list of currently active trading symbols",
+    tags=["Symbol Management"],
+)
+async def get_active_symbols(
+    _user: Dict[str, Any] = Depends(verify_token),
+) -> Dict[str, Any]:
+    """
+    Get list of active trading symbols.
+
+    Returns all symbols currently being monitored and traded.
+    """
+    if not orchestrator or not orchestrator.binance_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Trading system not available",
+        )
+
+    try:
+        # Get active subscriptions from BinanceManager
+        subscriptions = orchestrator.binance_manager._ws_subscriptions
+        active_symbols = list(subscriptions.keys()) if subscriptions else []
+
+        return {
+            "success": True,
+            "active_symbols": active_symbols,
+            "count": len(active_symbols),
+            "timestamp": datetime.now(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get active symbols: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve active symbols: {str(e)}",
+        )
+
+
+@app.post(
+    "/api/symbols/add",
+    response_model=SymbolManagementResponse,
+    summary="Add Trading Symbol",
+    description="Dynamically add a new trading symbol with historical data loading",
+    tags=["Symbol Management"],
+)
+async def add_trading_symbol(
+    request: AddSymbolRequest,
+    _user: Dict[str, Any] = Depends(verify_token),
+) -> SymbolManagementResponse:
+    """
+    Add a new trading symbol at runtime.
+
+    This endpoint:
+    1. Validates the symbol with the exchange
+    2. Loads historical candle data (1000 candles per timeframe)
+    3. Subscribes to real-time WebSocket updates
+    4. Updates system configuration
+
+    Requires admin privileges.
+    """
+    if not orchestrator or not orchestrator.binance_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Trading system not available",
+        )
+
+    try:
+        from src.core.constants import TimeFrame
+
+        symbol = request.symbol.upper()
+
+        # Parse timeframes or use defaults
+        if request.timeframes:
+            timeframes = [TimeFrame(tf) for tf in request.timeframes]
+        else:
+            timeframes = [TimeFrame.M1, TimeFrame.M5, TimeFrame.M15, TimeFrame.H1]
+
+        # Check if symbol is already subscribed
+        if symbol in orchestrator.binance_manager._ws_subscriptions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Symbol {symbol} is already subscribed",
+            )
+
+        # Validate symbol exists on exchange
+        try:
+            await orchestrator.binance_manager.exchange.load_markets()
+            if symbol not in orchestrator.binance_manager.exchange.markets:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Symbol {symbol} not found on exchange",
+                )
+        except Exception as e:
+            logger.error(f"Failed to validate symbol {symbol}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to validate symbol: {str(e)}",
+            )
+
+        # Subscribe to candles (this will load historical data and start WebSocket)
+        logger.info(f"Adding symbol {symbol} with timeframes {[tf.value for tf in timeframes]}")
+        await orchestrator.binance_manager.subscribe_candles(symbol, timeframes)
+
+        # Update configuration to persist the change
+        if config_manager:
+            try:
+                # Get current active symbols
+                current_config = config_manager.get_status().get("current_config", {})
+                market_config = current_config.get("market", {})
+                active_symbols = market_config.get("active_symbols", [])
+
+                # Add new symbol if not already in config
+                if symbol not in active_symbols:
+                    active_symbols.append(symbol)
+                    config_manager.update_config(
+                        section="market",
+                        updates={"active_symbols": active_symbols},
+                        validate=True,
+                    )
+                    logger.info(f"Updated configuration with symbol {symbol}")
+            except Exception as e:
+                logger.warning(f"Failed to update configuration: {e}")
+                # Don't fail the request if config update fails
+
+        # Get updated list of active symbols
+        subscriptions = orchestrator.binance_manager._ws_subscriptions
+        all_active_symbols = list(subscriptions.keys())
+
+        logger.info(f"Successfully added symbol {symbol}")
+
+        return SymbolManagementResponse(
+            success=True,
+            message=f"Symbol {symbol} added successfully with {len(timeframes)} timeframes",
+            symbol=symbol,
+            active_symbols=all_active_symbols,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to add symbol {request.symbol}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to add symbol: {str(e)}",
+        )
+
+
+@app.delete(
+    "/api/symbols/remove",
+    response_model=SymbolManagementResponse,
+    summary="Remove Trading Symbol",
+    description="Dynamically remove a trading symbol and stop data collection",
+    tags=["Symbol Management"],
+)
+async def remove_trading_symbol(
+    request: RemoveSymbolRequest,
+    _user: Dict[str, Any] = Depends(verify_token),
+) -> SymbolManagementResponse:
+    """
+    Remove a trading symbol at runtime.
+
+    This endpoint:
+    1. Unsubscribes from WebSocket updates
+    2. Stops processing data for the symbol
+    3. Updates system configuration
+
+    Requires admin privileges.
+    """
+    if not orchestrator or not orchestrator.binance_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Trading system not available",
+        )
+
+    try:
+        symbol = request.symbol.upper()
+
+        # Check if symbol is subscribed
+        if symbol not in orchestrator.binance_manager._ws_subscriptions:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Symbol {symbol} is not currently subscribed",
+            )
+
+        # Cancel WebSocket tasks for this symbol
+        timeframes = list(orchestrator.binance_manager._ws_subscriptions[symbol])
+        for timeframe in timeframes:
+            subscription_key = f"{symbol}:{timeframe.value}"
+            if subscription_key in orchestrator.binance_manager._ws_tasks:
+                task = orchestrator.binance_manager._ws_tasks[subscription_key]
+                task.cancel()
+                del orchestrator.binance_manager._ws_tasks[subscription_key]
+                logger.info(f"Cancelled WebSocket task for {subscription_key}")
+
+        # Remove from subscriptions
+        del orchestrator.binance_manager._ws_subscriptions[symbol]
+
+        # Update configuration
+        if config_manager:
+            try:
+                current_config = config_manager.get_status().get("current_config", {})
+                market_config = current_config.get("market", {})
+                active_symbols = market_config.get("active_symbols", [])
+
+                if symbol in active_symbols:
+                    active_symbols.remove(symbol)
+                    config_manager.update_config(
+                        section="market",
+                        updates={"active_symbols": active_symbols},
+                        validate=True,
+                    )
+                    logger.info(f"Removed {symbol} from configuration")
+            except Exception as e:
+                logger.warning(f"Failed to update configuration: {e}")
+
+        # Get updated list
+        subscriptions = orchestrator.binance_manager._ws_subscriptions
+        all_active_symbols = list(subscriptions.keys())
+
+        logger.info(f"Successfully removed symbol {symbol}")
+
+        return SymbolManagementResponse(
+            success=True,
+            message=f"Symbol {symbol} removed successfully",
+            symbol=symbol,
+            active_symbols=all_active_symbols,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to remove symbol {request.symbol}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to remove symbol: {str(e)}",
+        )
+
+
+# ============================================================================
 # Error Handlers
 # ============================================================================
 

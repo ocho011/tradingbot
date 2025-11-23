@@ -213,29 +213,7 @@ function updateSystemStatus(status) {
     `;
 }
 
-function initializeSymbolGrid() {
-    const grid = document.getElementById('symbolGrid');
-    grid.innerHTML = '';
-
-    const activeSymbols = currentConfig.market?.active_symbols || [];
-
-    AVAILABLE_SYMBOLS.forEach(symbol => {
-        const isActive = activeSymbols.includes(symbol);
-        const checkbox = document.createElement('div');
-        checkbox.className = `symbol-checkbox ${isActive ? 'active' : ''}`;
-        checkbox.innerHTML = `
-            <input type="checkbox" id="symbol-${symbol}" ${isActive ? 'checked' : ''}>
-            <label for="symbol-${symbol}">${symbol}</label>
-        `;
-
-        const input = checkbox.querySelector('input');
-        input.addEventListener('change', () => {
-            checkbox.classList.toggle('active', input.checked);
-        });
-
-        grid.appendChild(checkbox);
-    });
-}
+// initializeSymbolGrid removed - now using refreshSymbolGrid() for dynamic management
 
 function populateForm() {
     // Environment
@@ -266,16 +244,10 @@ function populateForm() {
     document.getElementById('higherTf').value = currentConfig.market?.higher_timeframe || '1h';
     document.getElementById('lowerTf').value = currentConfig.market?.lower_timeframe || '5m';
 
-    // Initialize symbol grid
-    initializeSymbolGrid();
+    // Symbol grid is now managed by refreshSymbolGrid()
 }
 
-function getSelectedSymbols() {
-    const checkboxes = document.querySelectorAll('.symbol-checkbox input[type="checkbox"]');
-    return Array.from(checkboxes)
-        .filter(cb => cb.checked)
-        .map(cb => cb.id.replace('symbol-', ''));
-}
+// getSelectedSymbols removed - symbols are now managed via API
 
 // =====================================
 // Event Handlers
@@ -295,7 +267,7 @@ async function handleSaveChanges() {
         // Collect all changes
         const updates = {
             market: {
-                active_symbols: getSelectedSymbols(),
+                // active_symbols now managed via /api/symbols/add and /api/symbols/remove
                 primary_timeframe: document.getElementById('primaryTf').value,
                 higher_timeframe: document.getElementById('higherTf').value,
                 lower_timeframe: document.getElementById('lowerTf').value
@@ -476,6 +448,7 @@ async function init() {
     // Load initial data
     await loadConfig();
     await loadStatus();
+    await refreshSymbolGrid(); // Load active symbols
 
     // Set up event listeners
     document.getElementById('saveBtn').addEventListener('click', handleSaveChanges);
@@ -483,10 +456,180 @@ async function init() {
     document.getElementById('historyBtn').addEventListener('click', handleShowHistory);
     document.getElementById('envToggle').addEventListener('change', handleEnvironmentToggle);
 
+    // Symbol management listeners
+    document.getElementById('addSymbolBtn').addEventListener('click', handleAddSymbol);
+    document.getElementById('newSymbol').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleAddSymbol();
+        }
+    });
+
     // Auto-refresh status every 10 seconds
     setInterval(loadStatus, 10000);
 
+    // Auto-refresh symbols every 30 seconds
+    setInterval(refreshSymbolGrid, 30000);
+
     console.log('Admin dashboard initialized');
+}
+
+// =====================================
+// Symbol Management Functions
+// =====================================
+async function fetchActiveSymbols() {
+    try {
+        const response = await fetch(`${API_BASE}/api/symbols/active`);
+        if (!response.ok) throw new Error('Failed to fetch active symbols');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching active symbols:', error);
+        return null;
+    }
+}
+
+async function addSymbol(symbol, timeframes = null) {
+    try {
+        const response = await fetch(`${API_BASE}/api/symbols/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                symbol: symbol,
+                timeframes: timeframes
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to add symbol');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error adding symbol:', error);
+        throw error;
+    }
+}
+
+async function removeSymbol(symbol) {
+    try {
+        const response = await fetch(`${API_BASE}/api/symbols/remove`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol: symbol })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to remove symbol');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error removing symbol:', error);
+        throw error;
+    }
+}
+
+async function refreshSymbolGrid() {
+    const grid = document.getElementById('symbolGrid');
+    grid.innerHTML = '<div class="loading-spinner">Loading symbols...</div>';
+
+    try {
+        const data = await fetchActiveSymbols();
+        if (!data || !data.active_symbols) {
+            throw new Error('No symbol data received');
+        }
+
+        grid.innerHTML = '';
+        const activeSymbols = data.active_symbols;
+
+        if (activeSymbols.length === 0) {
+            grid.innerHTML = '<div class="no-symbols">No active symbols. Add one above.</div>';
+            return;
+        }
+
+        activeSymbols.forEach(symbol => {
+            const symbolCard = document.createElement('div');
+            symbolCard.className = 'symbol-card';
+            symbolCard.innerHTML = `
+                <div class="symbol-name">${symbol}</div>
+                <button class="symbol-remove-btn" data-symbol="${symbol}" title="Remove ${symbol}">
+                    ✕
+                </button>
+            `;
+
+            const removeBtn = symbolCard.querySelector('.symbol-remove-btn');
+            removeBtn.addEventListener('click', () => handleRemoveSymbol(symbol));
+
+            grid.appendChild(symbolCard);
+        });
+    } catch (error) {
+        console.error('Error refreshing symbol grid:', error);
+        grid.innerHTML = '<div class="error-message">Failed to load symbols</div>';
+        showToast('error', 'Failed to load active symbols');
+    }
+}
+
+async function handleAddSymbol() {
+    const input = document.getElementById('newSymbol');
+    const btn = document.getElementById('addSymbolBtn');
+    const symbol = input.value.trim().toUpperCase();
+
+    if (!symbol) {
+        showToast('warning', 'Please enter a symbol');
+        return;
+    }
+
+    // Basic validation
+    if (!/^[A-Z]+USDT$/.test(symbol)) {
+        showToast('warning', 'Symbol must end with USDT (e.g., ETHUSDT)');
+        return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.classList.add('loading');
+    btn.innerHTML = '⏳ Adding...';
+    btn.disabled = true;
+
+    try {
+        const result = await addSymbol(symbol);
+        showToast('success', `${symbol} added successfully! Historical data loaded.`);
+        input.value = '';
+        await refreshSymbolGrid();
+
+        // Success animation
+        btn.classList.remove('loading');
+        btn.classList.add('success');
+        btn.innerHTML = '✅ Added!';
+
+        setTimeout(() => {
+            btn.classList.remove('success');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 2000);
+
+    } catch (error) {
+        showToast('error', `Failed to add ${symbol}: ${error.message}`);
+        btn.classList.remove('loading');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function handleRemoveSymbol(symbol) {
+    showModal(
+        '🗑️ Remove Symbol',
+        `Are you sure you want to remove ${symbol}? This will stop all data collection for this symbol.`,
+        async () => {
+            try {
+                await removeSymbol(symbol);
+                showToast('success', `${symbol} removed successfully`);
+                await refreshSymbolGrid();
+            } catch (error) {
+                showToast('error', `Failed to remove ${symbol}: ${error.message}`);
+            }
+        }
+    );
 }
 
 // Start the app when DOM is ready

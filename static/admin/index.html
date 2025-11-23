@@ -48,8 +48,16 @@
 
             <div class="subsection">
                 <h3>Active Trading Pairs</h3>
-                <div class="symbol-grid" id="symbolGrid">
-                    <!-- Populated by JavaScript -->
+                <div class="symbol-management">
+                    <div class="symbol-add-form">
+                        <input type="text" id="newSymbol" placeholder="Enter symbol (e.g., ETHUSDT)" class="symbol-input">
+                        <button class="btn btn-small btn-primary" id="addSymbolBtn">
+                            ➕ Add Symbol
+                        </button>
+                    </div>
+                    <div class="symbol-grid" id="symbolGrid">
+                        <!-- Populated by JavaScript -->
+                    </div>
                 </div>
             </div>
 
